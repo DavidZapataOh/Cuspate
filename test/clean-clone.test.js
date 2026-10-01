@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,23 @@ test("a clean clone builds every workspace with an emptied environment", () => {
 		/^BUILT web$/m,
 		"the script did not report building web",
 	);
+});
+
+test("a clean clone builds on a machine that has never compiled anything", () => {
+	// Measured on the first run on a machine that was not the author's: the build is offline so
+	// that anything the clone fails to provide fails loudly, and a machine's first build has no
+	// compiler yet, so it failed with the compiler missing. An empty home directory is that machine.
+	const home = mkdtempSync(path.join(tmpdir(), "cold-home-"));
+	try {
+		const output = execFileSync(path.join(root, "tools", "clean-clone.sh"), {
+			cwd: root,
+			encoding: "utf8",
+			env: { PATH: process.env.PATH, HOME: home },
+		});
+		assert.match(output, /^BUILT contracts$/m, output);
+	} finally {
+		rmSync(home, { recursive: true, force: true });
+	}
 });
 
 test("the dependency revision is pinned by tracked files", () => {

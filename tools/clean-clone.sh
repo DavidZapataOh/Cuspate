@@ -18,6 +18,14 @@ cd '${work}/clone'
 
 pnpm install --frozen-lockfile --reporter=silent
 
+# The compiler is toolchain, like forge itself, and not something a clone provides. A machine's
+# first build has to fetch it, which the offline build below refuses to do, so it is fetched here
+# by its pin, through a source that needs nothing from the clone.
+solc=\$(sed -n 's/^solc = \"\\([0-9.]*\\)\"/\\1/p' contracts/foundry.toml)
+mkdir -p '${work}/compiler/src'
+printf 'pragma solidity %s;\\ncontract Fetch {}\\n' \"\${solc}\" > '${work}/compiler/src/Fetch.sol'
+forge build --root '${work}/compiler' --use \"\${solc}\" > /dev/null
+
 # --offline so anything the clone failed to provide fails loudly.
 forge build --root contracts --offline
 echo 'BUILT contracts'

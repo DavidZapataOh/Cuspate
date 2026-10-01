@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
 	cpSync,
+	existsSync,
 	mkdtempSync,
 	readFileSync,
 	rmSync,
@@ -17,11 +18,28 @@ const contracts = path.join(root, "contracts");
 const target = "script/DeployProbe.s.sol:Probe";
 const big = 128 * 1024 * 1024;
 
-/** The compiler the project pins, resolved from the pin rather than from a path. */
+/**
+ * The compiler the project pins, resolved from the pin rather than from a path.
+ *
+ * Measured on a machine that had never compiled anything: where the toolchain keeps compilers
+ * depends on that machine's state. It uses the legacy directory when nothing else exists, and the
+ * data directory once one does — which the package manager's own install creates. So both are
+ * searched, and finding neither is a failure rather than a guess.
+ */
 function pinnedSolc() {
 	const toml = readFileSync(path.join(contracts, "foundry.toml"), "utf8");
 	const version = toml.match(/^solc = "([0-9.]+)"/m)[1];
-	return path.join(process.env.HOME, ".svm", version, `solc-${version}`);
+	const home = process.env.HOME;
+	const data = process.env.XDG_DATA_HOME || path.join(home, ".local", "share");
+	const candidates = [path.join(data, "svm"), path.join(home, ".svm")].map(
+		(directory) => path.join(directory, version, `solc-${version}`),
+	);
+	const found = candidates.find((candidate) => existsSync(candidate));
+	assert.ok(
+		found,
+		`the pinned compiler is in none of: ${candidates.join(", ")}`,
+	);
+	return found;
 }
 
 function inputAt(dir) {
@@ -40,9 +58,11 @@ function inputAt(dir) {
 test("the verification input recompiles to the creation bytecode this repository ships", () => {
 	// Source verification is exactly this equality. Everything else about it is an HTTP
 	// call, which is why this is proven without the verifier.
+	// The input first: producing it is what installs the compiler on a machine without one.
+	const input = inputAt(contracts);
 	const compiled = JSON.parse(
 		execFileSync(pinnedSolc(), ["--standard-json"], {
-			input: inputAt(contracts),
+			input,
 			encoding: "utf8",
 			maxBuffer: big,
 		}),

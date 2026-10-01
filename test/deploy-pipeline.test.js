@@ -457,6 +457,13 @@ test("the wrapper produces and scans the verification input on a rehearsal too",
 });
 
 test("a broadcast to a public chain without the scanner's salt is refused", async () => {
+	// A local node answers with any chain id it is told to, and the chain id selects the
+	// file — correctly. So this is the one test that points the wrapper at a public chain's
+	// id, and it asserts the committed record is untouched rather than absent: by now the
+	// record exists, and a test that demanded its absence would have to be weakened the
+	// first time the pipeline did its job.
+	const record = bookPath(10143);
+	const before = existsSync(record) ? readFileSync(record, "utf8") : null;
 	await withNode(async (url) => {
 		const { code, output } = deploy(url, {
 			DEPLOY_NETWORK: "monad_testnet",
@@ -465,11 +472,8 @@ test("a broadcast to a public chain without the scanner's salt is refused", asyn
 		});
 		assert.notEqual(code, 0, `a keyless publish was accepted:\n${output}`);
 		assert.match(output, /missing SCAN_SALT \(publish tier\)/, output);
-		// Nothing may have been written for the chain whose record is committed.
-		assert.ok(
-			!existsSync(bookPath(10143)),
-			"a local run wrote the committed record",
-		);
+		const after = existsSync(record) ? readFileSync(record, "utf8") : null;
+		assert.equal(after, before, "a local run altered the committed record");
 	}, 10143);
 });
 

@@ -150,3 +150,47 @@ test("the hook accepts Solidity that the project's own formatter produced", () =
 		rmSync(scratch, { recursive: true, force: true });
 	}
 });
+
+test("the hook accepts a commit whose only staged file is a generated record", () => {
+	// The record is excluded from the formatter so the formatter cannot rewrite what the
+	// deploy produced. The other edge of that same decision: with every staged path
+	// excluded, the formatter reports that it processed nothing and exits non-zero, so the
+	// hook rejects the one commit the pipeline exists to produce. Either way the only route
+	// through is a hand edit, inside the hook, on the path of the rule that forbids one.
+	const scratch = mkdtempSync(path.join(tmpdir(), "hook-record-"));
+	try {
+		for (const item of [
+			".husky",
+			"biome.json",
+			"package.json",
+			"node_modules",
+			"tools",
+			"contracts",
+		]) {
+			cpSync(path.join(root, item), path.join(scratch, item), {
+				recursive: true,
+			});
+		}
+		git(["init", "-q", "."], scratch);
+		const record = path.join(scratch, "contracts", "deployments", "10143.json");
+		execFileSync("mkdir", ["-p", path.dirname(record)]);
+		writeFileSync(record, '{\n  "Probe": {\n    "address": "0x00"\n  }\n}\n');
+		git(["add", "-f", "contracts/deployments/10143.json"], scratch);
+
+		let code = 0;
+		let output = "";
+		try {
+			output = execFileSync(path.join(scratch, ".husky", "pre-commit"), {
+				cwd: scratch,
+				encoding: "utf8",
+				stdio: "pipe",
+			});
+		} catch (error) {
+			code = error.status ?? 1;
+			output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+		}
+		assert.equal(code, 0, `the hook rejected a generated record:\n${output}`);
+	} finally {
+		rmSync(scratch, { recursive: true, force: true });
+	}
+});

@@ -18,8 +18,12 @@ if [ -n "$solidity" ]; then
 fi
 
 if [ -n "$web" ]; then
+	# The staged set may be entirely excluded from this gate — a generated record is, so
+	# that the gate cannot rewrite it — and processing nothing is then the correct outcome
+	# rather than an error. The whole-tree run still asserts it inspects a non-zero count,
+	# so this cannot hide a gate that matches nothing.
 	# shellcheck disable=SC2086
-	pnpm exec biome ci --error-on-warnings $web
+	pnpm exec biome ci --error-on-warnings --no-errors-on-unmatched $web
 fi
 
 # The last enforcement point before continuous integration exists. A term in a

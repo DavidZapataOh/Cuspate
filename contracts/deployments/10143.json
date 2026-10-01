@@ -1,0 +1,11 @@
+{
+  "Probe": {
+    "address": "0x4e48788294BCEDE593b24aEC0536797D1d62C60f",
+    "block": 67192104,
+    "commit": "ac12d93a41d413211bc9bae33fd398ab3a403151",
+    "constructorArgs": "0x",
+    "factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "salt": "0x45cc9c1545bac4cce9103d88f405ab570ac75c25c2028225ff9401ea5c6ccfec",
+    "txHash": "0xb4f6130adf14d17a0023a45a32f131440ac0fc2ae640e98abb7db00fecbfc97e"
+  }
+}

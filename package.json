@@ -1,0 +1,19 @@
+{
+	"name": "cuspate",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@12.8.1",
+	"scripts": {
+		"build": "forge build --root contracts && pnpm --filter cuspate-web run build",
+		"test": "node --test \"test/**/*.test.js\" && forge test --root contracts",
+		"fmt": "forge fmt --root contracts && biome check --write .",
+		"lint": "forge lint --root contracts -D warnings && biome ci --error-on-warnings . && solhint --config contracts/.solhint.json \"contracts/test/**/*.sol\"",
+		"prepare": "git rev-parse --git-dir >/dev/null 2>&1 && husky || exit 0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"husky": "^9.1.7",
+		"solhint": "^6.2.4",
+		"typescript": "5.9.3"
+	}
+}

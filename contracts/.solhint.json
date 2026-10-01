@@ -1,0 +1,11 @@
+{
+	"rules": {
+		"use-natspec": [
+			"error",
+			{
+				"title": { "enabled": false },
+				"author": { "enabled": false }
+			}
+		]
+	}
+}

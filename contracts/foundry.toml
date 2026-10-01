@@ -1,0 +1,32 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+
+# Forced, not preferred: Uniswap v4-core pins this compiler exactly, not as a range.
+solc = "0.8.26"
+# Setting the version does not by itself stop detection.
+auto_detect_solc = false
+
+# Transient storage, MCOPY and PUSH0 all respond on the target network. This is a
+# deliberate step down from the toolchain default, which is a later fork.
+evm_version = "cancun"
+# What actually selects the target network's execution semantics. evm_version alone
+# does not: the same test costs materially different gas with and without this.
+network = "monad"
+
+# Keeps the metadata hash out of the deployed bytecode, so verification compares
+# code rather than a digest of build inputs.
+bytecode_hash = "none"
+auto_detect_remappings = false
+
+[lint]
+# Linting is a gate, not a build-time surprise.
+lint_on_build = false
+
+[fmt]
+# The formatter's path set must reach contracts/test/, which is the only Solidity
+# in the repository while src/ is deliberately absent.
+line_length = 100
+tab_width = 4

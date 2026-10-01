@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+# Reports on staged files. It never rewrites them and it never runs the suite.
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+solidity=$(printf "%s\n" "$staged" | grep -E "\.sol$" || true)
+web=$(printf "%s\n" "$staged" | grep -E "\.(ts|tsx|js|jsx|json|jsonc)$" || true)
+
+if [ -n "$solidity" ]; then
+	# shellcheck disable=SC2086
+	forge fmt --check $solidity
+	# shellcheck disable=SC2086
+	pnpm exec solhint --config contracts/.solhint.json $solidity
+fi
+
+if [ -n "$web" ]; then
+	# shellcheck disable=SC2086
+	pnpm exec biome ci --error-on-warnings $web
+fi
+
+# The last enforcement point before continuous integration exists. A term in a
+# pushed commit message cannot be withdrawn.
+# shellcheck disable=SC2086
+./tools/scan-forbidden.sh $staged

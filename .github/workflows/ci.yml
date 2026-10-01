@@ -1,0 +1,87 @@
+# Three jobs, one per secret tier: building and testing need nothing, reading real chain state
+# needs only egress, and the one secret lives in a job that builds nothing and publishes nothing.
+# No step holds logic. Each gate is a command that runs identically on a laptop.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Queued, never cancelled: a cancelled run is neither green nor red, and a result nobody can read
+# is not a gate.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@v6
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: tripwires
+        run: tools/ci.sh tripwires
+      - name: clean-clone
+        run: tools/ci.sh clean-clone
+      - name: repository-suite
+        run: tools/ci.sh repository-suite
+      - name: build
+        run: tools/ci.sh build
+      - name: format
+        run: tools/ci.sh format
+      - name: lint
+        run: tools/ci.sh lint
+      - name: documentation
+        run: tools/ci.sh documentation
+      - name: licences
+        run: tools/ci.sh licences
+      - name: selections
+        run: tools/ci.sh selections
+      - name: size
+        run: tools/ci.sh size
+      - name: gas
+        run: tools/ci.sh gas
+      - name: coverage
+        run: tools/ci.sh coverage
+
+  fork:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: fork
+        run: tools/test.sh fork
+
+  forbidden-terms:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: forbidden-terms
+        run: tools/ci.sh forbidden-terms
+        env:
+          SCAN_SALT: ${{ secrets.SCAN_SALT }}
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD: ${{ github.sha }}

@@ -64,3 +64,8 @@ runs = 512
 fail_on_revert = true
 runs = 128
 depth = 256
+
+# Test files are measured out of the total rather than into it. Included, they are the code most
+# completely covered by definition, and the percentage stops describing anything.
+[coverage]
+exclude_tests = true

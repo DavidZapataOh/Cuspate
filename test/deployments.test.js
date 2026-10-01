@@ -14,6 +14,15 @@ const readTier = {
 	143: "MONAD_ARCHIVE_RPC_URL",
 };
 
+// Where to read when nothing is configured. Without this a stranger who clones this
+// repository gets a red test and no way to guess the variable it wanted, which would
+// make the claim that anyone can check this record without asking anyone for anything
+// false. Public, keyless, and overridden by the variables above.
+const fallback = {
+	10143: "https://testnet-rpc.monad.xyz",
+	143: "https://rpc-mainnet.monadinfra.com",
+};
+
 function git(args, cwd = root) {
 	return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
@@ -70,8 +79,17 @@ test("every committed record matches the chain, read with no key and no funds", 
 		const chainId = path.basename(book, ".json");
 		const variable = readTier[chainId];
 		assert.ok(variable, `no read endpoint is declared for chain ${chainId}`);
-		const url = process.env[variable];
-		assert.ok(url, `${variable} is unset, so this record cannot be checked`);
+		const url = process.env[variable] ?? fallback[chainId];
+		assert.ok(url, `no endpoint is known for chain ${chainId}`);
+		// An override pointing elsewhere would have every comparison below made against
+		// a different chain, and the failure would read as a record mismatch.
+		assert.equal(
+			execFileSync("cast", ["chain-id", "--rpc-url", url], {
+				encoding: "utf8",
+			}).trim(),
+			chainId,
+			`${variable} points at a different chain than the record names`,
+		);
 
 		const entries = JSON.parse(readFileSync(path.join(root, book), "utf8"));
 		for (const [key, entry] of Object.entries(entries)) {

@@ -57,6 +57,13 @@ esac
 if [ "${broadcast}" -eq 1 ]; then
 	require_var DEPLOY_SENDER broadcast
 	require_var DEPLOY_SIGNER broadcast
+	# A keystore needs its password from a file, not from a prompt: the signing path the
+	# irreversible run uses has to be the same one a rehearsal can exercise, and a prompt
+	# makes that impossible. The password is never a variable; its location is.
+	if [ "${DEPLOY_SIGNER}" = "keystore" ]; then
+		require_var DEPLOY_KEYSTORE broadcast
+		require_var DEPLOY_PASSWORD_FILE broadcast
+	fi
 fi
 
 cd "${repo}/contracts"
@@ -147,7 +154,11 @@ fi
 data="${salt}$(printf '%s' "${init_code}" | sed 's/^0x//')"
 case "${DEPLOY_SIGNER}" in
 unlocked) signer="--unlocked" ;;
-*) signer="--account ${DEPLOY_SIGNER}" ;;
+keystore) signer="--keystore ${DEPLOY_KEYSTORE} --password-file ${DEPLOY_PASSWORD_FILE}" ;;
+*)
+	echo "unknown signer: ${DEPLOY_SIGNER} (expected unlocked or keystore)" >&2
+	exit 1
+	;;
 esac
 
 # Gas is charged on the limit, so the limit is the measured estimate and not a round

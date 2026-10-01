@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -464,4 +471,51 @@ test("a broadcast to a public chain without the scanner's salt is refused", asyn
 			"a local run wrote the committed record",
 		);
 	}, 10143);
+});
+
+test("a keystore signer broadcasts with no prompt and no key in the environment", async () => {
+	// The signer path the real run uses must be the path the rehearsal exercises, or the
+	// one command that cannot be withdrawn is the first time it is tried.
+	forgetLocalBook();
+	const dir = mkdtempSync(path.join(tmpdir(), "keystore-"));
+	try {
+		const password = "a throwaway password for a throwaway signer";
+		const passwordFile = path.join(dir, "password");
+		writeFileSync(passwordFile, `${password}\n`);
+		const created = execFileSync(
+			"cast",
+			["wallet", "new", dir, "signer", "--unsafe-password", password],
+			{ encoding: "utf8" },
+		);
+		const address = created.match(/0x[0-9a-fA-F]{40}/)[0];
+
+		await withNode(async (url) => {
+			cast([
+				"rpc",
+				"anvil_setBalance",
+				address,
+				"0xde0b6b3a7640000",
+				"--rpc-url",
+				url,
+			]);
+			const { code, output } = deploy(url, {
+				DEPLOY_SENDER: address,
+				DEPLOY_SIGNER: "keystore",
+				DEPLOY_KEYSTORE: path.join(dir, "signer"),
+				DEPLOY_PASSWORD_FILE: passwordFile,
+			});
+			assert.equal(code, 0, output);
+			const entry = JSON.parse(readFileSync(bookPath(31337), "utf8")).Probe;
+			const signer = cast([
+				"tx",
+				entry.txHash,
+				"from",
+				"--rpc-url",
+				url,
+			]).toLowerCase();
+			assert.equal(signer, address.toLowerCase(), "another account signed");
+		});
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });

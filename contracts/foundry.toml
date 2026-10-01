@@ -21,6 +21,11 @@ network = "monad"
 bytecode_hash = "none"
 auto_detect_remappings = false
 
+# Pinned rather than relied upon. Measured: this setting is worth about 29,000 gas and the
+# network setting about another 25,000, so every gas number in this repository is comparable
+# only against others taken under the same pair of these two.
+isolate = true
+
 # Granted on the directory, not on a file: the filename is derived from the chain id, so
 # a file-scoped grant silently fails to cover every other chain. The first thing to fail
 # without this is a read during the key-existence check, not a write.
@@ -43,4 +48,19 @@ tab_width = 4
 local = "${LOCAL_RPC_URL}"
 monad = "${MONAD_RPC_URL}"
 monad_testnet = "${MONAD_TESTNET_RPC_URL}"
-monad_archive = "${MONAD_ARCHIVE_RPC_URL}"
+monad_archive = "https://rpc-mainnet.monadinfra.com"
+
+# Stated explicitly rather than inherited. The number is deliberately not the tool's default,
+# so that a section which stops applying is visible as a disagreement rather than hidden by a
+# default that happens to match. A later plan may raise it and may not lower it.
+[fuzz]
+runs = 512
+
+# The reason this configuration exists at all. Measured without it: a campaign attempted 128,000
+# calls, 54,969 of them reverted, and the result was a pass with exit zero — so a campaign whose
+# every call is refused establishes nothing and reports success. Refusing on a revert is what
+# makes a campaign's green mean something.
+[invariant]
+fail_on_revert = true
+runs = 128
+depth = 256

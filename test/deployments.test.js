@@ -74,6 +74,9 @@ test("every committed record matches the chain, read with no key and no funds", 
 		books.length > 0,
 		"no record is committed yet, so this test has checked nothing",
 	);
+	// Across every record, not one: a record holding only third-party addresses contributes
+	// nothing here, and this must not become a way for the whole check to go quiet.
+	let checked = 0;
 
 	for (const book of books) {
 		const chainId = path.basename(book, ".json");
@@ -92,7 +95,17 @@ test("every committed record matches the chain, read with no key and no funds", 
 		);
 
 		const entries = JSON.parse(readFileSync(path.join(root, book), "utf8"));
-		for (const [key, entry] of Object.entries(entries)) {
+		// Narrowed to what this repository deployed. A record may also carry third-party
+		// addresses, which have no creation transaction of ours to compare against — and the
+		// single-writer rule survives that, because the two have two different writers: the
+		// wrapper writes this section from a receipt, a person writes the other, and nothing
+		// writes both.
+		const generated = Object.entries(entries).filter(
+			([, entry]) =>
+				entry !== null && typeof entry === "object" && "txHash" in entry,
+		);
+		checked += generated.length;
+		for (const [key, entry] of generated) {
 			// The creation input, not the runtime code: a contract with an immutable differs
 			// from its artefact by exactly the bytes the constructor wrote.
 			const sent = execFileSync(
@@ -111,4 +124,5 @@ test("every committed record matches the chain, read with no key and no funds", 
 			);
 		}
 	}
+	assert.ok(checked > 0, "no deployment of ours was checked against any chain");
 });

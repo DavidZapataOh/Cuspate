@@ -44,17 +44,29 @@ function artefactHashes(cwd) {
 }
 
 test("the contract build is byte-reproducible from a different absolute path", () => {
+	// Both sides are built fresh from the same sources. Hashing whatever the build directory
+	// happens to hold compares this commit against an older build that may carry artefacts for
+	// files which no longer exist, and that fails for a reason which has nothing to do with the
+	// path under test.
+	const clear = () => {
+		rmSync(path.join(root, "contracts", "out"), {
+			recursive: true,
+			force: true,
+		});
+		rmSync(path.join(root, "contracts", "cache"), {
+			recursive: true,
+			force: true,
+		});
+	};
+	clear();
+	build(root);
 	const here = artefactHashes(root);
 	assert.ok(
 		here.size > 0,
 		"the build produced no contract artefacts to compare",
 	);
 
-	rmSync(path.join(root, "contracts", "out"), { recursive: true, force: true });
-	rmSync(path.join(root, "contracts", "cache"), {
-		recursive: true,
-		force: true,
-	});
+	clear();
 
 	const elsewhere = path.join(
 		mkdtempSync(path.join(tmpdir(), "reproduce-")),

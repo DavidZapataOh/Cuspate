@@ -46,7 +46,7 @@ monad)
 	named_chain=143
 	;;
 monad_archive)
-	require_var MONAD_ARCHIVE_RPC_URL read
+	# The alias carries a default, so no variable is required to reach it.
 	named_chain=143
 	;;
 *)

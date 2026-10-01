@@ -10,6 +10,11 @@ node_modules/
 # Local environment
 .env
 .env.*
+!.env.example
+
+# Generated per run against a local node, and the rehearsal's discarded composition.
+contracts/deployments/31337.json
+contracts/deployments/.rehearsal/
 
 # Generated hook wiring
 .husky/_/

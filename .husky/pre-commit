@@ -9,8 +9,10 @@ solidity=$(printf "%s\n" "$staged" | grep -E "\.sol$" || true)
 web=$(printf "%s\n" "$staged" | grep -E "\.(ts|tsx|js|jsx|json|jsonc)$" || true)
 
 if [ -n "$solidity" ]; then
+	# The project root, or the formatter finds no configuration here and falls back to
+	# its own defaults, which demand the opposite of what the project's settings produce.
 	# shellcheck disable=SC2086
-	forge fmt --check $solidity
+	forge fmt --check --root contracts $solidity
 	# shellcheck disable=SC2086
 	pnpm exec solhint --config contracts/.solhint.json $solidity
 fi

@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // First-party Solidity only. A naive walk over contracts/ finds vendored sources
 // under their own licences plus artefact directories that merely end in .sol.
-const firstParty = ["contracts/src", "contracts/test"];
+const firstParty = ["contracts/src", "contracts/test", "contracts/script"];
 
 function solidityFiles(dir) {
 	if (!existsSync(dir)) return [];

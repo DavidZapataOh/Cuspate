@@ -21,6 +21,7 @@ trap 'rm -f /tmp/.scan-targets.$$' EXIT
 ROOT="${root}" HASHES="${hashes}" TARGETS="/tmp/.scan-targets.$$" python3 - <<'PYEOF'
 import hashlib
 import hmac
+import json
 import os
 import pathlib
 import re
@@ -51,6 +52,36 @@ digests = set()
 if salt and hashes_path.exists():
     digests = {line.strip() for line in hashes_path.read_text().splitlines() if line.strip()}
 
+def segments(path, text):
+    """The stretches of a file that are scanned, one line-numbered block at a time.
+
+    A build output such as a verification input carries its real content inside escaped
+    JSON strings. Tokenising the raw file reads a term that follows an escape as part of
+    one longer word and lets it through, so such a file is decoded first.
+    """
+    if path.suffix != ".json":
+        return [text]
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return [text]
+    found = []
+
+    def walk(node):
+        if isinstance(node, str):
+            found.append(node)
+        elif isinstance(node, dict):
+            for key, value in node.items():
+                found.append(key)
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(data)
+    return found
+
+
 findings = []
 
 for target in targets:
@@ -65,7 +96,10 @@ for target in targets:
         continue
 
     shown = target
-    for number, line in enumerate(text.splitlines(), start=1):
+    lines = []
+    for block in segments(path, text):
+        lines.extend(enumerate(block.splitlines(), start=1))
+    for number, line in lines:
         if not ALLOW.search(line):
             if INVERTED.search(line) or any(
                 ord(ch) > 127 and unicodedata.category(ch).startswith("L") for ch in line

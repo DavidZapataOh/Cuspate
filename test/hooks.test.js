@@ -105,3 +105,48 @@ test("the install step succeeds where there is no repository", () => {
 		rmSync(scratch, { recursive: true, force: true });
 	}
 });
+
+test("the hook accepts Solidity that the project's own formatter produced", () => {
+	// Measured, and it cost a rejected commit: run from the repository root the formatter
+	// finds no project configuration and falls back to its own defaults, which allow a
+	// wider line and therefore demand the opposite of what `pnpm fmt` writes. The hook then
+	// rejects the tree the project just formatted, and the only way through is to hand-edit
+	// a file to satisfy a configuration nobody chose.
+	const scratch = mkdtempSync(path.join(tmpdir(), "hook-ok-"));
+	try {
+		for (const item of [
+			".husky",
+			"biome.json",
+			"package.json",
+			"node_modules",
+			"tools",
+			"contracts",
+		]) {
+			cpSync(path.join(root, item), path.join(scratch, item), {
+				recursive: true,
+			});
+		}
+		git(["init", "-q", "."], scratch);
+		git(["add", "contracts/script/DeployProbe.s.sol"], scratch);
+
+		let code = 0;
+		let output = "";
+		try {
+			output = execFileSync(path.join(scratch, ".husky", "pre-commit"), {
+				cwd: scratch,
+				encoding: "utf8",
+				stdio: "pipe",
+			});
+		} catch (error) {
+			code = error.status ?? 1;
+			output = `${error.stdout ?? ""}${error.stderr ?? ""}`;
+		}
+		assert.equal(
+			code,
+			0,
+			`the hook rejected a file the project formatter produced:\n${output}`,
+		);
+	} finally {
+		rmSync(scratch, { recursive: true, force: true });
+	}
+});

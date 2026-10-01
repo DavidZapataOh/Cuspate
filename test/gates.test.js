@@ -155,6 +155,7 @@ test("the documentation gate passes on the real tree and inspects a non-zero cou
 		"--config",
 		"contracts/.solhint.json",
 		"contracts/test/**/*.sol",
+		"contracts/script/**/*.sol",
 	]);
 	assert.equal(code, 0, output);
 	const files = run("sh", [
@@ -198,4 +199,32 @@ test("every exported TypeScript symbol carries a documentation comment", async (
 		[],
 		`undocumented exports: ${undocumented.join(", ")}`,
 	);
+});
+
+test("the documentation gate reaches the deploy scripts, not only the tests", () => {
+	// The fixture directory is not hidden: a ** glob does not descend into a directory
+	// whose name begins with a dot, so a hidden fixture would report a pass that proves
+	// nothing about the glob under test.
+	const dir = path.join(root, "contracts", "script", "gate-fixture");
+	try {
+		execFileSync("mkdir", ["-p", dir]);
+		writeFileSync(
+			path.join(dir, "Bare.sol"),
+			"// SPDX-License-Identifier: BUSL-1.1\npragma solidity 0.8.26;\n\ncontract Bare {\n    function go() external pure returns (uint256) {\n        return 1;\n    }\n}\n",
+		);
+		const { code, output } = run("pnpm", [
+			"exec",
+			"solhint",
+			"--config",
+			"contracts/.solhint.json",
+			"contracts/script/**/*.sol",
+		]);
+		assert.notEqual(
+			code,
+			0,
+			`the documentation gate does not inspect contracts/script:\n${output}`,
+		);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });

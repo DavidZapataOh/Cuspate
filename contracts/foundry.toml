@@ -21,6 +21,11 @@ network = "monad"
 bytecode_hash = "none"
 auto_detect_remappings = false
 
+# Granted on the directory, not on a file: the filename is derived from the chain id, so
+# a file-scoped grant silently fails to cover every other chain. The first thing to fail
+# without this is a read during the key-existence check, not a write.
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
 [lint]
 # Linting is a gate, not a build-time surprise.
 lint_on_build = false
@@ -30,3 +35,12 @@ lint_on_build = false
 # in the repository while src/ is deliberately absent.
 line_length = 100
 tab_width = 4
+
+# Aliases, never URLs, are what scripts and documents name. The archive entry is not a
+# third network: it is a second door to the production chain, for reads deeper than the
+# default endpoint serves.
+[rpc_endpoints]
+local = "${LOCAL_RPC_URL}"
+monad = "${MONAD_RPC_URL}"
+monad_testnet = "${MONAD_TESTNET_RPC_URL}"
+monad_archive = "${MONAD_ARCHIVE_RPC_URL}"

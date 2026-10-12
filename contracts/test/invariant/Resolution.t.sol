@@ -271,7 +271,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
             )
         );
         vm.prank(actors[1]);
-        RESOLVER.dispute(current);
+        RESOLVER.dispute(current, first ? 0 : 1);
         posted += BOND;
         held += BOND;
         if (first) resets++;
@@ -283,7 +283,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
         uint256 closesAt = RESOLVER.proposalOf(current).proposedAt + LIVENESS;
         vm.warp(closesAt);
         _refused(
-            abi.encodeCall(OptimisticResolver.dispute, (current)),
+            abi.encodeCall(OptimisticResolver.dispute, (current, RESOLVER.eventOf(current).round)),
             abi.encodeWithSelector(OptimisticResolver.WindowClosed.selector, closesAt)
         );
     }

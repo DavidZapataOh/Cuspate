@@ -142,11 +142,11 @@ contract ResolverForkTest is Test {
         vm.prank(proposer);
         resolver.proposeFigure(eventId, 125, 2);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         vm.prank(second);
         resolver.proposeFigure(eventId, 120, 2);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 1);
 
         IPausableDollar pausable = IPausableDollar(address(dollar));
         vm.prank(pausable.pauser());

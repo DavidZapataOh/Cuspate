@@ -217,7 +217,7 @@ contract ArbiterForkTest is Test {
             vm.prank(parties[0]);
             resolver.proposeFigure(eventId, 120, 2);
             vm.prank(parties[1]);
-            resolver.dispute(eventId);
+            resolver.dispute(eventId, uint8(round));
         }
         assertTrue(resolver.eventOf(eventId).pendingArbitration);
     }

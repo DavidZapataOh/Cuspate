@@ -96,7 +96,7 @@ contract DisputesTest is Test {
         vm.expectEmit(address(resolver));
         emit OptimisticResolver.Disputed(eventId, 0, disputer);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
 
         OptimisticResolver.EventState memory state = resolver.eventOf(eventId);
         assertEq(state.round, 1);
@@ -115,24 +115,24 @@ contract DisputesTest is Test {
         vm.warp(closesAt);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.WindowClosed.selector, closesAt));
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         vm.warp(closesAt - 1);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
     }
 
     /// @notice Nothing to dispute: no proposal, or one already settled.
     function test_RevertWhen_thereIsNothingToDispute() public {
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.NoProposal.selector, eventId));
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
 
         _propose(proposer, 125);
         vm.warp(vm.getBlockTimestamp() + LIVENESS);
         resolver.settle(eventId);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.AlreadySettled.selector, eventId));
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
     }
 
     /// @notice A disputer short of the bond disputes nothing.
@@ -140,7 +140,7 @@ contract DisputesTest is Test {
         _propose(proposer, 125);
         vm.prank(stranger);
         vm.expectRevert();
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         assertEq(resolver.eventOf(eventId).round, 0);
     }
 
@@ -163,7 +163,7 @@ contract DisputesTest is Test {
             abi.encodeWithSelector(OptimisticResolver.PendingArbitration.selector, eventId)
         );
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
     }
 
     /// @notice A successful challenge reverses the outcome and transfers the loser's bond: round 1
@@ -248,10 +248,10 @@ contract DisputesTest is Test {
         resolver.ruleFigure(eventId, 125, 2, true, REASON);
 
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         _propose(second, 120);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 1);
         vm.prank(arbiter);
         resolver.ruleFigure(eventId, 125, 2, false, REASON);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.NotPending.selector, eventId));
@@ -267,7 +267,7 @@ contract DisputesTest is Test {
         resolver.ruleContest(eventId, true, REASON);
 
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         vm.prank(arbiter);
         resolver.ruleContest(eventId, true, REASON);
         assertEq(resolver.owed(proposer), 2 * BOND - BURN);
@@ -325,7 +325,7 @@ contract DisputesTest is Test {
     function test_RevertWhen_ruleContestCallerIsNotTheArbiter() public {
         _propose(proposer, 125);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         vm.expectRevert(OptimisticResolver.NotArbiter.selector);
         vm.prank(stranger);
         resolver.ruleContest(eventId, true, REASON);
@@ -335,7 +335,7 @@ contract DisputesTest is Test {
     function test_anUndisputedRoundOneSettles() public {
         _propose(proposer, 125);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         _propose(second, 120);
         vm.warp(vm.getBlockTimestamp() + LIVENESS);
         resolver.settle(eventId);
@@ -394,9 +394,9 @@ contract DisputesTest is Test {
     function _escalate(int256 roundOneFigure) internal {
         _propose(proposer, 125);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         _propose(second, roundOneFigure);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 1);
     }
 }

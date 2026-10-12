@@ -180,6 +180,10 @@ contract OptimisticResolver {
     error NotTheRuledAnswer();
     /// @notice Thrown when withdrawing with nothing owed.
     error NothingOwed();
+    /// @notice Thrown when a dispute names a round that is not the open one.
+    /// @param eventId The event.
+    /// @param open The round that is open.
+    error WrongRound(bytes32 eventId, uint8 open);
     /// @notice Thrown when a duration could overflow a clock.
     /// @param duration The duration.
     error DurationTooLong(uint256 duration);
@@ -344,13 +348,19 @@ contract OptimisticResolver {
         _pullBond();
     }
 
-    /// @notice Disputes the open round's proposal within its window, posting the bond. A first
-    ///         dispute reopens the event for a second proposal; a second sends it to the arbiter.
+    /// @notice Disputes a round's proposal within its window, posting the bond. A first dispute
+    ///         reopens the event for a second proposal; a second sends it to the arbiter.
+    /// @dev The round is named, not taken from the state the transaction happens to meet: after a
+    ///      reset, a second proposal can land in the same block, and a dispute aimed at the first
+    ///      would otherwise strike the second and cost its sender the bond.
     /// @param eventId The event.
+    /// @param round The round whose proposal is disputed; it must be the open one.
     /// @custom:access anyone
-    function dispute(bytes32 eventId) external {
+    function dispute(bytes32 eventId, uint8 round) external {
         EventState storage state = _open(eventId);
-        uint8 round = state.round;
+        if (round != state.round) {
+            revert WrongRound(eventId, state.round);
+        }
         Proposal storage proposal = state.rounds[round];
         if (proposal.proposer == address(0)) {
             revert NoProposal(eventId);

@@ -244,14 +244,14 @@ abstract contract GasCases is Test {
         vm.prank(parties[0]);
         resolver_.proposeFigure(id, 125, 2);
         vm.prank(parties[1]);
-        resolver_.dispute(id);
+        resolver_.dispute(id, 0);
         if (recordDisputes) {
             _record("OptimisticResolver.dispute a first proposal, resetting the event", "");
         }
         vm.prank(parties[2]);
         resolver_.proposeFigure(id, 120, 2);
         vm.prank(parties[1]);
-        resolver_.dispute(id);
+        resolver_.dispute(id, 1);
         if (recordDisputes) {
             _record("OptimisticResolver.dispute a second proposal, to the arbiter", "");
         }

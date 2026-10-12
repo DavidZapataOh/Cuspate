@@ -175,7 +175,7 @@ contract TimeoutsTest is Test {
         resolver.proposeFigure(eventId, 125, 2);
         uint256 proposedAt = vm.getBlockTimestamp();
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
 
         uint256 expiresAt = proposedAt + LIVENESS + EXPIRY;
         assertEq(resolver.expiresAt(eventId), expiresAt);
@@ -237,7 +237,7 @@ contract TimeoutsTest is Test {
         vm.prank(proposer);
         resolver.proposeFigure(eventId, 125, 2);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         uint256 timeout = resolver.contestTimeout(eventId);
         assertEq(timeout, vm.getBlockTimestamp() + LIVENESS + ARBITER_TIMEOUT);
 
@@ -274,11 +274,11 @@ contract TimeoutsTest is Test {
         vm.prank(proposer);
         resolver.proposeFigure(eventId, 125, 2);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 0);
         vm.prank(second);
         resolver.proposeFigure(eventId, 120, 2);
         vm.prank(disputer);
-        resolver.dispute(eventId);
+        resolver.dispute(eventId, 1);
     }
 
     /// @notice The event's outcome at the factory.

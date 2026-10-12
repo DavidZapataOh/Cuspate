@@ -134,7 +134,7 @@ abstract contract ResolverStates is Test {
             return id;
         }
         vm.prank(disputer);
-        resolver.dispute(id);
+        resolver.dispute(id, 1);
         if (state == PENDING) return id;
         vm.prank(arbiter);
         resolver.ruleFigure(id, 125, 2, false, "the source published 1.25");
@@ -165,8 +165,9 @@ abstract contract ResolverStates is Test {
     /// @param id The event.
     function _proposeAndDispute(bytes32 id) internal {
         _propose(id);
+        uint8 round = resolver.eventOf(id).round;
         vm.prank(disputer);
-        resolver.dispute(id);
+        resolver.dispute(id, round);
     }
 
     /// @notice An event's outcome at the factory, under this resolver.
@@ -198,7 +199,8 @@ contract ArbiterReachTest is ResolverStates {
     ) public {
         bytes32 id = _build(stateSeed % STATES);
         vm.warp(vm.getBlockTimestamp() + (functionSeed >> 8) % 10 days);
-        bytes memory data = _openCall(functionSeed % 7, id, figure, decimals);
+        bytes memory data =
+            _openCall(functionSeed % 7, id, resolver.eventOf(id).round, figure, decimals);
 
         uint256 snapshot = vm.snapshotState();
         vm.prank(arbiter);
@@ -316,10 +318,11 @@ contract ArbiterReachTest is ResolverStates {
     /// @notice A call to one of the functions anyone may call.
     /// @param which Which.
     /// @param id The event.
+    /// @param round The round a dispute names: the open one.
     /// @param figure A figure.
     /// @param decimals Its decimals.
     /// @return The calldata.
-    function _openCall(uint256 which, bytes32 id, int256 figure, uint8 decimals)
+    function _openCall(uint256 which, bytes32 id, uint8 round, int256 figure, uint8 decimals)
         internal
         pure
         returns (bytes memory)
@@ -328,7 +331,7 @@ contract ArbiterReachTest is ResolverStates {
             return abi.encodeCall(OptimisticResolver.proposeFigure, (id, figure, decimals));
         }
         if (which == 1) return abi.encodeCall(OptimisticResolver.proposeInvalid, (id));
-        if (which == 2) return abi.encodeCall(OptimisticResolver.dispute, (id));
+        if (which == 2) return abi.encodeCall(OptimisticResolver.dispute, (id, round));
         if (which == 3) return abi.encodeCall(OptimisticResolver.settle, (id));
         if (which == 4) return abi.encodeCall(OptimisticResolver.expire, (id));
         if (which == 5) return abi.encodeCall(OptimisticResolver.release, (id));

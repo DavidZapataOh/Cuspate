@@ -3,8 +3,8 @@ pragma solidity 0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {PositionVault} from "../../src/PositionVault.sol";
-import {TestCollateral} from "../unit/PositionVault.t.sol";
+import {IOutcomes, PositionVault} from "../../src/PositionVault.sol";
+import {TestCollateral, TestOutcomes} from "../unit/PositionVault.t.sol";
 
 /// @title PositionVaultFuzzTest
 /// @notice Holding one of each leg is holding the collateral: splitting and merging back returns
@@ -18,7 +18,12 @@ contract PositionVaultFuzzTest is Test {
     /// @notice A vault over a test collateral.
     function setUp() public {
         collateral = new TestCollateral();
-        vault = new PositionVault(IERC20(address(collateral)), keccak256("a market"));
+        vault = new PositionVault(
+            IERC20(address(collateral)),
+            keccak256("a market"),
+            IOutcomes(address(new TestOutcomes())),
+            keccak256("a condition")
+        );
         vm.prank(holder);
         collateral.approve(address(vault), type(uint256).max);
     }

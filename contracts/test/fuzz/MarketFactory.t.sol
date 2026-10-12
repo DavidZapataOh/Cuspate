@@ -14,6 +14,8 @@ import {TestStock} from "../unit/MarketFactory.t.sol";
 contract MarketFactoryFuzzTest is Test {
     address internal holder = makeAddr("holder");
 
+    address internal resolver = makeAddr("resolver");
+
     MarketFactory internal factory;
     IERC20 internal underlying;
     IERC20 internal dollar;
@@ -33,8 +35,8 @@ contract MarketFactoryFuzzTest is Test {
         if (eventA == eventB) {
             eventB = bytes32(uint256(eventA) ^ 1);
         }
-        bytes32 idA = factory.createMarket(underlying, dollar, eventA);
-        bytes32 idB = factory.createMarket(underlying, dollar, eventB);
+        bytes32 idA = factory.createMarket(underlying, dollar, eventA, resolver);
+        bytes32 idB = factory.createMarket(underlying, dollar, eventB, resolver);
         assertTrue(idA != idB, "two events share a market");
 
         address[] memory created = new address[](12);
@@ -76,8 +78,8 @@ contract MarketFactoryFuzzTest is Test {
         if (eventA == eventB) {
             eventB = bytes32(uint256(eventA) ^ 1);
         }
-        bytes32 operated = factory.createMarket(underlying, dollar, eventA);
-        bytes32 watched = factory.createMarket(underlying, dollar, eventB);
+        bytes32 operated = factory.createMarket(underlying, dollar, eventA, resolver);
+        bytes32 watched = factory.createMarket(underlying, dollar, eventB, resolver);
         _operate(watched, 7e6);
         uint256[] memory before = _state(watched);
 

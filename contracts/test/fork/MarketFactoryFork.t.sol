@@ -18,6 +18,8 @@ contract MarketFactoryForkTest is Test {
 
     IERC20 internal underlying;
     IERC20 internal dollar;
+    address internal resolver = makeAddr("resolver");
+
     MarketFactory internal factory;
 
     /// @notice Opens on a fork at the pinned block, proves both collaterals are there, and deploys
@@ -43,7 +45,7 @@ contract MarketFactoryForkTest is Test {
     /// @notice A market over both real collaterals names its legs after them and splits and merges
     ///         in both vaults.
     function testFork_aMarketOverBothRealCollateralsSplitsAndMerges() public {
-        bytes32 id = factory.createMarket(underlying, dollar, keccak256("an event"));
+        bytes32 id = factory.createMarket(underlying, dollar, keccak256("an event"), resolver);
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
 
         assertEq(underlyingVault.YES().symbol(), "aMU-YES");

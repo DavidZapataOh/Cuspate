@@ -6,7 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {PositionToken} from "../../src/PositionToken.sol";
-import {PositionVault} from "../../src/PositionVault.sol";
+import {IOutcomes, Outcome, PositionVault} from "../../src/PositionVault.sol";
 
 /// @title TestCollateral
 /// @notice A well-behaved six-decimal collateral that anyone can mint, for tests only.
@@ -25,6 +25,26 @@ contract TestCollateral is ERC20 {
     /// @param amount How much.
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
+    }
+}
+
+/// @title TestOutcomes
+/// @notice An outcome source a test can set directly, standing in for a resolver. For tests only.
+contract TestOutcomes {
+    mapping(bytes32 condition => Outcome outcome) internal reported;
+
+    /// @notice Sets the outcome of a condition.
+    /// @param condition The condition.
+    /// @param outcome The outcome.
+    function set(bytes32 condition, Outcome outcome) external {
+        reported[condition] = outcome;
+    }
+
+    /// @notice The outcome of a condition.
+    /// @param condition The condition.
+    /// @return The outcome.
+    function outcomeOf(bytes32 condition) external view returns (Outcome) {
+        return reported[condition];
     }
 }
 
@@ -108,7 +128,12 @@ contract PositionVaultTest is Test {
     /// @notice A vault over the test collateral, and a holder with collateral approved to it.
     function setUp() public {
         collateral = new TestCollateral();
-        vault = new PositionVault(IERC20(address(collateral)), keccak256("a market"));
+        vault = new PositionVault(
+            IERC20(address(collateral)),
+            keccak256("a market"),
+            IOutcomes(address(new TestOutcomes())),
+            keccak256("a condition")
+        );
         collateral.mint(holder, AMOUNT);
         vm.prank(holder);
         collateral.approve(address(vault), type(uint256).max);
@@ -271,7 +296,12 @@ contract PositionVaultTest is Test {
         private
         returns (PositionVault created, TestCollateral same)
     {
-        created = new PositionVault(IERC20(address(token)), keccak256("a market"));
+        created = new PositionVault(
+            IERC20(address(token)),
+            keccak256("a market"),
+            IOutcomes(address(new TestOutcomes())),
+            keccak256("a condition")
+        );
         token.mint(holder, AMOUNT);
         vm.prank(holder);
         token.approve(address(created), type(uint256).max);

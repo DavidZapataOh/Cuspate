@@ -7,6 +7,24 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {PositionToken} from "./PositionToken.sol";
 
+/// @notice How an event resolved. `Unresolved` until a final outcome is reported, and never again
+///         after one is.
+enum Outcome {
+    Unresolved,
+    Yes,
+    No,
+    Invalid
+}
+
+/// @title IOutcomes
+/// @notice Where a vault reads the outcome of the condition it was created with.
+interface IOutcomes {
+    /// @notice The reported outcome of a condition.
+    /// @param condition The condition: a resolver and an event.
+    /// @return The outcome, `Unresolved` until one is reported.
+    function outcomeOf(bytes32 condition) external view returns (Outcome);
+}
+
 /// @title PositionVault
 /// @notice Holds one collateral and splits it into two legs, one for each outcome, at exactly one
 ///         to one. Holding one of each leg is holding one unit of collateral: at any moment the two
@@ -24,6 +42,12 @@ contract PositionVault {
     /// @param collateral The collateral that could not be read.
     error UnreadableMetadata(IERC20 collateral);
 
+    /// @notice Thrown when a split is attempted after the outcome is reported.
+    error MarketResolved();
+
+    /// @notice Thrown when a redemption is attempted before the outcome is reported.
+    error MarketNotResolved();
+
     /// @notice Emitted when collateral is split into one of each leg.
     /// @param stakeholder Who split.
     /// @param amount How much collateral, and how much of each leg.
@@ -34,11 +58,24 @@ contract PositionVault {
     /// @param amount How much of each leg, and how much collateral.
     event PositionsMerge(address indexed stakeholder, uint256 amount);
 
+    /// @notice Emitted when legs are redeemed after resolution. The payout follows from these amounts
+    ///         and the condition's reported outcome.
+    /// @param redeemer Who redeemed.
+    /// @param yesAmount How much of the yes leg.
+    /// @param noAmount How much of the no leg.
+    event PayoutRedemption(address indexed redeemer, uint256 yesAmount, uint256 noAmount);
+
     /// @notice The collateral this vault holds.
     IERC20 public immutable COLLATERAL;
 
     /// @notice The market this vault belongs to.
     bytes32 public immutable MARKET_ID;
+
+    /// @notice Where this vault reads its outcome.
+    IOutcomes public immutable OUTCOMES;
+
+    /// @notice The condition this vault's legs pay out on: a resolver and an event.
+    bytes32 public immutable CONDITION;
 
     /// @notice The leg that pays if the outcome resolves true. This vault is its only minter.
     PositionToken public immutable YES;
@@ -52,11 +89,15 @@ contract PositionVault {
     ///         are read once and kept: a leg records what it was created against.
     /// @param collateral The collateral this vault will hold.
     /// @param marketId The market this vault belongs to.
-    constructor(IERC20 collateral, bytes32 marketId) {
+    /// @param outcomes Where this vault reads its outcome.
+    /// @param condition The condition its legs pay out on.
+    constructor(IERC20 collateral, bytes32 marketId, IOutcomes outcomes, bytes32 condition) {
         (uint8 collateralDecimals, string memory symbol) = _metadata(collateral);
         string memory tag = Strings.toHexString(uint256(marketId) >> 224, 4);
         COLLATERAL = collateral;
         MARKET_ID = marketId;
+        OUTCOMES = outcomes;
+        CONDITION = condition;
         YES = new PositionToken(
             string.concat(symbol, " YES ", tag),
             string.concat(symbol, "-YES"),
@@ -103,6 +144,12 @@ contract PositionVault {
         uint256 before = COLLATERAL.balanceOf(address(this));
         COLLATERAL.safeTransferFrom(msg.sender, address(this), amount);
         _requireMoved(amount, before, COLLATERAL.balanceOf(address(this)));
+        // Nothing is minted against an outcome already known. Checked after the collateral has
+        // arrived rather than before: a collateral whose transfer reaches a resolver could otherwise
+        // see the outcome reported between the check and the mint.
+        if (OUTCOMES.outcomeOf(CONDITION) != Outcome.Unresolved) {
+            revert MarketResolved();
+        }
         YES.mint(msg.sender, amount);
         NO.mint(msg.sender, amount);
     }
@@ -116,6 +163,31 @@ contract PositionVault {
         uint256 before = COLLATERAL.balanceOf(address(this));
         COLLATERAL.safeTransfer(msg.sender, amount);
         _requireMoved(amount, COLLATERAL.balanceOf(address(this)), before);
+    }
+
+    /// @notice Exchanges legs for collateral once the outcome is reported: the winning leg one for
+    ///         one, the losing leg for nothing, and on an invalid outcome each leg for half.
+    /// @dev One formula for every outcome, rounded down once over the sum, so no set of redemptions
+    ///      can pay more than the collateral the legs were split from; what is rounded off stays in
+    ///      the vault. The amounts are arguments, rather than the caller's whole balance, so that
+    ///      the redemption can be announced before any external call.
+    /// @param yesAmount How much of the yes leg to redeem.
+    /// @param noAmount How much of the no leg to redeem.
+    function redeemPositions(uint256 yesAmount, uint256 noAmount) external {
+        emit PayoutRedemption(msg.sender, yesAmount, noAmount);
+        Outcome outcome = OUTCOMES.outcomeOf(CONDITION);
+        if (outcome == Outcome.Unresolved) {
+            revert MarketNotResolved();
+        }
+        (uint256 yesWeight, uint256 noWeight) = outcome == Outcome.Yes
+            ? (uint256(2), uint256(0))
+            : outcome == Outcome.No ? (uint256(0), uint256(2)) : (uint256(1), uint256(1));
+        YES.burn(msg.sender, yesAmount);
+        NO.burn(msg.sender, noAmount);
+        uint256 payout = (yesAmount * yesWeight + noAmount * noWeight) / 2;
+        uint256 before = COLLATERAL.balanceOf(address(this));
+        COLLATERAL.safeTransfer(msg.sender, payout);
+        _requireMoved(payout, COLLATERAL.balanceOf(address(this)), before);
     }
 
     /// @notice Refuses any transfer that moved a different amount of collateral than asked, in

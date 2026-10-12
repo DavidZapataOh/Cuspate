@@ -54,6 +54,8 @@ contract NoSymbolToken {
 contract MarketFactoryTest is Test {
     bytes32 internal constant EVENT = keccak256("an event");
 
+    address internal resolver = makeAddr("resolver");
+
     MarketFactory internal factory;
     IERC20 internal underlying;
     IERC20 internal dollar;
@@ -67,7 +69,7 @@ contract MarketFactoryTest is Test {
 
     /// @notice Each collateral gets a vault holding it, and each vault mints its own two legs.
     function test_createMarketDeploysAVaultForEachCollateral() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT);
+        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         assertEq(address(underlyingVault.COLLATERAL()), address(underlying));
         assertEq(address(dollarVault.COLLATERAL()), address(dollar));
@@ -77,7 +79,7 @@ contract MarketFactoryTest is Test {
 
     /// @notice The registry holds both vaults under the market's id.
     function test_createMarketRecordsTheMarket() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT);
+        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         assertTrue(address(underlyingVault) != address(0));
         assertTrue(address(dollarVault) != address(0));
@@ -88,7 +90,7 @@ contract MarketFactoryTest is Test {
     ///         read back from the log itself.
     function test_createMarketEmitsMarketCreated() public {
         vm.recordLogs();
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT);
+        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -105,24 +107,30 @@ contract MarketFactoryTest is Test {
         assertEq(created.topics[1], id);
         assertEq(created.topics[2], bytes32(uint256(uint160(address(underlying)))));
         assertEq(created.topics[3], bytes32(uint256(uint160(address(dollar)))));
-        (bytes32 eventId, address loggedUnderlyingVault, address loggedDollarVault) =
-            abi.decode(created.data, (bytes32, address, address));
+        (
+            bytes32 eventId,
+            address loggedResolver,
+            address loggedUnderlyingVault,
+            address loggedDollarVault
+        ) = abi.decode(created.data, (bytes32, address, address, address));
         assertEq(eventId, EVENT);
+        assertEq(loggedResolver, resolver);
         assertEq(loggedUnderlyingVault, address(underlyingVault));
         assertEq(loggedDollarVault, address(dollarVault));
     }
 
-    /// @notice A market's id is the hash of exactly its three inputs.
+    /// @notice A market's id is the hash of its collaterals and its condition, which is the hash of
+    ///         its resolver and its event.
     function test_marketIdIsAHashOfItsInputs() public view {
         assertEq(
-            factory.marketId(underlying, dollar, EVENT),
-            keccak256(abi.encode(underlying, dollar, EVENT))
+            factory.marketId(underlying, dollar, factory.condition(resolver, EVENT)),
+            keccak256(abi.encode(underlying, dollar, keccak256(abi.encode(resolver, EVENT))))
         );
     }
 
     /// @notice Leg names are derived from the collateral, the outcome and the start of the id.
     function test_legNamesAreDerivedFromTheCollateralAndTheMarket() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT);
+        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         string memory prefix = vm.toString(abi.encodePacked(bytes4(id)));
         assertEq(underlyingVault.YES().symbol(), "TSTK-YES");
@@ -134,28 +142,28 @@ contract MarketFactoryTest is Test {
 
     /// @notice A second market under the same id is refused, naming the market.
     function test_RevertWhen_marketAlreadyExists() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT);
+        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
         vm.expectRevert(abi.encodeWithSelector(MarketFactory.MarketExists.selector, id));
-        factory.createMarket(underlying, dollar, EVENT);
+        factory.createMarket(underlying, dollar, EVENT, resolver);
     }
 
     /// @notice A market whose two collaterals are one token is refused.
     function test_RevertWhen_bothCollateralsAreTheSameToken() public {
         vm.expectRevert(abi.encodeWithSelector(MarketFactory.SameCollateral.selector, dollar));
-        factory.createMarket(dollar, dollar, EVENT);
+        factory.createMarket(dollar, dollar, EVENT, resolver);
     }
 
     /// @notice A collateral whose symbol is not a string is refused by name, not by a bare revert.
     function test_RevertWhen_collateralSymbolIsNotAString() public {
         IERC20 odd = IERC20(address(new BytesSymbolToken()));
         vm.expectRevert(abi.encodeWithSelector(PositionVault.UnreadableMetadata.selector, odd));
-        factory.createMarket(odd, dollar, EVENT);
+        factory.createMarket(odd, dollar, EVENT, resolver);
     }
 
     /// @notice A collateral with no symbol at all is refused the same way.
     function test_RevertWhen_collateralHasNoSymbol() public {
         IERC20 odd = IERC20(address(new NoSymbolToken()));
         vm.expectRevert(abi.encodeWithSelector(PositionVault.UnreadableMetadata.selector, odd));
-        factory.createMarket(odd, dollar, EVENT);
+        factory.createMarket(odd, dollar, EVENT, resolver);
     }
 }

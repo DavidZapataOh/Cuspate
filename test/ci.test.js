@@ -832,10 +832,11 @@ test("tripwire: every state-changing function in contracts/src says who may call
 });
 
 test("tripwire: every entry point a user or a pool calls has a gas budget and a limit", (t) => {
-	// Restricted functions are reached only through an entry point, and their cost is inside its
-	// budget: a transaction calling one alone never happens.
+	// A function restricted to a minter is reached only inside another entry point, and its cost is
+	// inside that budget: a transaction calling it alone never happens. Every other holder — anyone,
+	// or an arbiter acting on its own — sends transactions that need a limit.
 	const entryPoints = stateChangingFunctions().filter(
-		(fn) => fn.inherited || fn.access === "anyone",
+		(fn) => fn.inherited || fn.access !== "minter",
 	);
 	for (const file of ["budgets", "limits"]) {
 		const keys = Object.keys(

@@ -19,7 +19,9 @@ contract ComparisonTableTest is Test {
             MarketFactory(address(1)),
             ThresholdRegistry(address(1)),
             address(1),
+            address(1),
             IERC20(address(1)),
+            1,
             1,
             1
         );

@@ -24,7 +24,8 @@ interface IPausableDollar {
 
 /// @title ResolverForkTest
 /// @notice A market over both real collaterals, resolved by a bonded proposal posted in the real
-///         dollar, as the tokens are on the production chain at a pinned block.
+///         dollar, as the tokens are on the production chain at a pinned block. This contract is the
+///         arbiter.
 contract ResolverForkTest is Test {
     /// @notice The chain whose state this selection reads.
     uint256 internal constant PRODUCTION_CHAIN = 143;
@@ -57,7 +58,9 @@ contract ResolverForkTest is Test {
 
         ThresholdRegistry registry = new ThresholdRegistry();
         MarketFactory factory = new MarketFactory();
-        resolver = new OptimisticResolver(factory, registry, sealer, dollar, BOND, LIVENESS);
+        resolver = new OptimisticResolver(
+            factory, registry, sealer, address(this), dollar, BOND, BOND / 5, LIVENESS
+        );
         announcesAt = uint64(block.timestamp + 1 days);
         vm.prank(sealer);
         eventId = registry.seal(
@@ -111,6 +114,46 @@ contract ResolverForkTest is Test {
         resolver.withdraw();
         _redeemAll(dollarVault, 100e6);
         assertEq(dollar.balanceOf(proposer), BOND, "the bond did not come back in full");
+    }
+
+    /// @notice Disputed twice and ruled by the arbiter while the dollar is paused: the ruling still
+    ///         reports the reversed outcome and the underlying vault redeems; the winner's credit waits
+    ///         for the unpause.
+    function testFork_aRulingReportsWhileTheDollarIsPaused() public {
+        address disputer = makeAddr("disputer");
+        address second = makeAddr("second proposer");
+        deal(address(dollar), disputer, 2 * BOND);
+        deal(address(dollar), second, BOND);
+        vm.prank(disputer);
+        dollar.approve(address(resolver), 2 * BOND);
+        vm.prank(second);
+        dollar.approve(address(resolver), BOND);
+
+        vm.warp(announcesAt);
+        vm.prank(proposer);
+        resolver.proposeFigure(eventId, 125, 2);
+        vm.prank(disputer);
+        resolver.dispute(eventId);
+        vm.prank(second);
+        resolver.proposeFigure(eventId, 120, 2);
+        vm.prank(disputer);
+        resolver.dispute(eventId);
+
+        IPausableDollar pausable = IPausableDollar(address(dollar));
+        vm.prank(pausable.pauser());
+        pausable.pause();
+        resolver.ruleFigure(eventId, 125, 2, false);
+        _redeemAll(underlyingVault, 1e17);
+
+        vm.prank(pausable.pauser());
+        pausable.unpause();
+        vm.prank(disputer);
+        resolver.withdraw();
+        assertEq(
+            dollar.balanceOf(disputer),
+            2 * BOND - resolver.BURN(),
+            "the winner was not credited the loser's bond"
+        );
     }
 
     /// @notice Proposes a figure above the threshold at the announcement and waits out the window.

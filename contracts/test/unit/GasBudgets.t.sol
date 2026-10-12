@@ -90,8 +90,9 @@ abstract contract GasCases is Test {
     function test_resolver() public {
         IERC20 bondToken = dollarVault.COLLATERAL();
         uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
-        OptimisticResolver resolver_ =
-            new OptimisticResolver(factory, registry, address(this), bondToken, bond, 2 hours);
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory, registry, address(this), address(this), bondToken, bond, bond / 5, 2 hours
+        );
         address proposer = makeAddr("bonded proposer");
         deal(address(bondToken), proposer, 2 * bond);
         vm.prank(proposer);
@@ -123,6 +124,65 @@ abstract contract GasCases is Test {
         vm.prank(proposer);
         resolver_.withdraw();
         _record("OptimisticResolver.withdraw two bonds, to a proposer with nothing", "");
+    }
+
+    /// @notice Disputes and rulings, each in its worst case: a first dispute that resets an event, a
+    ///         second that sends it to the arbiter, and the arbiter's three rulings.
+    function test_disputes() public {
+        IERC20 bondToken = dollarVault.COLLATERAL();
+        uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory, registry, address(this), address(this), bondToken, bond, bond / 5, 2 hours
+        );
+        address[3] memory parties =
+            [makeAddr("first proposer"), makeAddr("disputer"), makeAddr("second proposer")];
+        for (uint256 i = 0; i < 3; i++) {
+            deal(address(bondToken), parties[i], 10 * bond);
+            vm.prank(parties[i]);
+            bondToken.approve(address(resolver_), 10 * bond);
+        }
+        uint64 announcesAt = uint64(vm.getBlockTimestamp() + 1 days);
+        bytes32 ruledByFigure = registry.seal(_sealable(announcesAt, "ruled by figure"));
+        bytes32 ruledInvalid = registry.seal(_sealable(announcesAt, "ruled invalid"));
+        vm.warp(announcesAt);
+
+        _escalate(resolver_, ruledByFigure, parties, true);
+        resolver_.ruleContest(ruledByFigure, true);
+        _record("OptimisticResolver.ruleContest the first contest of an event", "");
+        resolver_.ruleFigure(ruledByFigure, 125, 2, false);
+        _record("OptimisticResolver.ruleFigure a disputed second proposal", "");
+
+        _escalate(resolver_, ruledInvalid, parties, false);
+        vm.warp(uint256(announcesAt) + 8 days + 1);
+        resolver_.ruleInvalid(ruledInvalid, false);
+        _record("OptimisticResolver.ruleInvalid a disputed second proposal, after the deadline", "");
+    }
+
+    /// @notice Proposes, disputes, proposes again and disputes again, recording both disputes once.
+    /// @param resolver_ The resolver.
+    /// @param id The event.
+    /// @param parties The first proposer, the disputer and the second proposer.
+    /// @param recordDisputes Whether to record the two disputes.
+    function _escalate(
+        OptimisticResolver resolver_,
+        bytes32 id,
+        address[3] memory parties,
+        bool recordDisputes
+    ) internal {
+        vm.prank(parties[0]);
+        resolver_.proposeFigure(id, 125, 2);
+        vm.prank(parties[1]);
+        resolver_.dispute(id);
+        if (recordDisputes) {
+            _record("OptimisticResolver.dispute a first proposal, resetting the event", "");
+        }
+        vm.prank(parties[2]);
+        resolver_.proposeFigure(id, 120, 2);
+        vm.prank(parties[1]);
+        resolver_.dispute(id);
+        if (recordDisputes) {
+            _record("OptimisticResolver.dispute a second proposal, to the arbiter", "");
+        }
     }
 
     /// @notice A threshold of 1.23, due at a given instant, with a deadline eight days later.

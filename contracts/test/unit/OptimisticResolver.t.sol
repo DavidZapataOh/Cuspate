@@ -72,7 +72,14 @@ contract OptimisticResolverTest is Test {
         factory = new MarketFactory();
         dollar = new SkimmingDollar();
         resolver = new OptimisticResolver(
-            factory, registry, sealer, IERC20(address(dollar)), BOND, LIVENESS
+            factory,
+            registry,
+            sealer,
+            address(this),
+            IERC20(address(dollar)),
+            BOND,
+            BOND / 5,
+            LIVENESS
         );
         threshold = ThresholdRegistry.Threshold({
             value: 123,
@@ -92,19 +99,39 @@ contract OptimisticResolverTest is Test {
     function test_RevertWhen_aParameterIsZero() public {
         IERC20 token = IERC20(address(dollar));
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(MarketFactory(address(0)), registry, sealer, token, BOND, LIVENESS);
-        vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
         new OptimisticResolver(
-            factory, ThresholdRegistry(address(0)), sealer, token, BOND, LIVENESS
+            MarketFactory(address(0)),
+            registry,
+            sealer,
+            address(this),
+            token,
+            BOND,
+            BOND / 5,
+            LIVENESS
         );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, address(0), token, BOND, LIVENESS);
+        new OptimisticResolver(
+            factory,
+            ThresholdRegistry(address(0)),
+            sealer,
+            address(this),
+            token,
+            BOND,
+            BOND / 5,
+            LIVENESS
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, IERC20(address(0)), BOND, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, address(0), address(this), token, BOND, BOND / 5, LIVENESS
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, token, 0, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, sealer, address(this), IERC20(address(0)), BOND, BOND / 5, LIVENESS
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, token, BOND, 0);
+        new OptimisticResolver(factory, registry, sealer, address(this), token, 0, 0 / 5, LIVENESS);
+        vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
+        new OptimisticResolver(factory, registry, sealer, address(this), token, BOND, BOND / 5, 0);
     }
 
     /// @notice A figure proposed once it can be public is stored and pulls exactly the bond.

@@ -19,6 +19,11 @@ network = "monad"
 # Keeps the metadata hash out of the deployed bytecode, so verification compares
 # code rather than a digest of build inputs.
 bytecode_hash = "none"
+
+# Off unless set. Measured on a leg: enabling it halves the deployed code and cuts every operation,
+# while raising the run count far above the default saved about a fifth of one per cent per
+# operation for a third more code — so the run count is left at the compiler's default.
+optimizer = true
 auto_detect_remappings = false
 
 # Pinned rather than relied upon. Measured: this setting is worth about 29,000 gas and the

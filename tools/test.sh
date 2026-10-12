@@ -22,41 +22,61 @@ selection_glob() {
 	esac
 }
 
-# Test functions, not reported tests: every invariant function in one contract collapses into
-# a single reported test, so printing the reported number would state the confusion this
-# harness exists to prevent.
-count_functions() {
-	# The listing is captured before it is counted so that a listing which failed to compile
-	# fails here, rather than printing a selection with no number beside it.
+# Counts what the listing says will run: test functions, for the reader, and suites, for the
+# comparison below. Functions rather than reported tests, because every invariant function in one
+# contract collapses into one reported test. And abstract suites are left out — measured, the
+# listing includes them although they have no bytecode and never run.
+count_listing() {
+	# Captured before it is counted, so a listing that failed to compile fails here.
 	listing="$(forge test --list --json --match-path "$1")"
 	printf '%s' "${listing}" | python3 -c '
 import json
+import pathlib
 import sys
 
 listing = json.load(sys.stdin)
-print(sum(len(names) for suites in listing.values() for names in suites.values()))
+functions = suites = 0
+for file, found in listing.items():
+    for suite, names in found.items():
+        artefact = pathlib.Path("out") / pathlib.Path(file).name / f"{suite}.json"
+        # Skipped only when the artefact says so. A missing artefact or field is counted, which
+        # keeps the comparison strict rather than letting it shrink.
+        code = json.loads(artefact.read_text()).get("bytecode", {}).get("object") if artefact.exists() else None
+        if code in ("", "0x"):
+            continue
+        functions += len(names)
+        suites += 1
+print(functions, suites)
 '
+}
+
+suites_run() {
+	ran="$(sed -n 's/^Ran \([0-9][0-9]*\) test suites\{0,1\} in.*/\1/p' "$1" | tail -1)"
+	echo "${ran:-0}"
 }
 
 run_selection() {
 	glob="$(selection_glob "$1")"
 	cd "${repo}/contracts"
-	count="$(count_functions "${glob}")"
+	listed="$(count_listing "${glob}")"
+	count="${listed% *}"
+	suites="${listed#* }"
 	echo "$1 ${count}"
 
 	mkdir -p cache
 	log="cache/test-$1.log"
 
-	# The listing and the run index the project separately, and measured: after a test file is
-	# added the listing compiles it while the run decides nothing changed and collects nothing,
-	# reported as no tests found with exit zero — and with no filter at all, three of four
-	# functions ran and the command succeeded. A forced recompile recovers it. The retry is
-	# announced rather than silent, and a second empty collection is a failure: a selection that
-	# checks nothing is the one thing this harness exists to refuse.
+	# The listing and the run index the project separately, and measured twice: right after a
+	# test file is added the run can collect nothing while the listing sees everything, and it can
+	# collect some suites and silently drop others — three of four functions ran once, four of
+	# twelve another time, and both runs exited zero. A forced recompile recovers it. So the
+	# suites the run reports are compared with the suites listed; a shortfall is announced and
+	# retried once, and a second shortfall is a failure, because a selection that checked part of
+	# itself and said nothing is the failure this harness exists to refuse.
 	status=0
 	forge test --match-path "${glob}" > "${log}" 2>&1 || status=$?
-	if [ "${status}" -eq 0 ] && grep -q "No tests found" "${log}"; then
-		echo "$1: the run collected none of the ${count} functions listed; recompiling" >&2
+	if [ "${status}" -eq 0 ] && [ "$(suites_run "${log}")" -lt "${suites}" ]; then
+		echo "$1: the run collected $(suites_run "${log}") of ${suites} suites listed; recompiling" >&2
 		status=0
 		forge test --force --match-path "${glob}" > "${log}" 2>&1 || status=$?
 	fi
@@ -64,8 +84,8 @@ run_selection() {
 	if [ "${status}" -ne 0 ]; then
 		exit "${status}"
 	fi
-	if grep -q "No tests found" "${log}"; then
-		echo "$1: the listing found ${count} test functions and the run collected none" >&2
+	if [ "$(suites_run "${log}")" -lt "${suites}" ]; then
+		echo "$1: the listing found ${suites} suites and the run collected $(suites_run "${log}")" >&2
 		exit 1
 	fi
 }

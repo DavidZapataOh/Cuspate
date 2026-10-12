@@ -137,3 +137,25 @@ test("the pinned compiler is the one that produced the artefacts", () => {
 	const artefact = JSON.parse(readFileSync(path.join(out, dir, file), "utf8"));
 	assert.equal(artefact.metadata.compiler.version.split("+")[0], pinned);
 });
+
+test("the compiler optimised the contracts, at its default run count", () => {
+	// Read from what the compiler recorded, not from the configuration: a setting that says the
+	// optimiser is on is not evidence that it ran. Measured, it was off by default until it was set,
+	// and every contract was compiled unoptimised.
+	const artefact = JSON.parse(
+		readFileSync(
+			path.join(
+				root,
+				"contracts",
+				"out",
+				"PositionToken.sol",
+				"PositionToken.json",
+			),
+			"utf8",
+		),
+	);
+	assert.deepEqual(artefact.metadata.settings.optimizer, {
+		enabled: true,
+		runs: 200,
+	});
+});

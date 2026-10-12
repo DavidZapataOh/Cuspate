@@ -147,8 +147,10 @@ gate_size() {
 	local report status=0
 	report="$(mktemp)"
 	# The flag is the gate, not the ceiling. Measured: a build without it exits zero against a
-	# contract several times over the limit, and the same build with it exits one.
-	forge build --root contracts --sizes --json > "${report}" 2> "${report}.errors" || status=$?
+	# contract several times over the limit, and the same build with it exits one. And the build is
+	# forced: measured, with a warm cache the size report omits contracts that were not recompiled,
+	# so a gate reading it would pass without measuring them.
+	forge build --root contracts --force --sizes --json > "${report}" 2> "${report}.errors" || status=$?
 	cat "${report}.errors" >&2
 	# The margins are read so each contract's headroom is reported, which at this ceiling is the
 	# gate's only regular product; a negative one is named whichever limit it breaks.

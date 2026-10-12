@@ -39,13 +39,32 @@ function forge(args) {
 	);
 }
 
-/** Every test function the runner can see, from the listing, which executes nothing. */
+/**
+ * Whether a listed suite can run. Measured: the listing includes abstract suites, which have no
+ * bytecode and are never executed, so counting them makes every comparison against the results
+ * fail. A suite whose artefact is missing is counted, which keeps the comparison strict.
+ */
+function deployable(file, suite) {
+	const artefact = path.join(
+		contracts,
+		"out",
+		path.basename(file),
+		`${suite}.json`,
+	);
+	if (!existsSync(artefact)) return true;
+	const code = JSON.parse(readFileSync(artefact, "utf8")).bytecode?.object;
+	if (code === undefined) return true;
+	return code !== "" && code !== "0x";
+}
+
+/** Every test function the runner can run, from the listing, which executes nothing. */
 function listed(glob) {
 	const args = ["test", "--list", "--json"];
 	if (glob) args.push("--match-path", glob);
 	const found = [];
 	for (const [file, suites] of Object.entries(forge(args))) {
 		for (const [suite, names] of Object.entries(suites)) {
+			if (!deployable(file, suite)) continue;
 			for (const name of names) found.push({ file, suite, name });
 		}
 	}
@@ -143,10 +162,10 @@ test("every local selection executes everything it lists", () => {
 	for (const name of ["unit", "fuzz"]) {
 		assert.deepEqual(
 			executed(selections[name])
-				.map((t) => `${t.file}:${t.name}`)
+				.map((t) => `${t.file}:${t.suite}:${t.name}`)
 				.sort(),
 			listed(selections[name])
-				.map((t) => `${t.file}:${t.name}`)
+				.map((t) => `${t.file}:${t.suite}:${t.name}`)
 				.sort(),
 			`the ${name} selection did not execute everything it lists`,
 		);
@@ -194,18 +213,18 @@ test("no selection matched zero tests", () => {
 
 test("the kinds the runner reports partition every test function", () => {
 	const executedFunctions = ["unit", "fuzz"].flatMap((name) =>
-		executed(selections[name]).map((t) => `${t.file}:${t.name}`),
+		executed(selections[name]).map((t) => `${t.file}:${t.suite}:${t.name}`),
 	);
 	// Invariant and fork functions are enumerated from the listing: the first because the
 	// results collapse them, the second because reading its kind would need egress.
 	const enumerated = ["invariant", "fork"].flatMap((name) =>
-		listed(selections[name]).map((t) => `${t.file}:${t.name}`),
+		listed(selections[name]).map((t) => `${t.file}:${t.suite}:${t.name}`),
 	);
 	const covered = [...executedFunctions, ...enumerated];
 	assert.deepEqual(
 		[...new Set(covered)].sort(),
 		listed(null)
-			.map((t) => `${t.file}:${t.name}`)
+			.map((t) => `${t.file}:${t.suite}:${t.name}`)
 			.sort(),
 		"the selections do not cover exactly the tests the runner can see",
 	);

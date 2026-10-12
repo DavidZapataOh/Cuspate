@@ -92,9 +92,24 @@ function executed(glob) {
 }
 
 function measure(glob) {
+	// Measured, as the selections found: right after files change, a run can collect only some of
+	// the suites the listing sees, or none, and still exit zero; a forced recompile recovers it. So
+	// a run that reports fewer suites than are listed is retried once, forced. The assertions below
+	// stay the check: a second shortfall still fails them.
+	const suites = (tests) =>
+		new Set(tests.map((t) => `${t.file}:${t.suite}`)).size;
+	const expected = suites(listed(glob));
+	const found = run(["test", "--json", "--match-path", glob]);
+	return suites(found) < expected
+		? run(["test", "--force", "--json", "--match-path", glob])
+		: found;
+}
+
+/** One run's results, read from its report even when it fails. */
+function run(args) {
 	let output;
 	try {
-		output = forge(["test", "--json", "--match-path", glob]);
+		output = forge(args);
 	} catch (error) {
 		// A failing run still prints its report, so it is read from the failure. A selection the
 		// runner collected nothing for prints no report at all, which the emptiness and

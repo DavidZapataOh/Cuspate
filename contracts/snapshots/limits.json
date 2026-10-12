@@ -1,6 +1,10 @@
 {
   "MarketFactory.createMarket over aMU and USDC": "3714566",
   "MarketFactory.reportOutcome first report of a condition": "52885",
+  "OptimisticResolver.proposeFigure the resolver's first bond": "228209",
+  "OptimisticResolver.proposeInvalid after the deadline": "193206",
+  "OptimisticResolver.settle a figure, the proposer's first credit": "142848",
+  "OptimisticResolver.withdraw two bonds, to a proposer with nothing": "122160",
   "PositionToken.approve a fresh allowance": "52166",
   "PositionToken.transfer to a holder": "46513",
   "PositionToken.transfer to an address with no legs": "63513",

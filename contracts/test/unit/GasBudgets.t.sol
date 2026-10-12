@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MarketFactory} from "../../src/MarketFactory.sol";
 import {Outcome, PositionVault} from "../../src/PositionVault.sol";
+import {OptimisticResolver} from "../../src/OptimisticResolver.sol";
 import {ThresholdRegistry} from "../../src/ThresholdRegistry.sol";
 import {TestCollateral} from "./PositionVault.t.sol";
 import {TestStock} from "./MarketFactory.t.sol";
@@ -74,13 +75,72 @@ abstract contract GasCases is Test {
             ThresholdRegistry.Threshold memory threshold = ThresholdRegistry.Threshold({
                 value: 123,
                 decimals: 2,
-                announcesAt: uint64(block.timestamp + 1 days),
-                deadline: uint64(block.timestamp + 9 days),
+                announcesAt: uint64(vm.getBlockTimestamp() + 1 days),
+                deadline: uint64(vm.getBlockTimestamp() + 9 days),
                 terms: terms
             });
             registry.seal(threshold);
             _record(cases[i], "");
         }
+    }
+
+    /// @notice A resolver's life for two events: a figure proposed, settled and its bond withdrawn, and
+    ///         an event proposed invalid after its deadline. Each in its worst case: the resolver's first
+    ///         bond, the proposer's first credit, a withdrawal to a proposer left with nothing.
+    function test_resolver() public {
+        IERC20 bondToken = dollarVault.COLLATERAL();
+        uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
+        OptimisticResolver resolver_ =
+            new OptimisticResolver(factory, registry, address(this), bondToken, bond, 2 hours);
+        address proposer = makeAddr("bonded proposer");
+        deal(address(bondToken), proposer, 2 * bond);
+        vm.prank(proposer);
+        bondToken.approve(address(resolver_), 2 * bond);
+
+        uint64 announcesAt = uint64(vm.getBlockTimestamp() + 1 days);
+        bytes32 figureEvent = registry.seal(_sealable(announcesAt, "a figure"));
+        bytes32 invalidEvent = registry.seal(_sealable(announcesAt, "no figure"));
+
+        vm.warp(announcesAt);
+        assertEq(bondToken.balanceOf(address(resolver_)), 0);
+        vm.prank(proposer);
+        resolver_.proposeFigure(figureEvent, 125, 2);
+        _record("OptimisticResolver.proposeFigure the resolver's first bond", "");
+
+        vm.warp(vm.getBlockTimestamp() + 2 hours);
+        assertEq(resolver_.owed(proposer), 0);
+        resolver_.settle(figureEvent);
+        _record("OptimisticResolver.settle a figure, the proposer's first credit", "");
+
+        vm.warp(uint256(announcesAt) + 8 days + 1);
+        vm.prank(proposer);
+        resolver_.proposeInvalid(invalidEvent);
+        _record("OptimisticResolver.proposeInvalid after the deadline", "");
+
+        vm.warp(vm.getBlockTimestamp() + 2 hours);
+        resolver_.settle(invalidEvent);
+        assertEq(bondToken.balanceOf(proposer), 0);
+        vm.prank(proposer);
+        resolver_.withdraw();
+        _record("OptimisticResolver.withdraw two bonds, to a proposer with nothing", "");
+    }
+
+    /// @notice A threshold of 1.23, due at a given instant, with a deadline eight days later.
+    /// @param announcesAt When the figure may be public.
+    /// @param terms Its terms.
+    /// @return The threshold.
+    function _sealable(uint64 announcesAt, bytes memory terms)
+        internal
+        pure
+        returns (ThresholdRegistry.Threshold memory)
+    {
+        return ThresholdRegistry.Threshold({
+            value: 123,
+            decimals: 2,
+            announcesAt: announcesAt,
+            deadline: announcesAt + 8 days,
+            terms: terms
+        });
     }
 
     /// @notice A resolver's first report of a condition.

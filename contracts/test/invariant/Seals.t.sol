@@ -123,6 +123,7 @@ contract SealsHandler is CommonBase, StdCheats, StdUtils {
                 recorded[id] = Recorded(sealer, block.number, threshold);
                 sealedIds.push(id);
                 seals++;
+                _repeat(sealer, threshold, id);
             }
             // Accepted as a repeat: the original record stands, so the property sees any change.
         } catch (bytes memory reason) {
@@ -180,6 +181,30 @@ contract SealsHandler is CommonBase, StdCheats, StdUtils {
             deadline: announcesAt + uint64(1 + shape % 3) * 4 days,
             terms: terms
         });
+    }
+
+    /// @notice Seals the same threshold again at once, which must be refused as a repeat. Done after
+    ///         every accepted seal rather than left to chance: the fuzzer's edge-favouring seeds left
+    ///         whole runs that never drew the same threshold twice.
+    /// @param sealer Who sealed it.
+    /// @param threshold What was sealed.
+    /// @param id Its event.
+    function _repeat(address sealer, ThresholdRegistry.Threshold memory threshold, bytes32 id)
+        internal
+    {
+        vm.prank(sealer);
+        try REGISTRY.seal(threshold) returns (
+            bytes32
+        ) {
+        // Accepted twice: the original record stands, so the property sees what changed.
+        }
+        catch (bytes memory reason) {
+            require(
+                bytes4(reason) == ThresholdRegistry.AlreadySealed.selector,
+                "a repeat was refused for the wrong reason"
+            );
+            repeatsRefused++;
+        }
     }
 
     /// @notice Records, once, an event attempted too late that was never sealed in time. An event

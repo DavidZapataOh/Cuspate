@@ -116,6 +116,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     uint256 public stateChangingCalls;
     /// @notice How many conditions were reported.
     uint256 public reports;
+    /// @notice How many times the report action was called, whether or not it reported.
+    uint256 public reportCalls;
 
     /// @notice Creates the collaterals and the first market, so every action has a vault from the
     ///         first call.
@@ -301,58 +303,96 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         stateChangingCalls++;
     }
 
-    /// @notice About one call in eight: reports a final outcome for a condition with legs
-    ///         outstanding, recording what it sent and every vault's supply at that moment; on a
-    ///         condition already reported it attempts a second report and requires the exact
-    ///         refusal. Otherwise it splits.
+    /// @notice Every eighth call: attempts a second report of a condition already reported,
+    ///         requiring the exact refusal, and reports the first unreported condition with legs
+    ///         outstanding, recording what it sent and every vault's supply at that moment. With
+    ///         neither to do, it splits.
     /// @param conditionSeed Chooses the condition.
-    /// @param outcomeSeed Chooses the outcome, and whether this call reports at all.
+    /// @param outcomeSeed Chooses the outcome.
     function reportOutcome(uint256 conditionSeed, uint256 outcomeSeed) external {
-        if ((outcomeSeed >> 8) % 8 != 0) {
+        // Every eighth call reports, counted rather than drawn from the seed: the fuzzer favours edge
+        // values, and a gate on the seed's bits left whole runs that never resolved anything.
+        if (reportCalls++ % 8 != 0) {
             splitPosition(conditionSeed, outcomeSeed, outcomeSeed);
             return;
         }
-        uint256 index = conditionSeed % 4;
-        bytes32 condition = conditionAt(index);
-        address resolver = resolvers[index % 2];
-        bytes32 eventId = events[(index / 2) % 2];
+        uint256 start = conditionSeed % 4;
         Outcome outcome = Outcome(_bound(outcomeSeed, 1, 3));
-        if (sent[condition] != Outcome.Unresolved) {
-            vm.prank(resolver);
-            (bool accepted, bytes memory reason) = address(FACTORY)
-                .call(abi.encodeCall(MarketFactory.reportOutcome, (eventId, outcome)));
-            if (!accepted) {
-                require(
-                    keccak256(reason)
-                        == keccak256(
-                            abi.encodeWithSelector(
-                                MarketFactory.OutcomeAlreadyReported.selector, condition
-                            )
-                        ),
-                    "a second report was refused for the wrong reason"
-                );
+        // The condition searched for rather than drawn: a drawn one is often already reported or has
+        // no market yet, and runs then resolved nothing.
+        bool reported;
+        bool refused;
+        for (uint256 i = 0; i < 4; i++) {
+            uint256 index = (start + i) % 4;
+            bytes32 condition = conditionAt(index);
+            if (sent[condition] != Outcome.Unresolved) {
+                if (!refused) {
+                    _attemptSecondReport(index, outcome);
+                    refused = true;
+                }
+            } else if (!reported && _outstanding(condition)) {
+                _report(index, outcome);
+                reported = true;
             }
-            return;
         }
-        bool outstanding;
+        if (!reported && !refused) {
+            splitPosition(conditionSeed, outcomeSeed, outcomeSeed);
+        }
+    }
+
+    /// @notice Whether any vault on a condition has legs outstanding.
+    /// @param condition The condition.
+    /// @return True if some vault on it has a leg supply.
+    function _outstanding(bytes32 condition) internal view returns (bool) {
+        for (uint256 i = 0; i < vaults.length; i++) {
+            PositionVault vault = vaults[i];
+            if (
+                created[vault].condition == condition
+                    && vault.YES().totalSupply() + vault.NO().totalSupply() > 0
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// @notice Reports a condition, recording what was sent and every vault's supply at that moment.
+    /// @param index The condition's index.
+    /// @param outcome The outcome.
+    function _report(uint256 index, Outcome outcome) internal {
+        bytes32 condition = conditionAt(index);
         for (uint256 i = 0; i < vaults.length; i++) {
             PositionVault vault = vaults[i];
             if (created[vault].condition == condition) {
-                uint256 yes = vault.YES().totalSupply();
-                uint256 no = vault.NO().totalSupply();
-                supplyAtReport[vault] = [yes, no];
-                outstanding = outstanding || yes + no > 0;
+                supplyAtReport[vault] = [vault.YES().totalSupply(), vault.NO().totalSupply()];
             }
         }
-        if (!outstanding) {
-            splitPosition(conditionSeed, outcomeSeed, outcomeSeed);
-            return;
-        }
-        vm.prank(resolver);
-        FACTORY.reportOutcome(eventId, outcome);
+        vm.prank(resolvers[index % 2]);
+        FACTORY.reportOutcome(events[(index / 2) % 2], outcome);
         sent[condition] = outcome;
         reports++;
         stateChangingCalls++;
+    }
+
+    /// @notice Attempts a second report of a reported condition and requires the exact refusal.
+    /// @param index The condition's index.
+    /// @param outcome The outcome attempted.
+    function _attemptSecondReport(uint256 index, Outcome outcome) internal {
+        bytes32 condition = conditionAt(index);
+        vm.prank(resolvers[index % 2]);
+        (bool accepted, bytes memory reason) = address(FACTORY)
+            .call(abi.encodeCall(MarketFactory.reportOutcome, (events[(index / 2) % 2], outcome)));
+        if (!accepted) {
+            require(
+                keccak256(reason)
+                    == keccak256(
+                        abi.encodeWithSelector(
+                            MarketFactory.OutcomeAlreadyReported.selector, condition
+                        )
+                    ),
+                "a second report was refused for the wrong reason"
+            );
+        }
     }
 
     /// @notice After resolution, redeems what an actor holds: both legs, the yes leg alone or the no

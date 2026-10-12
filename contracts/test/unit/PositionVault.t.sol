@@ -108,9 +108,7 @@ contract PositionVaultTest is Test {
     /// @notice A vault over the test collateral, and a holder with collateral approved to it.
     function setUp() public {
         collateral = new TestCollateral();
-        vault = new PositionVault(
-            IERC20(address(collateral)), "dollar if true", "TUSD1", "dollar if false", "TUSD0"
-        );
+        vault = new PositionVault(IERC20(address(collateral)), keccak256("a market"));
         collateral.mint(holder, AMOUNT);
         vm.prank(holder);
         collateral.approve(address(vault), type(uint256).max);
@@ -273,7 +271,7 @@ contract PositionVaultTest is Test {
         private
         returns (PositionVault created, TestCollateral same)
     {
-        created = new PositionVault(IERC20(address(token)), "if true", "C1", "if false", "C0");
+        created = new PositionVault(IERC20(address(token)), keccak256("a market"));
         token.mint(holder, AMOUNT);
         vm.prank(holder);
         token.approve(address(created), type(uint256).max);

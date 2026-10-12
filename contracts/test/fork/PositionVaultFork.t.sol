@@ -54,7 +54,7 @@ contract PositionVaultForkTest is Test {
     /// @param amount How much to split.
     /// @param expectedDecimals The decimals the collateral reports.
     function _roundTrip(IERC20 collateral, uint256 amount, uint8 expectedDecimals) private {
-        PositionVault vault = new PositionVault(collateral, "if true", "C1", "if false", "C0");
+        PositionVault vault = new PositionVault(collateral, keccak256("a market"));
         assertEq(vault.YES().decimals(), expectedDecimals);
         deal(address(collateral), holder, amount);
 

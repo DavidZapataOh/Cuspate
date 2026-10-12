@@ -18,7 +18,7 @@ contract PositionVaultFuzzTest is Test {
     /// @notice A vault over a test collateral.
     function setUp() public {
         collateral = new TestCollateral();
-        vault = new PositionVault(IERC20(address(collateral)), "if true", "C1", "if false", "C0");
+        vault = new PositionVault(IERC20(address(collateral)), keccak256("a market"));
         vm.prank(holder);
         collateral.approve(address(vault), type(uint256).max);
     }

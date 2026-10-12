@@ -79,6 +79,13 @@ run_selection() {
 		echo "$1: the run collected $(suites_run "${log}") of ${suites} suites listed; recompiling" >&2
 		status=0
 		forge test --force --match-path "${glob}" > "${log}" 2>&1 || status=$?
+	elif [ "${status}" -ne 0 ] && grep -q "no bytecode for contract" "${log}"; then
+		# The same cache, failing the other way: a suite is collected while a contract it deploys
+		# still has no current bytecode, and its setup fails although nothing is wrong with the code.
+		# Only that signature is retried; any other failure stands as it is.
+		echo "$1: a deployed contract had no current bytecode; recompiling" >&2
+		status=0
+		forge test --force --match-path "${glob}" > "${log}" 2>&1 || status=$?
 	fi
 	cat "${log}"
 	if [ "${status}" -ne 0 ]; then

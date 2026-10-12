@@ -4,6 +4,9 @@
     "collateral": [
       "0xc54ce75193a68602bC01FfD2B112DA3948EB14a7"
     ],
+    "dollar": [
+      "0x754704Bc059F8C67012fEd69BC8A327a5aafb603"
+    ],
     "poolManager": [
       "0x188d586ddcf52439676ca21a244753fa19f9ea8e"
     ]

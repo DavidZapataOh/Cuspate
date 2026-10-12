@@ -48,6 +48,7 @@ contract PositionToken is ERC20 {
     /// @notice Creates an amount of this leg for a holder.
     /// @param to The holder credited.
     /// @param amount How much is created.
+    /// @custom:access minter
     function mint(address to, uint256 amount) external {
         _requireMinter();
         _mint(to, amount);
@@ -56,6 +57,7 @@ contract PositionToken is ERC20 {
     /// @notice Destroys an amount of this leg from a holder, with no allowance.
     /// @param from The holder debited.
     /// @param amount How much is destroyed.
+    /// @custom:access minter
     function burn(address from, uint256 amount) external {
         _requireMinter();
         _burn(from, amount);

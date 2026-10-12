@@ -607,12 +607,117 @@ test("tripwire: every first-party contract outside the declared list is exercise
 	}
 });
 
+test("tripwire: every state-changing function in contracts/src says who may call it, and every restricted one has a negative test", (t) => {
+	// The pipeline runs tripwires before it builds, and a build leaves the artifacts of deleted or
+	// renamed contracts behind, so this builds first and takes artifacts from the compiler cache.
+	execFileSync("forge", ["build"], { cwd: contracts, stdio: "pipe" });
+	const cache = JSON.parse(
+		readFileSync(
+			path.join(contracts, "cache", "solidity-files-cache.json"),
+			"utf8",
+		),
+	);
+	const artifacts = (source) =>
+		Object.entries(cache.files[source]?.artifacts ?? {}).flatMap(
+			([name, versions]) =>
+				Object.values(versions).flatMap((profiles) =>
+					Object.values(profiles).map((entry) => ({
+						name,
+						...JSON.parse(
+							readFileSync(
+								path.join(contracts, cache.paths.artifacts, entry.path),
+								"utf8",
+							),
+						),
+					})),
+				),
+		);
+	const one = (source, name) => {
+		const found = artifacts(source).find((artifact) => artifact.name === name);
+		assert.ok(found, `no ${name} artifact for ${source}`);
+		return found;
+	};
+
+	// The ERC-20 surface is OpenZeppelin's: a function is exempt only while it is inherited
+	// unchanged, which is when its documentation is still OpenZeppelin's own.
+	const openzeppelin = "lib/openzeppelin-contracts/contracts/token/ERC20";
+	const erc20Selectors = new Set(
+		Object.values(
+			one(`${openzeppelin}/IERC20.sol`, "IERC20").methodIdentifiers,
+		),
+	);
+	const inheritedDocs = one(`${openzeppelin}/ERC20.sol`, "ERC20").metadata
+		.output.devdoc.methods;
+
+	const unitTests = Object.values(
+		JSON.parse(
+			execFileSync(
+				"forge",
+				["test", "--list", "--json", "--match-path", UNIT_GLOB],
+				{
+					cwd: contracts,
+					encoding: "utf8",
+				},
+			),
+		),
+	).flatMap((suites) => Object.values(suites).flat());
+
+	let inspected = 0;
+	let restricted = 0;
+	for (const source of Object.keys(cache.files).filter((file) =>
+		file.startsWith("src/"),
+	)) {
+		for (const artifact of artifacts(source)) {
+			const mutability = new Map(
+				artifact.abi
+					.filter((entry) => entry.type === "function")
+					.map((entry) => [entry.name, entry.stateMutability]),
+			);
+			const docs = artifact.metadata.output.devdoc.methods ?? {};
+			for (const [signature, selector] of Object.entries(
+				artifact.methodIdentifiers,
+			)) {
+				const name = signature.slice(0, signature.indexOf("("));
+				if (["view", "pure"].includes(mutability.get(name))) continue;
+				if (
+					erc20Selectors.has(selector) &&
+					JSON.stringify(docs[signature]) ===
+						JSON.stringify(inheritedDocs[signature])
+				)
+					continue;
+				inspected++;
+				const access = docs[signature]?.["custom:access"];
+				assert.ok(
+					access,
+					`${artifact.name}.${signature} does not say who may call it`,
+				);
+				if (access === "anyone") continue;
+				restricted++;
+				assert.ok(
+					unitTests.some((test) =>
+						test.startsWith(`test_RevertWhen_${name}CallerIs`),
+					),
+					`${artifact.name}.${signature} is restricted to ${access} and no unit test shows another caller refused`,
+				);
+			}
+		}
+	}
+	assert.ok(
+		inspected > 0,
+		"no state-changing function was found in contracts/src",
+	);
+	t.diagnostic(
+		`${inspected} state-changing functions inspected, ${restricted} restricted`,
+	);
+});
+
 test("the tripwires are reported by name before any gate runs", () => {
 	const { output } = gate("tripwires");
 	for (const tripwire of [
 		"where the analyser can see it",
 		"has a coverage floor it meets",
 		"has a gas baseline entry",
+		"says who may call it",
 	]) {
 		assert.match(output, new RegExp(tripwire), output);
 	}

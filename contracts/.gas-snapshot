@@ -1,3 +1,6 @@
+AccessTest:test_RevertWhen_mergeCallerIsNotTheHolder() (gas: 141125)
+AccessTest:test_RevertWhen_redeemCallerIsNotTheHolder() (gas: 194819)
+AccessTest:test_aReportRelayedByTheResolverStaysTheRelayers() (gas: 207994)
 AddressBookTest:test_RevertWhen_keyIsAbsent() (gas: 44320)
 AddressBookTest:test_RevertWhen_thirdPartyKeyIsAbsent() (gas: 44601)
 AddressBookTest:test_recordedKeyResolvesToTheRecordedAddress() (gas: 36966)

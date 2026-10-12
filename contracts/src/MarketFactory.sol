@@ -103,6 +103,7 @@ contract MarketFactory is IOutcomes {
     ///         condition that is not theirs. It is written once.
     /// @param eventId The event.
     /// @param outcome Its final outcome.
+    /// @custom:access anyone
     function reportOutcome(bytes32 eventId, Outcome outcome) external {
         if (outcome == Outcome.Unresolved) {
             revert OutcomeNotFinal();
@@ -123,6 +124,7 @@ contract MarketFactory is IOutcomes {
     /// @param resolver Who reports the event's outcome for this market. It is part of the market's
     ///        id, so a market's resolver is never chosen by whoever happens to create it first.
     /// @return id The new market's id.
+    /// @custom:access anyone
     function createMarket(IERC20 underlying, IERC20 dollar, bytes32 eventId, address resolver)
         external
         returns (bytes32 id)

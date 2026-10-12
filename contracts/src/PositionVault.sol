@@ -137,6 +137,7 @@ contract PositionVault {
 
     /// @notice Takes an amount of collateral from the caller and gives back that amount of each leg.
     /// @param amount How much collateral to split.
+    /// @custom:access anyone
     function splitPosition(uint256 amount) external {
         // Announced before any external call, so a reentrant call cannot place its own event
         // ahead of this one; if anything below reverts, the event goes with it.
@@ -156,6 +157,7 @@ contract PositionVault {
 
     /// @notice Takes an amount of each leg from the caller and gives back that amount of collateral.
     /// @param amount How much of each leg to merge.
+    /// @custom:access anyone
     function mergePositions(uint256 amount) external {
         emit PositionsMerge(msg.sender, amount);
         YES.burn(msg.sender, amount);
@@ -173,6 +175,7 @@ contract PositionVault {
     ///      the redemption can be announced before any external call.
     /// @param yesAmount How much of the yes leg to redeem.
     /// @param noAmount How much of the no leg to redeem.
+    /// @custom:access anyone
     function redeemPositions(uint256 yesAmount, uint256 noAmount) external {
         emit PayoutRedemption(msg.sender, yesAmount, noAmount);
         Outcome outcome = OUTCOMES.outcomeOf(CONDITION);

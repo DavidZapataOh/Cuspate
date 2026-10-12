@@ -91,7 +91,16 @@ abstract contract GasCases is Test {
         IERC20 bondToken = dollarVault.COLLATERAL();
         uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
         OptimisticResolver resolver_ = new OptimisticResolver(
-            factory, registry, address(this), address(this), bondToken, bond, bond / 5, 2 hours
+            factory,
+            registry,
+            address(this),
+            address(this),
+            bondToken,
+            bond,
+            bond / 5,
+            2 hours,
+            7 days,
+            7 days
         );
         address proposer = makeAddr("bonded proposer");
         deal(address(bondToken), proposer, 2 * bond);
@@ -144,7 +153,16 @@ abstract contract GasCases is Test {
         IERC20 bondToken = dollarVault.COLLATERAL();
         uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
         OptimisticResolver resolver_ = new OptimisticResolver(
-            factory, registry, address(this), address(this), bondToken, bond, bond / 5, 2 hours
+            factory,
+            registry,
+            address(this),
+            address(this),
+            bondToken,
+            bond,
+            bond / 5,
+            2 hours,
+            7 days,
+            7 days
         );
         address[3] memory parties =
             [makeAddr("first proposer"), makeAddr("disputer"), makeAddr("second proposer")];
@@ -168,6 +186,48 @@ abstract contract GasCases is Test {
         vm.warp(uint256(announcesAt) + 8 days + 1);
         resolver_.ruleInvalid(ruledInvalid, false, _longestReason(resolver_));
         _record("OptimisticResolver.ruleInvalid a disputed second proposal, after the deadline", "");
+    }
+
+    /// @notice The exits anyone may take: expiring an event nobody resolved, expiring one the arbiter
+    ///         left, and releasing a first contest the arbiter never ruled.
+    function test_timeouts() public {
+        IERC20 bondToken = dollarVault.COLLATERAL();
+        uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory,
+            registry,
+            address(this),
+            address(this),
+            bondToken,
+            bond,
+            bond / 5,
+            2 hours,
+            7 days,
+            7 days
+        );
+        address[3] memory parties =
+            [makeAddr("first proposer"), makeAddr("disputer"), makeAddr("second proposer")];
+        for (uint256 i = 0; i < 3; i++) {
+            deal(address(bondToken), parties[i], 10 * bond);
+            vm.prank(parties[i]);
+            bondToken.approve(address(resolver_), 10 * bond);
+        }
+        uint64 announcesAt = uint64(vm.getBlockTimestamp() + 1 days);
+        bytes32 unresolved = registry.seal(_sealable(announcesAt, "nobody resolves it"));
+        bytes32 silent = registry.seal(_sealable(announcesAt, "the arbiter is silent"));
+        vm.warp(announcesAt);
+        _escalate(resolver_, silent, parties, false);
+
+        vm.warp(resolver_.expiresAt(unresolved) + 1);
+        resolver_.expire(unresolved);
+        _record("OptimisticResolver.expire an event nobody resolved", "");
+
+        vm.warp(resolver_.outcomeTimeout(silent));
+        resolver_.expire(silent);
+        _record("OptimisticResolver.expire an event the arbiter left, returning both bonds", "");
+
+        resolver_.release(silent);
+        _record("OptimisticResolver.release a first contest the arbiter never ruled", "");
     }
 
     /// @notice Proposes, disputes, proposes again and disputes again, recording both disputes once.

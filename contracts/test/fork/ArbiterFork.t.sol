@@ -184,7 +184,16 @@ contract ArbiterForkTest is Test {
         factory = new MarketFactory();
         address sealer = makeAddr("sealer");
         resolver = new OptimisticResolver(
-            factory, registry, sealer, address(safe), dollar, BOND, BOND / 5, LIVENESS
+            factory,
+            registry,
+            sealer,
+            address(safe),
+            dollar,
+            BOND,
+            BOND / 5,
+            LIVENESS,
+            7 days,
+            7 days
         );
         uint64 announcesAt = uint64(vm.getBlockTimestamp() + 1 days);
         vm.prank(sealer);

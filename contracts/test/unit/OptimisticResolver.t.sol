@@ -79,7 +79,9 @@ contract OptimisticResolverTest is Test {
             IERC20(address(dollar)),
             BOND,
             BOND / 5,
-            LIVENESS
+            LIVENESS,
+            7 days,
+            7 days
         );
         threshold = ThresholdRegistry.Threshold({
             value: 123,
@@ -107,7 +109,9 @@ contract OptimisticResolverTest is Test {
             token,
             BOND,
             BOND / 5,
-            LIVENESS
+            LIVENESS,
+            7 days,
+            7 days
         );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
         new OptimisticResolver(
@@ -118,20 +122,44 @@ contract OptimisticResolverTest is Test {
             token,
             BOND,
             BOND / 5,
-            LIVENESS
+            LIVENESS,
+            7 days,
+            7 days
         );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
         new OptimisticResolver(
-            factory, registry, address(0), address(this), token, BOND, BOND / 5, LIVENESS
+            factory,
+            registry,
+            address(0),
+            address(this),
+            token,
+            BOND,
+            BOND / 5,
+            LIVENESS,
+            7 days,
+            7 days
         );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
         new OptimisticResolver(
-            factory, registry, sealer, address(this), IERC20(address(0)), BOND, BOND / 5, LIVENESS
+            factory,
+            registry,
+            sealer,
+            address(this),
+            IERC20(address(0)),
+            BOND,
+            BOND / 5,
+            LIVENESS,
+            7 days,
+            7 days
         );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, address(this), token, 0, 0 / 5, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, sealer, address(this), token, 0, 0 / 5, LIVENESS, 7 days, 7 days
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, address(this), token, BOND, BOND / 5, 0);
+        new OptimisticResolver(
+            factory, registry, sealer, address(this), token, BOND, BOND / 5, 0, 7 days, 7 days
+        );
     }
 
     /// @notice A figure proposed once it can be public is stored and pulls exactly the bond.

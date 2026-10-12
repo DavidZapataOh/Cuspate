@@ -23,6 +23,8 @@ contract ComparisonTest is Test {
             IERC20(address(1)),
             1,
             1,
+            1,
+            1,
             1
         );
     }

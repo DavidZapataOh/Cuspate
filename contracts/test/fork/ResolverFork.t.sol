@@ -59,7 +59,16 @@ contract ResolverForkTest is Test {
         ThresholdRegistry registry = new ThresholdRegistry();
         MarketFactory factory = new MarketFactory();
         resolver = new OptimisticResolver(
-            factory, registry, sealer, address(this), dollar, BOND, BOND / 5, LIVENESS
+            factory,
+            registry,
+            sealer,
+            address(this),
+            dollar,
+            BOND,
+            BOND / 5,
+            LIVENESS,
+            7 days,
+            7 days
         );
         announcesAt = uint64(block.timestamp + 1 days);
         vm.prank(sealer);

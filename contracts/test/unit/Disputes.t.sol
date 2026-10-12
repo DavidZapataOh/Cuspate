@@ -40,7 +40,16 @@ contract DisputesTest is Test {
         factory = new MarketFactory();
         dollar = new SkimmingDollar();
         resolver = new OptimisticResolver(
-            factory, registry, sealer, arbiter, IERC20(address(dollar)), BOND, BURN, LIVENESS
+            factory,
+            registry,
+            sealer,
+            arbiter,
+            IERC20(address(dollar)),
+            BOND,
+            BURN,
+            LIVENESS,
+            7 days,
+            7 days
         );
         threshold = ThresholdRegistry.Threshold({
             value: 123,
@@ -68,11 +77,17 @@ contract DisputesTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(OptimisticResolver.BurnAboveBond.selector, BOND + 1, BOND)
         );
-        new OptimisticResolver(factory, registry, sealer, arbiter, token, BOND, BOND + 1, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, sealer, arbiter, token, BOND, BOND + 1, LIVENESS, 7 days, 7 days
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, address(0), token, BOND, BURN, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, sealer, address(0), token, BOND, BURN, LIVENESS, 7 days, 7 days
+        );
         vm.expectRevert(OptimisticResolver.ZeroParameter.selector);
-        new OptimisticResolver(factory, registry, sealer, arbiter, token, BOND, 0, LIVENESS);
+        new OptimisticResolver(
+            factory, registry, sealer, arbiter, token, BOND, 0, LIVENESS, 7 days, 7 days
+        );
     }
 
     /// @notice A dispute in the window posts the bond, discards round 0 and opens round 1.

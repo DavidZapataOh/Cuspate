@@ -39,6 +39,9 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
         Settle,
         RuleOutcome,
         RuleContest,
+        Expire,
+        ExpireSilent,
+        Release,
         Withdraw
     }
 
@@ -82,6 +85,12 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
     uint256 public contestRulings;
     /// @notice How many withdrawals were made.
     uint256 public withdrawals;
+    /// @notice How many events expired with nothing open.
+    uint256 public expiries;
+    /// @notice How many events expired because the arbiter was silent.
+    uint256 public silentExpiries;
+    /// @notice How many first contests were released unruled.
+    uint256 public releases;
 
     /// @notice The event the handler is driving now.
     bytes32 public current;
@@ -90,7 +99,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
     uint64 internal deadline;
 
     /// @notice The paths, as sequences of actions.
-    Action[][4] internal scripts;
+    Action[][8] internal scripts;
 
     /// @notice Deploys the system with the handler as sealer and arbiter, and funds the actors.
     constructor() {
@@ -105,7 +114,9 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
             IERC20(address(DOLLAR)),
             BOND,
             BURN,
-            LIVENESS
+            LIVENESS,
+            7 days,
+            7 days
         );
         for (uint256 i = 0; i < 3; i++) {
             DOLLAR.mint(actors[i], 1e30);
@@ -145,6 +156,36 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
             Action.RuleContest,
             Action.Withdraw
         ];
+        scripts[4] = [Action.Seal, Action.Expire, Action.Withdraw];
+        scripts[5] = [
+            Action.Seal,
+            Action.Propose,
+            Action.Dispute,
+            Action.Expire,
+            Action.Release,
+            Action.Withdraw
+        ];
+        scripts[6] = [
+            Action.Seal,
+            Action.Propose,
+            Action.Dispute,
+            Action.ProposeAgain,
+            Action.DisputeAgain,
+            Action.Hold,
+            Action.ExpireSilent,
+            Action.Release,
+            Action.Withdraw
+        ];
+        scripts[7] = [
+            Action.Seal,
+            Action.Propose,
+            Action.Dispute,
+            Action.ProposeAgain,
+            Action.Wait,
+            Action.Settle,
+            Action.Release,
+            Action.Withdraw
+        ];
     }
 
     /// @notice How many events were sealed.
@@ -163,7 +204,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
     /// @notice Advances the current event by one action, starting the next path when one ends.
     /// @param seed Picks values: figures and amounts, never which branch is taken.
     function step(uint256 seed) external {
-        Action[] storage script = scripts[variant % 4];
+        Action[] storage script = scripts[variant % 8];
         Action action = script[position];
         if (action == Action.Seal) _seal(seed);
         else if (action == Action.Propose) _propose(actors[0], seed);
@@ -175,6 +216,9 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
         else if (action == Action.Settle) _settle();
         else if (action == Action.RuleOutcome) _ruleOutcome(seed);
         else if (action == Action.RuleContest) _ruleContest();
+        else if (action == Action.Expire) _expire();
+        else if (action == Action.ExpireSilent) _expireSilent();
+        else if (action == Action.Release) _release();
         else _withdrawAll();
         position++;
         if (position == script.length) {
@@ -311,6 +355,56 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
         );
     }
 
+    /// @notice Expires an event with nothing open: refused at its expiry instant, accepted a second
+    ///         later.
+    function _expire() internal {
+        uint256 at = RESOLVER.expiresAt(current);
+        vm.warp(at);
+        _refused(
+            abi.encodeCall(OptimisticResolver.expire, (current)),
+            abi.encodeWithSelector(OptimisticResolver.NotExpired.selector, at)
+        );
+        vm.warp(at + 1);
+        RESOLVER.expire(current);
+        expected[current] = Outcome.Invalid;
+        expiries++;
+    }
+
+    /// @notice Expires an event whose arbiter let its timeout pass, after a late ruling is refused;
+    ///         both second-round posters get their bonds back.
+    function _expireSilent() internal {
+        OptimisticResolver.Proposal memory second = RESOLVER.eventOf(current).rounds[1];
+        uint256 timeout = RESOLVER.outcomeTimeout(current);
+        vm.warp(timeout);
+        _refused(
+            abi.encodeCall(OptimisticResolver.ruleFigure, (current, 0, 2, false, "too late")),
+            abi.encodeWithSelector(OptimisticResolver.TimedOut.selector, timeout)
+        );
+        RESOLVER.expire(current);
+        expected[current] = Outcome.Invalid;
+        credited[second.proposer] += BOND;
+        credited[second.disputer] += BOND;
+        held -= 2 * BOND;
+        silentExpiries++;
+    }
+
+    /// @notice Releases a first contest the arbiter never ruled, after a late ruling is refused; each
+    ///         poster gets its own bond back.
+    function _release() internal {
+        OptimisticResolver.Proposal memory first = RESOLVER.eventOf(current).rounds[0];
+        uint256 timeout = RESOLVER.contestTimeout(current);
+        if (vm.getBlockTimestamp() < timeout) vm.warp(timeout);
+        _refused(
+            abi.encodeCall(OptimisticResolver.ruleContest, (current, true, "too late")),
+            abi.encodeWithSelector(OptimisticResolver.TimedOut.selector, timeout)
+        );
+        RESOLVER.release(current);
+        credited[first.proposer] += BOND;
+        credited[first.disputer] += BOND;
+        held -= 2 * BOND;
+        releases++;
+    }
+
     /// @notice Every actor withdraws whatever it is owed.
     function _withdrawAll() internal {
         for (uint256 i = 0; i < 3; i++) {
@@ -412,6 +506,11 @@ contract ResolutionInvariantsTest is Test {
         assertGt(handler.outcomeRulings(), 2, "the campaign never ruled all three kinds of outcome");
         assertGt(handler.contestRulings(), 1, "the campaign never ruled a contest both ways");
         assertGt(handler.withdrawals(), 0, "the campaign withdrew nothing");
+        assertGt(handler.expiries(), 1, "the campaign never expired an event nobody resolved");
+        assertGt(
+            handler.silentExpiries(), 0, "the campaign never expired an event the arbiter left"
+        );
+        assertGt(handler.releases(), 1, "the campaign never released a contest");
     }
 
     /// @notice No outcome while waiting for the arbiter; otherwise the one implied.

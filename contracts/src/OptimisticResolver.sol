@@ -23,7 +23,7 @@ import {ThresholdRegistry} from "./ThresholdRegistry.sol";
 /// @dev The protocol's rules, which disputes enforce: a figure proposed before it was public is
 ///      wrong whatever its value; a figure is the one first published by the source the terms name;
 ///      invalid is right only when neither the primary nor the fallback source published the figure
-///      by the deadline, or what was published is ambiguous. The same rules bind the arbiter: it
+///      by the deadline, or what was published is ambiguous, or the arbiter let its timeout pass. The same rules bind the arbiter: it
 ///      rules invalid only after the deadline, and it may rule a proposer right only for the answer
 ///      that proposer gave. The design follows UMA's optimistic oracle: bonds posted by both sides,
 ///      a share burned so that disputing oneself always costs.
@@ -35,8 +35,12 @@ import {ThresholdRegistry} from "./ThresholdRegistry.sol";
 ///      reaches no other contract. Reasons are stored rather than only logged, because old logs may
 ///      not be served while current storage always is.
 ///
-///      No market should name this resolver yet: an event can still wait without end on an arbiter
-///      who never rules, or on a proposal nobody makes after a dispute.
+///      Every way an event can stall has an exit anyone may take, with no bond and no privilege: an
+///      event nobody resolves expires invalid after its deadline and a grace period; an event the
+///      arbiter never rules expires invalid once its timeout passes, never before the deadline, with
+///      both bonds returned unburned, since silence judges no one; a first contest the arbiter never
+///      rules is released, each bond to its poster. The resolver's liveness rests on `settle`,
+///      `expire` and `release`, which anyone may call.
 ///
 ///      Every parameter is fixed at construction: a market's condition commits to this contract's
 ///      address, so a parameter that changed later would change what markets committed to. The bond
@@ -55,7 +59,9 @@ contract OptimisticResolver {
     /// @param figure The figure proposed, scaled by `10**decimals`.
     /// @param decimals The decimals of `figure`.
     /// @param disputer Who disputed it; zero while undisputed.
-    /// @param ruled Whether the arbiter has ruled the contest between its proposer and disputer.
+    /// @param ruled Whether the contest between its proposer and disputer is closed: ruled by the
+    ///        arbiter, or released after its timeout, which leaves `reason` empty — a ruling never
+    ///        does.
     /// @param ruledAt When that contest was ruled, in Unix seconds.
     /// @param reason Why it was ruled as it was; for the second round, kept with the event's outcome.
     struct Proposal {
@@ -105,6 +111,11 @@ contract OptimisticResolver {
     uint256 public immutable BURN;
     /// @notice How long, in seconds, a proposal stays open to dispute before it can settle.
     uint256 public immutable LIVENESS;
+    /// @notice How long, in seconds, after the deadline (or a reset's window) anyone may still propose
+    ///         before an event with nothing open can be expired.
+    uint256 public immutable EXPIRY;
+    /// @notice How long, in seconds, the arbiter has to rule a deadlocked event or a disputed contest.
+    uint256 public immutable ARBITER_TIMEOUT;
 
     mapping(bytes32 eventId => EventState) internal events;
 
@@ -169,6 +180,24 @@ contract OptimisticResolver {
     error NotTheRuledAnswer();
     /// @notice Thrown when withdrawing with nothing owed.
     error NothingOwed();
+    /// @notice Thrown when a duration could overflow a clock.
+    /// @param duration The duration.
+    error DurationTooLong(uint256 duration);
+    /// @notice Thrown when proposing after an event's expiry.
+    /// @param expiresAt When it expired.
+    error EventExpired(uint256 expiresAt);
+    /// @notice Thrown when expiring an event before its time.
+    /// @param at When it can be expired.
+    error NotExpired(uint256 at);
+    /// @notice Thrown when expiring an event whose open round has a proposal to settle.
+    /// @param eventId The event.
+    error ProposalOpen(bytes32 eventId);
+    /// @notice Thrown when ruling after the arbiter's timeout.
+    /// @param timeout When it ran out.
+    error TimedOut(uint256 timeout);
+    /// @notice Thrown when releasing a contest before the arbiter's timeout.
+    /// @param timeout When it runs out.
+    error NotTimedOut(uint256 timeout);
     /// @notice Thrown when a ruling carries no reason.
     error EmptyReason();
     /// @notice Thrown when a ruling's reason is longer than allowed.
@@ -216,6 +245,13 @@ contract OptimisticResolver {
         uint256 burn,
         string reason
     );
+    /// @notice Emitted when an event expires invalid.
+    /// @param eventId The event.
+    /// @param arbiterSilent True if the arbiter let its timeout pass; false if nobody resolved it.
+    event Expired(bytes32 indexed eventId, bool arbiterSilent);
+    /// @notice Emitted when a first contest the arbiter never ruled is released.
+    /// @param eventId The event.
+    event ContestReleased(bytes32 indexed eventId);
     /// @notice Emitted when an account withdraws its credited bonds.
     /// @param account The account.
     /// @param amount How much.
@@ -238,6 +274,8 @@ contract OptimisticResolver {
     /// @param bond The bond every proposal and dispute posts.
     /// @param burn What is burned of a losing bond.
     /// @param liveness How long a proposal stays open, in seconds.
+    /// @param expiry How long after the deadline anyone may still propose, in seconds.
+    /// @param arbiterTimeout How long the arbiter has to rule, in seconds.
     constructor(
         MarketFactory factory,
         ThresholdRegistry registry,
@@ -246,14 +284,21 @@ contract OptimisticResolver {
         IERC20 bondToken,
         uint256 bond,
         uint256 burn,
-        uint256 liveness
+        uint256 liveness,
+        uint256 expiry,
+        uint256 arbiterTimeout
     ) {
         if (
             address(factory) == address(0) || address(registry) == address(0)
                 || sealer == address(0) || arbiter == address(0) || address(bondToken) == address(0)
-                || bond == 0 || burn == 0 || liveness == 0
+                || bond == 0 || burn == 0 || liveness == 0 || expiry == 0 || arbiterTimeout == 0
         ) {
             revert ZeroParameter();
+        }
+        uint256 longest = liveness > expiry ? liveness : expiry;
+        if (arbiterTimeout > longest) longest = arbiterTimeout;
+        if (longest > type(uint64).max) {
+            revert DurationTooLong(longest);
         }
         if (burn > bond) {
             revert BurnAboveBond(burn, bond);
@@ -266,6 +311,8 @@ contract OptimisticResolver {
         BOND = bond;
         BURN = burn;
         LIVENESS = liveness;
+        EXPIRY = expiry;
+        ARBITER_TIMEOUT = arbiterTimeout;
     }
 
     /// @notice Proposes the figure an event's terms name, as first published, posting the bond.
@@ -274,7 +321,7 @@ contract OptimisticResolver {
     /// @param decimals Its decimals; at most eighteen.
     /// @custom:access anyone
     function proposeFigure(bytes32 eventId, int256 figure, uint8 decimals) external {
-        (,, uint64 announcesAt,) = _sealed(eventId);
+        (,, uint64 announcesAt, uint64 deadline) = _sealed(eventId);
         // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp < announcesAt) {
             revert TooEarly(announcesAt);
@@ -282,7 +329,7 @@ contract OptimisticResolver {
         if (decimals > MAX_DECIMALS) {
             revert DecimalsTooLarge(decimals);
         }
-        _record(eventId, false, figure, decimals);
+        _record(eventId, deadline, false, figure, decimals);
         emit FigureProposed(eventId, msg.sender, figure, decimals);
         _pullBond();
     }
@@ -291,8 +338,8 @@ contract OptimisticResolver {
     /// @param eventId The event.
     /// @custom:access anyone
     function proposeInvalid(bytes32 eventId) external {
-        _requireAfterDeadline(eventId);
-        _record(eventId, true, 0, 0);
+        uint64 deadline = _requireAfterDeadline(eventId);
+        _record(eventId, deadline, true, 0, 0);
         emit InvalidProposed(eventId, msg.sender);
         _pullBond();
     }
@@ -373,6 +420,7 @@ contract OptimisticResolver {
             revert DecimalsTooLarge(decimals);
         }
         Proposal storage proposal = _pending(eventId);
+        _requireBeforeOutcomeTimeout(eventId);
         if (
             proposerWasRight
                 && (proposal.invalid
@@ -396,6 +444,7 @@ contract OptimisticResolver {
     {
         Proposal storage proposal = _pending(eventId);
         _requireAfterDeadline(eventId);
+        _requireBeforeOutcomeTimeout(eventId);
         if (proposerWasRight && !proposal.invalid) {
             revert NotTheRuledAnswer();
         }
@@ -418,9 +467,79 @@ contract OptimisticResolver {
         if (proposal.ruled) {
             revert AlreadyRuled(eventId);
         }
+        uint256 timeout = contestTimeout(eventId);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp >= timeout) {
+            revert TimedOut(timeout);
+        }
         _requireReason(reason);
         proposal.reason = reason;
         _ruleContest(eventId, 0, proposerWasRight, reason);
+    }
+
+    /// @notice Ends an event that nobody, or no arbiter, resolved: reports it invalid. Either the event
+    ///         has nothing open and its expiry has passed, or it waits for an arbiter whose timeout has
+    ///         passed — and then both bonds of the second contest go back to their posters, unburned.
+    /// @param eventId The event.
+    /// @custom:access anyone
+    function expire(bytes32 eventId) external {
+        EventState storage state = events[eventId];
+        (,,, uint64 deadline) = _sealed(eventId);
+        if (state.pendingArbitration) {
+            uint256 timeout = _outcomeTimeout(state, deadline);
+            // forge-lint: disable-next-line(block-timestamp)
+            if (block.timestamp < timeout) {
+                revert NotExpired(timeout);
+            }
+            Proposal storage second = state.rounds[1];
+            state.pendingArbitration = false;
+            second.settled = true;
+            second.ruled = true;
+            second.ruledAt = SafeCast.toUint64(block.timestamp);
+            owed[second.proposer] += BOND;
+            owed[second.disputer] += BOND;
+            emit Expired(eventId, true);
+            FACTORY.reportOutcome(eventId, Outcome.Invalid);
+            return;
+        }
+        Proposal storage open = state.rounds[state.round];
+        if (open.settled) {
+            revert AlreadySettled(eventId);
+        }
+        if (open.proposer != address(0)) {
+            revert ProposalOpen(eventId);
+        }
+        uint256 expiresAt_ = _expiresAt(state, deadline);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp <= expiresAt_) {
+            revert NotExpired(expiresAt_);
+        }
+        open.settled = true;
+        emit Expired(eventId, false);
+        FACTORY.reportOutcome(eventId, Outcome.Invalid);
+    }
+
+    /// @notice Releases a first contest the arbiter never ruled: each poster is credited its own bond.
+    /// @param eventId The event.
+    /// @custom:access anyone
+    function release(bytes32 eventId) external {
+        Proposal storage first = events[eventId].rounds[0];
+        if (first.disputer == address(0)) {
+            revert NotDisputed(eventId);
+        }
+        if (first.ruled) {
+            revert AlreadyRuled(eventId);
+        }
+        uint256 timeout = contestTimeout(eventId);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp < timeout) {
+            revert NotTimedOut(timeout);
+        }
+        first.ruled = true;
+        first.ruledAt = SafeCast.toUint64(block.timestamp);
+        owed[first.proposer] += BOND;
+        owed[first.disputer] += BOND;
+        emit ContestReleased(eventId);
     }
 
     /// @notice Pays the caller every bond credited to it.
@@ -450,6 +569,33 @@ contract OptimisticResolver {
         return events[eventId];
     }
 
+    /// @notice The last instant anything may be proposed for an event; after it, an event with nothing
+    ///         open can be expired. Its deadline plus the expiry, or, after a reset, the disputed
+    ///         window's close plus the expiry if that is later.
+    /// @param eventId The event, sealed by the trusted sealer.
+    /// @return The instant.
+    function expiresAt(bytes32 eventId) external view returns (uint256) {
+        (,,, uint64 deadline) = _sealed(eventId);
+        return _expiresAt(events[eventId], deadline);
+    }
+
+    /// @notice The instant the arbiter's time to rule an event's outcome runs out: the second
+    ///         proposal's window close or the deadline, whichever is later, plus the timeout.
+    /// @param eventId The event, sealed by the trusted sealer.
+    /// @return The instant.
+    function outcomeTimeout(bytes32 eventId) public view returns (uint256) {
+        (,,, uint64 deadline) = _sealed(eventId);
+        return _outcomeTimeout(events[eventId], deadline);
+    }
+
+    /// @notice The instant the arbiter's time to rule an event's first contest runs out: its window's
+    ///         close plus the timeout.
+    /// @param eventId The event.
+    /// @return The instant.
+    function contestTimeout(bytes32 eventId) public view returns (uint256) {
+        return events[eventId].rounds[0].proposedAt + LIVENESS + ARBITER_TIMEOUT;
+    }
+
     /// @notice Whether `figure / 10**figureDecimals` is greater than `value / 10**valueDecimals`,
     ///         exactly, for every value and every pair of decimals up to eighteen. It never reverts.
     /// @dev Compares in integers by dividing the side with more decimals, rounding toward negative
@@ -472,6 +618,42 @@ contract OptimisticResolver {
         int256 scale = int256(10) ** (figureDecimals - valueDecimals);
         int256 floor = _floorDiv(figure, scale);
         return floor > value || (floor == value && figure % scale != 0);
+    }
+
+    /// @notice See `expiresAt`.
+    /// @param state The event's state.
+    /// @param deadline Its deadline.
+    /// @return The instant.
+    function _expiresAt(EventState storage state, uint64 deadline) internal view returns (uint256) {
+        uint256 from = deadline;
+        if (state.round == 1) {
+            uint256 reopened = state.rounds[0].proposedAt + LIVENESS;
+            if (reopened > from) from = reopened;
+        }
+        return from + EXPIRY;
+    }
+
+    /// @notice See `outcomeTimeout`.
+    /// @param state The event's state.
+    /// @param deadline Its deadline.
+    /// @return The instant.
+    function _outcomeTimeout(EventState storage state, uint64 deadline)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 closed = state.rounds[1].proposedAt + LIVENESS;
+        return (closed > deadline ? closed : deadline) + ARBITER_TIMEOUT;
+    }
+
+    /// @notice Refuses a ruling of an event's outcome once the arbiter's time has run out.
+    /// @param eventId The event.
+    function _requireBeforeOutcomeTimeout(bytes32 eventId) internal view {
+        uint256 timeout = outcomeTimeout(eventId);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp >= timeout) {
+            revert TimedOut(timeout);
+        }
     }
 
     /// @notice An event not waiting for the arbiter.
@@ -562,8 +744,9 @@ contract OptimisticResolver {
 
     /// @notice Refuses an event whose deadline has not passed.
     /// @param eventId The event.
-    function _requireAfterDeadline(bytes32 eventId) internal view {
-        (,,, uint64 deadline) = _sealed(eventId);
+    /// @return deadline The deadline.
+    function _requireAfterDeadline(bytes32 eventId) internal view returns (uint64 deadline) {
+        (,,, deadline) = _sealed(eventId);
         // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp <= deadline) {
             revert BeforeDeadline(deadline);
@@ -593,11 +776,19 @@ contract OptimisticResolver {
     /// @notice Records the open round's proposal, refusing a second one and an event waiting for
     ///         the arbiter.
     /// @param eventId The event.
+    /// @param deadline Its deadline.
     /// @param invalid Whether it proposes invalid.
     /// @param figure The figure, if not.
     /// @param decimals Its decimals.
-    function _record(bytes32 eventId, bool invalid, int256 figure, uint8 decimals) internal {
+    function _record(bytes32 eventId, uint64 deadline, bool invalid, int256 figure, uint8 decimals)
+        internal
+    {
         EventState storage state = _open(eventId);
+        uint256 expiresAt_ = _expiresAt(state, deadline);
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp > expiresAt_) {
+            revert EventExpired(expiresAt_);
+        }
         Proposal storage proposal = state.rounds[state.round];
         if (proposal.proposer != address(0)) {
             revert AlreadyProposed(eventId);

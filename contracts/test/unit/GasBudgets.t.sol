@@ -126,8 +126,20 @@ abstract contract GasCases is Test {
         _record("OptimisticResolver.withdraw two bonds, to a proposer with nothing", "");
     }
 
+    /// @notice A ruling's reason at its maximum length, so the measured rulings are the costliest.
+    /// @param resolver_ The resolver whose maximum it is.
+    /// @return The reason.
+    function _longestReason(OptimisticResolver resolver_) internal view returns (string memory) {
+        bytes memory reason = new bytes(resolver_.MAX_REASON());
+        for (uint256 i = 0; i < reason.length; i++) {
+            reason[i] = "r";
+        }
+        return string(reason);
+    }
+
     /// @notice Disputes and rulings, each in its worst case: a first dispute that resets an event, a
-    ///         second that sends it to the arbiter, and the arbiter's three rulings.
+    ///         second that sends it to the arbiter, and the arbiter's three rulings, each with a reason
+    ///         of the longest length allowed.
     function test_disputes() public {
         IERC20 bondToken = dollarVault.COLLATERAL();
         uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
@@ -147,14 +159,14 @@ abstract contract GasCases is Test {
         vm.warp(announcesAt);
 
         _escalate(resolver_, ruledByFigure, parties, true);
-        resolver_.ruleContest(ruledByFigure, true);
+        resolver_.ruleContest(ruledByFigure, true, _longestReason(resolver_));
         _record("OptimisticResolver.ruleContest the first contest of an event", "");
-        resolver_.ruleFigure(ruledByFigure, 125, 2, false);
+        resolver_.ruleFigure(ruledByFigure, 125, 2, false, _longestReason(resolver_));
         _record("OptimisticResolver.ruleFigure a disputed second proposal", "");
 
         _escalate(resolver_, ruledInvalid, parties, false);
         vm.warp(uint256(announcesAt) + 8 days + 1);
-        resolver_.ruleInvalid(ruledInvalid, false);
+        resolver_.ruleInvalid(ruledInvalid, false, _longestReason(resolver_));
         _record("OptimisticResolver.ruleInvalid a disputed second proposal, after the deadline", "");
     }
 

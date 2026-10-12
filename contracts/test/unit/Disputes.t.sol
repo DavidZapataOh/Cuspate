@@ -17,6 +17,7 @@ contract DisputesTest is Test {
     uint256 internal constant BOND = 500e6;
     uint256 internal constant BURN = 100e6;
     uint256 internal constant LIVENESS = 2 hours;
+    string internal constant REASON = "the primary source published 1.25 on the announced day";
 
     address internal sealer = makeAddr("sealer");
     address internal arbiter = makeAddr("arbiter");
@@ -156,11 +157,11 @@ contract DisputesTest is Test {
     function test_aSuccessfulChallengeReversesTheOutcomeAndTransfersTheLosersBond() public {
         _escalate(120);
         vm.expectEmit(address(resolver));
-        emit OptimisticResolver.ContestRuled(eventId, 1, disputer, 2 * BOND - BURN, BURN);
+        emit OptimisticResolver.ContestRuled(eventId, 1, disputer, 2 * BOND - BURN, BURN, REASON);
         vm.expectEmit(address(resolver));
-        emit OptimisticResolver.OutcomeRuled(eventId, Outcome.Yes);
+        emit OptimisticResolver.OutcomeRuled(eventId, Outcome.Yes, REASON);
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
 
         assertEq(
             uint8(factory.outcomeOf(factory.condition(address(resolver), eventId))),
@@ -176,7 +177,7 @@ contract DisputesTest is Test {
     function test_aRulingThatConfirmsRoundOneCreditsItsProposer() public {
         _escalate(120);
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 1200, 3, true);
+        resolver.ruleFigure(eventId, 1200, 3, true, REASON);
         assertEq(
             uint8(factory.outcomeOf(factory.condition(address(resolver), eventId))),
             uint8(Outcome.No)
@@ -190,7 +191,7 @@ contract DisputesTest is Test {
         _escalate(120);
         vm.expectRevert(OptimisticResolver.NotTheRuledAnswer.selector);
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 121, 2, true);
+        resolver.ruleFigure(eventId, 121, 2, true, REASON);
     }
 
     /// @notice A ruled figure carries at most eighteen decimals.
@@ -200,7 +201,7 @@ contract DisputesTest is Test {
             abi.encodeWithSelector(OptimisticResolver.DecimalsTooLarge.selector, uint8(19))
         );
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 19, false);
+        resolver.ruleFigure(eventId, 125, 19, false, REASON);
     }
 
     /// @notice Invalid is ruled only after the deadline, and its proposer was right only if it
@@ -211,13 +212,13 @@ contract DisputesTest is Test {
             abi.encodeWithSelector(OptimisticResolver.BeforeDeadline.selector, threshold.deadline)
         );
         vm.prank(arbiter);
-        resolver.ruleInvalid(eventId, false);
+        resolver.ruleInvalid(eventId, false, REASON);
         vm.warp(uint256(threshold.deadline) + 1);
         vm.expectRevert(OptimisticResolver.NotTheRuledAnswer.selector);
         vm.prank(arbiter);
-        resolver.ruleInvalid(eventId, true);
+        resolver.ruleInvalid(eventId, true, REASON);
         vm.prank(arbiter);
-        resolver.ruleInvalid(eventId, false);
+        resolver.ruleInvalid(eventId, false, REASON);
         assertEq(
             uint8(factory.outcomeOf(factory.condition(address(resolver), eventId))),
             uint8(Outcome.Invalid)
@@ -229,7 +230,7 @@ contract DisputesTest is Test {
         _propose(proposer, 125);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.NotPending.selector, eventId));
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, true);
+        resolver.ruleFigure(eventId, 125, 2, true, REASON);
 
         vm.prank(disputer);
         resolver.dispute(eventId);
@@ -237,10 +238,10 @@ contract DisputesTest is Test {
         vm.prank(disputer);
         resolver.dispute(eventId);
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.NotPending.selector, eventId));
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
     }
 
     /// @notice Round 0's contest is ruled once, after its dispute, crediting whoever was right.
@@ -248,17 +249,17 @@ contract DisputesTest is Test {
         _propose(proposer, 125);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.NotDisputed.selector, eventId));
         vm.prank(arbiter);
-        resolver.ruleContest(eventId, true);
+        resolver.ruleContest(eventId, true, REASON);
 
         vm.prank(disputer);
         resolver.dispute(eventId);
         vm.prank(arbiter);
-        resolver.ruleContest(eventId, true);
+        resolver.ruleContest(eventId, true, REASON);
         assertEq(resolver.owed(proposer), 2 * BOND - BURN);
         assertEq(resolver.burned(), BURN);
         vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.AlreadyRuled.selector, eventId));
         vm.prank(arbiter);
-        resolver.ruleContest(eventId, false);
+        resolver.ruleContest(eventId, false, REASON);
     }
 
     /// @notice Every bond is accounted for once both contests are ruled and the winners withdraw:
@@ -266,9 +267,9 @@ contract DisputesTest is Test {
     function test_everyBondIsAccountedFor() public {
         _escalate(120);
         vm.prank(arbiter);
-        resolver.ruleContest(eventId, false);
+        resolver.ruleContest(eventId, false, REASON);
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
         vm.prank(disputer);
         resolver.withdraw();
         assertEq(dollar.balanceOf(address(resolver)), resolver.burned());
@@ -281,7 +282,7 @@ contract DisputesTest is Test {
         _escalate(120);
         dollar.stop();
         vm.prank(arbiter);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
         assertEq(
             uint8(factory.outcomeOf(factory.condition(address(resolver), eventId))),
             uint8(Outcome.Yes)
@@ -293,7 +294,7 @@ contract DisputesTest is Test {
         _escalate(120);
         vm.expectRevert(OptimisticResolver.NotArbiter.selector);
         vm.prank(stranger);
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
     }
 
     /// @notice Only the arbiter rules invalid.
@@ -302,7 +303,7 @@ contract DisputesTest is Test {
         vm.warp(uint256(threshold.deadline) + 1);
         vm.expectRevert(OptimisticResolver.NotArbiter.selector);
         vm.prank(stranger);
-        resolver.ruleInvalid(eventId, false);
+        resolver.ruleInvalid(eventId, false, REASON);
     }
 
     /// @notice Only the arbiter rules a contest.
@@ -312,7 +313,7 @@ contract DisputesTest is Test {
         resolver.dispute(eventId);
         vm.expectRevert(OptimisticResolver.NotArbiter.selector);
         vm.prank(stranger);
-        resolver.ruleContest(eventId, true);
+        resolver.ruleContest(eventId, true, REASON);
     }
 
     /// @notice A round-1 proposal nobody disputes settles as any proposal does.
@@ -328,6 +329,41 @@ contract DisputesTest is Test {
             uint8(Outcome.No)
         );
         assertEq(resolver.owed(second), BOND);
+    }
+
+    /// @notice Every ruling is recorded with its reason and its time, read back from the event.
+    function test_everyRulingIsRecordedWithItsReasonAndTime() public {
+        _escalate(120);
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+        vm.prank(arbiter);
+        resolver.ruleContest(eventId, false, "the first proposal came before publication");
+        vm.prank(arbiter);
+        resolver.ruleFigure(eventId, 125, 2, false, REASON);
+        OptimisticResolver.EventState memory state = resolver.eventOf(eventId);
+        assertEq(state.outcomeReason, REASON);
+        assertEq(state.rounds[0].reason, "the first proposal came before publication");
+        assertEq(state.rounds[0].ruledAt, vm.getBlockTimestamp());
+        assertEq(state.rounds[1].ruledAt, vm.getBlockTimestamp());
+    }
+
+    /// @notice No ruling without a reason.
+    function test_RevertWhen_aRulingHasNoReason() public {
+        _escalate(120);
+        vm.expectRevert(OptimisticResolver.EmptyReason.selector);
+        vm.prank(arbiter);
+        resolver.ruleFigure(eventId, 125, 2, false, "");
+        vm.expectRevert(OptimisticResolver.EmptyReason.selector);
+        vm.prank(arbiter);
+        resolver.ruleContest(eventId, false, "");
+    }
+
+    /// @notice A reason is at most its maximum length, so the gas a ruling needs is bounded.
+    function test_RevertWhen_aReasonIsTooLong() public {
+        _escalate(120);
+        uint256 length = resolver.MAX_REASON() + 1;
+        vm.expectRevert(abi.encodeWithSelector(OptimisticResolver.ReasonTooLong.selector, length));
+        vm.prank(arbiter);
+        resolver.ruleFigure(eventId, 125, 2, false, string(new bytes(length)));
     }
 
     /// @notice Proposes a figure, scaled by a hundred.

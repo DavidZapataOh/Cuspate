@@ -279,7 +279,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
         bool proposerWasRight = kind == 0;
         if (kind == 2) {
             vm.warp(uint256(deadline) + 1);
-            RESOLVER.ruleInvalid(current, false);
+            RESOLVER.ruleInvalid(current, false, "the campaign's ruling");
             expected[current] = Outcome.Invalid;
         } else {
             int256 figure = kind == 0
@@ -289,7 +289,7 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
                         : value + int256(_bound(seed, 1, 50)));
             expected[current] =
                 RESOLVER.isGreater(figure, 2, value, decimals) ? Outcome.Yes : Outcome.No;
-            RESOLVER.ruleFigure(current, figure, 2, proposerWasRight);
+            RESOLVER.ruleFigure(current, figure, 2, proposerWasRight, "the campaign's ruling");
         }
         credited[proposerWasRight ? second.proposer : second.disputer] += 2 * BOND - BURN;
         held -= 2 * BOND;
@@ -301,12 +301,12 @@ contract ResolutionHandler is CommonBase, StdCheats, StdUtils {
     function _ruleContest() internal {
         OptimisticResolver.Proposal memory first = RESOLVER.eventOf(current).rounds[0];
         bool proposerWasRight = contestRulings % 2 == 0;
-        RESOLVER.ruleContest(current, proposerWasRight);
+        RESOLVER.ruleContest(current, proposerWasRight, "the campaign's ruling");
         credited[proposerWasRight ? first.proposer : first.disputer] += 2 * BOND - BURN;
         held -= 2 * BOND;
         contestRulings++;
         _refused(
-            abi.encodeCall(OptimisticResolver.ruleContest, (current, true)),
+            abi.encodeCall(OptimisticResolver.ruleContest, (current, true, "a second ruling")),
             abi.encodeWithSelector(OptimisticResolver.AlreadyRuled.selector, current)
         );
     }

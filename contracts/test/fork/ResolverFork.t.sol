@@ -142,7 +142,7 @@ contract ResolverForkTest is Test {
         IPausableDollar pausable = IPausableDollar(address(dollar));
         vm.prank(pausable.pauser());
         pausable.pause();
-        resolver.ruleFigure(eventId, 125, 2, false);
+        resolver.ruleFigure(eventId, 125, 2, false, "the primary source published 1.25");
         _redeemAll(underlyingVault, 1e17);
 
         vm.prank(pausable.pauser());

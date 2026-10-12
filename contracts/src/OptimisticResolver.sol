@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {MarketFactory} from "./MarketFactory.sol";
 import {Outcome} from "./PositionVault.sol";
 import {ThresholdRegistry} from "./ThresholdRegistry.sol";
@@ -27,6 +28,13 @@ import {ThresholdRegistry} from "./ThresholdRegistry.sol";
 ///      that proposer gave. The design follows UMA's optimistic oracle: bonds posted by both sides,
 ///      a share burned so that disputing oneself always costs.
 ///
+///      The arbiter's reach, as protocol: in every function anyone may call, the arbiter is anyone,
+///      with no privilege. Beyond them it holds three rulings — an event's outcome only while the
+///      event is pending arbitration, and a disputed, unruled contest's bonds — once each, and every
+///      ruling carries its reason, stored with the time it was made. It changes no parameter and
+///      reaches no other contract. Reasons are stored rather than only logged, because old logs may
+///      not be served while current storage always is.
+///
 ///      No market should name this resolver yet: an event can still wait without end on an arbiter
 ///      who never rules, or on a proposal nobody makes after a dispute.
 ///
@@ -48,6 +56,8 @@ contract OptimisticResolver {
     /// @param decimals The decimals of `figure`.
     /// @param disputer Who disputed it; zero while undisputed.
     /// @param ruled Whether the arbiter has ruled the contest between its proposer and disputer.
+    /// @param ruledAt When that contest was ruled, in Unix seconds.
+    /// @param reason Why it was ruled as it was; for the second round, kept with the event's outcome.
     struct Proposal {
         address proposer;
         uint256 proposedAt;
@@ -57,20 +67,27 @@ contract OptimisticResolver {
         uint8 decimals;
         address disputer;
         bool ruled;
+        uint64 ruledAt;
+        string reason;
     }
 
     /// @notice Where an event stands.
     /// @param round The round now open: zero until a first dispute, then one.
     /// @param pendingArbitration Whether round one was disputed and the arbiter has yet to rule.
     /// @param rounds Each round's proposal.
+    /// @param outcomeReason Why the arbiter ruled the outcome it did, if it ruled one.
     struct EventState {
         uint8 round;
         bool pendingArbitration;
         Proposal[2] rounds;
+        string outcomeReason;
     }
 
     /// @notice The most decimals a figure may carry.
     uint8 public constant MAX_DECIMALS = 18;
+
+    /// @notice The longest reason a ruling may carry, in bytes, so the gas a ruling needs is bounded.
+    uint256 public constant MAX_REASON = 1024;
 
     /// @notice Where outcomes are reported.
     MarketFactory public immutable FACTORY;
@@ -152,6 +169,11 @@ contract OptimisticResolver {
     error NotTheRuledAnswer();
     /// @notice Thrown when withdrawing with nothing owed.
     error NothingOwed();
+    /// @notice Thrown when a ruling carries no reason.
+    error EmptyReason();
+    /// @notice Thrown when a ruling's reason is longer than allowed.
+    /// @param length Its length, in bytes.
+    error ReasonTooLong(uint256 length);
 
     /// @notice Emitted when a figure is proposed.
     /// @param eventId The event.
@@ -177,15 +199,22 @@ contract OptimisticResolver {
     /// @notice Emitted when the arbiter rules an event's outcome.
     /// @param eventId The event.
     /// @param outcome The outcome reported.
-    event OutcomeRuled(bytes32 indexed eventId, Outcome outcome);
+    /// @param reason Why.
+    event OutcomeRuled(bytes32 indexed eventId, Outcome outcome, string reason);
     /// @notice Emitted when the arbiter rules a contest.
     /// @param eventId The event.
     /// @param round The round whose contest was ruled.
     /// @param winner Who was right, and is credited.
     /// @param credited What the winner is credited.
     /// @param burn What is burned of the loser's bond.
+    /// @param reason Why.
     event ContestRuled(
-        bytes32 indexed eventId, uint8 round, address indexed winner, uint256 credited, uint256 burn
+        bytes32 indexed eventId,
+        uint8 round,
+        address indexed winner,
+        uint256 credited,
+        uint256 burn,
+        string reason
     );
     /// @notice Emitted when an account withdraws its credited bonds.
     /// @param account The account.
@@ -331,11 +360,15 @@ contract OptimisticResolver {
     /// @param decimals Its decimals; at most eighteen.
     /// @param proposerWasRight Whether the second proposal was right; only if it proposed this
     ///        figure, by value.
+    /// @param reason Why: the source, the figure it published, why the proposal was right or wrong.
     /// @custom:access arbiter
-    function ruleFigure(bytes32 eventId, int256 figure, uint8 decimals, bool proposerWasRight)
-        external
-        onlyArbiter
-    {
+    function ruleFigure(
+        bytes32 eventId,
+        int256 figure,
+        uint8 decimals,
+        bool proposerWasRight,
+        string calldata reason
+    ) external onlyArbiter {
         if (decimals > MAX_DECIMALS) {
             revert DecimalsTooLarge(decimals);
         }
@@ -348,28 +381,36 @@ contract OptimisticResolver {
         ) {
             revert NotTheRuledAnswer();
         }
-        _rule(eventId, proposerWasRight, _outcomeOf(eventId, figure, decimals));
+        _rule(eventId, proposerWasRight, _outcomeOf(eventId, figure, decimals), reason);
     }
 
     /// @notice Rules that an event waiting for the arbiter is invalid, once its deadline has passed,
     ///         reports it, and rules the contest over the second proposal.
     /// @param eventId The event.
     /// @param proposerWasRight Whether the second proposal was right; only if it proposed invalid.
+    /// @param reason Why: what the sources published by the deadline, or why it was ambiguous.
     /// @custom:access arbiter
-    function ruleInvalid(bytes32 eventId, bool proposerWasRight) external onlyArbiter {
+    function ruleInvalid(bytes32 eventId, bool proposerWasRight, string calldata reason)
+        external
+        onlyArbiter
+    {
         Proposal storage proposal = _pending(eventId);
         _requireAfterDeadline(eventId);
         if (proposerWasRight && !proposal.invalid) {
             revert NotTheRuledAnswer();
         }
-        _rule(eventId, proposerWasRight, Outcome.Invalid);
+        _rule(eventId, proposerWasRight, Outcome.Invalid, reason);
     }
 
     /// @notice Rules the contest over an event's first proposal, once it was disputed.
     /// @param eventId The event.
     /// @param proposerWasRight Whether the first proposal was right.
+    /// @param reason Why.
     /// @custom:access arbiter
-    function ruleContest(bytes32 eventId, bool proposerWasRight) external onlyArbiter {
+    function ruleContest(bytes32 eventId, bool proposerWasRight, string calldata reason)
+        external
+        onlyArbiter
+    {
         Proposal storage proposal = events[eventId].rounds[0];
         if (proposal.disputer == address(0)) {
             revert NotDisputed(eventId);
@@ -377,7 +418,9 @@ contract OptimisticResolver {
         if (proposal.ruled) {
             revert AlreadyRuled(eventId);
         }
-        _ruleContest(eventId, 0, proposerWasRight);
+        _requireReason(reason);
+        proposal.reason = reason;
+        _ruleContest(eventId, 0, proposerWasRight, reason);
     }
 
     /// @notice Pays the caller every bond credited to it.
@@ -456,12 +499,17 @@ contract OptimisticResolver {
     /// @param eventId The event.
     /// @param proposerWasRight Whether the second proposal was right.
     /// @param outcome The outcome ruled.
-    function _rule(bytes32 eventId, bool proposerWasRight, Outcome outcome) internal {
+    /// @param reason Why, kept with the event's outcome.
+    function _rule(bytes32 eventId, bool proposerWasRight, Outcome outcome, string calldata reason)
+        internal
+    {
+        _requireReason(reason);
         EventState storage state = events[eventId];
         state.pendingArbitration = false;
         state.rounds[1].settled = true;
-        _ruleContest(eventId, 1, proposerWasRight);
-        emit OutcomeRuled(eventId, outcome);
+        state.outcomeReason = reason;
+        _ruleContest(eventId, 1, proposerWasRight, reason);
+        emit OutcomeRuled(eventId, outcome, reason);
         FACTORY.reportOutcome(eventId, outcome);
     }
 
@@ -469,14 +517,33 @@ contract OptimisticResolver {
     /// @param eventId The event.
     /// @param round The round whose contest it is.
     /// @param proposerWasRight Whether the proposer was right.
-    function _ruleContest(bytes32 eventId, uint8 round, bool proposerWasRight) internal {
+    /// @param reason Why.
+    function _ruleContest(
+        bytes32 eventId,
+        uint8 round,
+        bool proposerWasRight,
+        string calldata reason
+    ) internal {
         Proposal storage proposal = events[eventId].rounds[round];
         proposal.ruled = true;
+        proposal.ruledAt = SafeCast.toUint64(block.timestamp);
         address winner = proposerWasRight ? proposal.proposer : proposal.disputer;
         uint256 credited = 2 * BOND - BURN;
         owed[winner] += credited;
         burned += BURN;
-        emit ContestRuled(eventId, round, winner, credited, BURN);
+        emit ContestRuled(eventId, round, winner, credited, BURN, reason);
+    }
+
+    /// @notice Refuses a ruling with no reason, or one longer than allowed.
+    /// @param reason The reason.
+    function _requireReason(string calldata reason) internal pure {
+        uint256 length = bytes(reason).length;
+        if (length == 0) {
+            revert EmptyReason();
+        }
+        if (length > MAX_REASON) {
+            revert ReasonTooLong(length);
+        }
     }
 
     /// @notice The outcome a figure implies against an event's sealed threshold.

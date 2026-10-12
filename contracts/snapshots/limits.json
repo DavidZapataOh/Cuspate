@@ -17,5 +17,7 @@
   "PositionVault.splitPosition again by the same holder, exact allowance, USDC": "198695",
   "PositionVault.splitPosition again by the same holder, exact allowance, aMU": "295520",
   "PositionVault.splitPosition first in the vault, exact allowance, USDC": "283695",
-  "PositionVault.splitPosition first in the vault, exact allowance, aMU": "380520"
+  "PositionVault.splitPosition first in the vault, exact allowance, aMU": "380520",
+  "ThresholdRegistry.seal terms of 31 bytes": "127772",
+  "ThresholdRegistry.seal terms of 500 bytes": "425139"
 }

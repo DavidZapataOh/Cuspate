@@ -223,7 +223,10 @@ gate_coverage() {
 	fi
 	local report
 	report="$(mktemp -d)/lcov.info"
-	(cd contracts && forge coverage --no-match-path "test/fork/*" --report lcov --report-file "${report}")
+	# The invariant campaigns are left out as well as the fork. Measured, they reach no line the
+	# deterministic tests do not — the same 100% on every source file — while instrumenting them took
+	# 105 s of every coverage run against 6 s without, and the pipeline runs coverage four times.
+	(cd contracts && forge coverage --no-match-path "test/{fork,invariant}/*" --report lcov --report-file "${report}")
 	# The tool has no threshold and no source-path selector, so the floor is computed here from the
 	# report's own per-file records, over first-party contracts outside the declared list.
 	python3 - "${report}" "$(tr -d '[:space:]' < "${FLOOR_FILE}")" "${NOT_PROTOCOL[@]}" <<'PY'

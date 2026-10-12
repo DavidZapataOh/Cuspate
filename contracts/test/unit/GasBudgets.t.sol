@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {MarketFactory} from "../../src/MarketFactory.sol";
 import {Outcome, PositionVault} from "../../src/PositionVault.sol";
+import {ThresholdRegistry} from "../../src/ThresholdRegistry.sol";
 import {TestCollateral} from "./PositionVault.t.sol";
 import {TestStock} from "./MarketFactory.t.sol";
 
@@ -21,6 +22,7 @@ abstract contract GasCases is Test {
     address internal resolver = makeAddr("resolver");
 
     MarketFactory internal factory;
+    ThresholdRegistry internal registry;
     PositionVault internal underlyingVault;
     PositionVault internal dollarVault;
 
@@ -37,6 +39,7 @@ abstract contract GasCases is Test {
     function setUp() public virtual {
         (IERC20 underlying, IERC20 dollar) = _collaterals();
         factory = new MarketFactory();
+        registry = new ThresholdRegistry();
         (underlyingVault, dollarVault) =
             factory.markets(factory.createMarket(underlying, dollar, EVENT, resolver));
     }
@@ -52,6 +55,32 @@ abstract contract GasCases is Test {
         );
         factory.createMarket(underlying, dollar, keccak256("another event"), resolver);
         _record("MarketFactory.createMarket over ", symbols);
+    }
+
+    /// @notice Sealing a threshold, with one-slot terms and with terms of the length a real market
+    ///         needs.
+    function test_seal() public {
+        uint256[2] memory lengths = [uint256(31), 500];
+        string[2] memory cases = [
+            "ThresholdRegistry.seal terms of 31 bytes", "ThresholdRegistry.seal terms of 500 bytes"
+        ];
+        for (uint256 i = 0; i < 2; i++) {
+            // Written out, not zeroed: storing a zero byte is nearly free, so empty terms would
+            // understate what any real terms cost.
+            bytes memory terms = new bytes(lengths[i]);
+            for (uint256 j = 0; j < terms.length; j++) {
+                terms[j] = "a";
+            }
+            ThresholdRegistry.Threshold memory threshold = ThresholdRegistry.Threshold({
+                value: 123,
+                decimals: 2,
+                announcesAt: uint64(block.timestamp + 1 days),
+                deadline: uint64(block.timestamp + 9 days),
+                terms: terms
+            });
+            registry.seal(threshold);
+            _record(cases[i], "");
+        }
     }
 
     /// @notice A resolver's first report of a condition.

@@ -17,5 +17,7 @@
   "PositionVault.splitPosition again by the same holder, exact allowance, TSTK": "161105",
   "PositionVault.splitPosition again by the same holder, exact allowance, TUSD": "161069",
   "PositionVault.splitPosition first in the vault, exact allowance, TSTK": "246105",
-  "PositionVault.splitPosition first in the vault, exact allowance, TUSD": "246069"
+  "PositionVault.splitPosition first in the vault, exact allowance, TUSD": "246069",
+  "ThresholdRegistry.seal terms of 31 bytes": "127748",
+  "ThresholdRegistry.seal terms of 500 bytes": "425115"
 }

@@ -102,8 +102,17 @@ if [ "$#" -gt 1 ]; then
 	exit 2
 fi
 
+# The limits an interface sets are measured over the real collaterals, so only the fork can check
+# them; the job that runs the fork selection is the one that holds them to their committed values.
+check_limits() {
+	"${repo}/tools/budgets.sh" limits test/fork/GasLimitsFork.t.sol
+}
+
 if [ "$#" -eq 1 ]; then
 	run_selection "$1"
+	if [ "$1" = fork ]; then
+		check_limits
+	fi
 	exit 0
 fi
 
@@ -112,3 +121,4 @@ node --test --test-concurrency=1 "test/**/*.test.js"
 for selection in unit fuzz invariant fork; do
 	run_selection "${selection}"
 done
+check_limits

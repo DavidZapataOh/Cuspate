@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {Test, Vm} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MarketFactory} from "../../src/MarketFactory.sol";
+import {PositionToken} from "../../src/PositionToken.sol";
 import {Outcome, PositionVault} from "../../src/PositionVault.sol";
 import {TestCollateral} from "./PositionVault.t.sol";
 import {TestStock} from "./MarketFactory.t.sol";
@@ -149,6 +150,23 @@ contract RedemptionTest is Test {
         _report(Outcome.Yes);
         _redeem(holder, AMOUNT, AMOUNT);
         assertEq(dollar.balanceOf(holder), AMOUNT);
+    }
+
+    /// @notice Redeeming only the winning leg burns nothing of the other: no call is made to it.
+    function test_aWinnerOnlyRedemptionCallsNothingForTheOtherLeg() public {
+        _report(Outcome.Yes);
+        vm.expectCall(address(vault.NO()), abi.encodeWithSelector(PositionToken.burn.selector), 0);
+        _redeem(holder, AMOUNT, 0);
+        assertEq(dollar.balanceOf(holder), AMOUNT);
+    }
+
+    /// @notice Redeeming only the losing leg pays nothing, and makes no transfer of the collateral.
+    function test_aLoserOnlyRedemptionCallsNothingForThePayout() public {
+        _report(Outcome.Yes);
+        vm.expectCall(address(dollar), abi.encodeWithSelector(IERC20.transfer.selector), 0);
+        _redeem(holder, 0, AMOUNT);
+        assertEq(dollar.balanceOf(holder), 0);
+        assertEq(vault.NO().balanceOf(holder), 0);
     }
 
     /// @notice A no pays the no leg in full and the yes leg nothing.

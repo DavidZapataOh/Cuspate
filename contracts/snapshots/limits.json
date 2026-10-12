@@ -1,0 +1,21 @@
+{
+  "MarketFactory.createMarket over aMU and USDC": "3714566",
+  "MarketFactory.reportOutcome first report of a condition": "52885",
+  "PositionToken.approve a fresh allowance": "52166",
+  "PositionToken.transfer to a holder": "46513",
+  "PositionToken.transfer to an address with no legs": "63513",
+  "PositionToken.transferFrom exact allowance, to an address with no legs": "75557",
+  "PositionToken.transferFrom unlimited allowance, to a holder": "55320",
+  "PositionVault.mergePositions everything, to a holder with no collateral, USDC": "184808",
+  "PositionVault.mergePositions everything, to a holder with no collateral, aMU": "280553",
+  "PositionVault.mergePositions part, to a holder with collateral, USDC": "167808",
+  "PositionVault.mergePositions part, to a holder with collateral, aMU": "263553",
+  "PositionVault.redeemPositions both legs, to a holder with no collateral, USDC": "204776",
+  "PositionVault.redeemPositions both legs, to a holder with no collateral, aMU": "300557",
+  "PositionVault.redeemPositions the winning leg, to a holder with collateral, USDC": "152649",
+  "PositionVault.redeemPositions the winning leg, to a holder with collateral, aMU": "248394",
+  "PositionVault.splitPosition again by the same holder, exact allowance, USDC": "198695",
+  "PositionVault.splitPosition again by the same holder, exact allowance, aMU": "295520",
+  "PositionVault.splitPosition first in the vault, exact allowance, USDC": "283695",
+  "PositionVault.splitPosition first in the vault, exact allowance, aMU": "380520"
+}

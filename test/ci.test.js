@@ -433,6 +433,98 @@ for (const [name, fixture] of Object.entries(redFixtures)) {
 	});
 }
 
+// --- The per-call budgets ------------------------------------------------------------------
+
+const BUDGET_SUITE = `${HEADER}import {Test} from "forge-std/Test.sol";
+
+contract Counter {
+    uint256 public count;
+
+    function bump() external {
+        count++;
+    }
+}
+
+contract GasBudgetsTest is Test {
+    function test_bump() public {
+        Counter counter = new Counter();
+        counter.bump();
+        vm.snapshotGasLastFrame("budgets", "Counter.bump first");
+        counter.bump();
+        vm.snapshotGasLastFrame("budgets", "Counter.bump again");
+    }
+}
+`;
+
+/** A tree with a budget suite and its committed budgets, edited before the gate sees them. */
+function budgetTree(edit) {
+	const dir = scratch();
+	plant(dir, "contracts/test/unit/GasBudgets.t.sol", BUDGET_SUITE);
+	execFileSync(
+		"forge",
+		["test", "--match-path", "test/unit/GasBudgets.t.sol"],
+		{
+			cwd: path.join(dir, "contracts"),
+			env: { ...process.env, FORGE_SNAPSHOT_EMIT: "true" },
+			stdio: "pipe",
+		},
+	);
+	const file = path.join(dir, "contracts", "snapshots", "budgets.json");
+	const budgets = JSON.parse(readFileSync(file, "utf8"));
+	edit(budgets);
+	writeFileSync(file, JSON.stringify(budgets, null, 2));
+	return dir;
+}
+
+for (const [violation, edit, names] of [
+	[
+		"a changed budget",
+		(budgets) => {
+			budgets["Counter.bump first"] = "1";
+		},
+		/changed: Counter\.bump first: 1 ->/,
+	],
+	[
+		"a budget missing from the committed file",
+		(budgets) => {
+			delete budgets["Counter.bump again"];
+		},
+		/measured but not committed: Counter\.bump again/,
+	],
+	[
+		"a stale budget",
+		(budgets) => {
+			budgets["Counter.gone"] = "7";
+		},
+		/not measured any more: Counter\.gone/,
+	],
+]) {
+	test(`the gas gate goes red on ${violation} and names it`, () => {
+		const dir = budgetTree(edit);
+		try {
+			const { code, output } = gate("gas", dir);
+			assert.notEqual(code, 0, output);
+			assert.match(output, names, output);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+}
+
+test("a changed budget is still red at the gas gate after the selections gate has run, as the pipeline orders them", () => {
+	const dir = budgetTree((budgets) => {
+		budgets["Counter.bump first"] = "1";
+	});
+	try {
+		gate("selections", dir);
+		const { code, output } = gate("gas", dir);
+		assert.notEqual(code, 0, output);
+		assert.match(output, /changed: Counter\.bump first: 1 ->/, output);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
 // --- The size gate --------------------------------------------------------------------------
 
 test("the size gate refuses a contract whose creation code alone is over the ceiling", () => {
@@ -595,8 +687,22 @@ test("tripwire: every first-party contract outside the declared list is exercise
 			},
 		),
 	);
-	for (const suites of Object.values(listing)) {
+	for (const [file, suites] of Object.entries(listing)) {
 		for (const [suite, names] of Object.entries(suites)) {
+			// The listing includes abstract suites, which never run. Measured, an abstract suite's
+			// artefact carries no deployable bytecode, sometimes not even the field; a missing
+			// artefact is not skipped, so a real suite cannot slip through for lack of one.
+			const artefactPath = path.join(
+				contracts,
+				"out",
+				path.basename(file),
+				`${suite}.json`,
+			);
+			if (existsSync(artefactPath)) {
+				const code = JSON.parse(readFileSync(artefactPath, "utf8")).bytecode
+					?.object;
+				if (!code || code === "0x") continue;
+			}
 			for (const name of names) {
 				assert.ok(
 					baseline.includes(`${suite}:${name}(`),
@@ -607,7 +713,12 @@ test("tripwire: every first-party contract outside the declared list is exercise
 	}
 });
 
-test("tripwire: every state-changing function in contracts/src says who may call it, and every restricted one has a negative test", (t) => {
+/**
+ * Every state-changing function of every contract compiled from contracts/src, with what its
+ * documentation says about who may call it. Inherited ERC-20 functions are marked as such: they are
+ * exempt from saying, but not from being measured.
+ */
+function stateChangingFunctions() {
 	// The pipeline runs tripwires before it builds, and a build leaves the artifacts of deleted or
 	// renamed contracts behind, so this builds first and takes artifacts from the compiler cache.
 	execFileSync("forge", ["build"], { cwd: contracts, stdio: "pipe" });
@@ -638,7 +749,7 @@ test("tripwire: every state-changing function in contracts/src says who may call
 		return found;
 	};
 
-	// The ERC-20 surface is OpenZeppelin's: a function is exempt only while it is inherited
+	// The ERC-20 surface is OpenZeppelin's: a function counts as inherited only while it is
 	// unchanged, which is when its documentation is still OpenZeppelin's own.
 	const openzeppelin = "lib/openzeppelin-contracts/contracts/token/ERC20";
 	const erc20Selectors = new Set(
@@ -649,21 +760,7 @@ test("tripwire: every state-changing function in contracts/src says who may call
 	const inheritedDocs = one(`${openzeppelin}/ERC20.sol`, "ERC20").metadata
 		.output.devdoc.methods;
 
-	const unitTests = Object.values(
-		JSON.parse(
-			execFileSync(
-				"forge",
-				["test", "--list", "--json", "--match-path", UNIT_GLOB],
-				{
-					cwd: contracts,
-					encoding: "utf8",
-				},
-			),
-		),
-	).flatMap((suites) => Object.values(suites).flat());
-
-	let inspected = 0;
-	let restricted = 0;
+	const found = [];
 	for (const source of Object.keys(cache.files).filter((file) =>
 		file.startsWith("src/"),
 	)) {
@@ -679,36 +776,81 @@ test("tripwire: every state-changing function in contracts/src says who may call
 			)) {
 				const name = signature.slice(0, signature.indexOf("("));
 				if (["view", "pure"].includes(mutability.get(name))) continue;
-				if (
-					erc20Selectors.has(selector) &&
-					JSON.stringify(docs[signature]) ===
-						JSON.stringify(inheritedDocs[signature])
-				)
-					continue;
-				inspected++;
-				const access = docs[signature]?.["custom:access"];
-				assert.ok(
-					access,
-					`${artifact.name}.${signature} does not say who may call it`,
-				);
-				if (access === "anyone") continue;
-				restricted++;
-				assert.ok(
-					unitTests.some((test) =>
-						test.startsWith(`test_RevertWhen_${name}CallerIs`),
-					),
-					`${artifact.name}.${signature} is restricted to ${access} and no unit test shows another caller refused`,
-				);
+				found.push({
+					contract: artifact.name,
+					signature,
+					name,
+					access: docs[signature]?.["custom:access"],
+					inherited:
+						erc20Selectors.has(selector) &&
+						JSON.stringify(docs[signature]) ===
+							JSON.stringify(inheritedDocs[signature]),
+				});
 			}
 		}
 	}
 	assert.ok(
-		inspected > 0,
+		found.length > 0,
 		"no state-changing function was found in contracts/src",
 	);
+	return found;
+}
+
+test("tripwire: every state-changing function in contracts/src says who may call it, and every restricted one has a negative test", (t) => {
+	const unitTests = Object.values(
+		JSON.parse(
+			execFileSync(
+				"forge",
+				["test", "--list", "--json", "--match-path", UNIT_GLOB],
+				{
+					cwd: contracts,
+					encoding: "utf8",
+				},
+			),
+		),
+	).flatMap((suites) => Object.values(suites).flat());
+
+	const declared = stateChangingFunctions().filter((fn) => !fn.inherited);
+	let restricted = 0;
+	for (const fn of declared) {
+		assert.ok(
+			fn.access,
+			`${fn.contract}.${fn.signature} does not say who may call it`,
+		);
+		if (fn.access === "anyone") continue;
+		restricted++;
+		assert.ok(
+			unitTests.some((test) =>
+				test.startsWith(`test_RevertWhen_${fn.name}CallerIs`),
+			),
+			`${fn.contract}.${fn.signature} is restricted to ${fn.access} and no unit test shows another caller refused`,
+		);
+	}
 	t.diagnostic(
-		`${inspected} state-changing functions inspected, ${restricted} restricted`,
+		`${declared.length} state-changing functions inspected, ${restricted} restricted`,
 	);
+});
+
+test("tripwire: every entry point a user or a pool calls has a gas budget and a limit", (t) => {
+	// Restricted functions are reached only through an entry point, and their cost is inside its
+	// budget: a transaction calling one alone never happens.
+	const entryPoints = stateChangingFunctions().filter(
+		(fn) => fn.inherited || fn.access === "anyone",
+	);
+	for (const file of ["budgets", "limits"]) {
+		const keys = Object.keys(
+			JSON.parse(
+				read(path.join(contracts, "snapshots", `${file}.json`)) || "{}",
+			),
+		);
+		for (const fn of entryPoints) {
+			assert.ok(
+				keys.some((key) => key.startsWith(`${fn.contract}.${fn.name} `)),
+				`${fn.contract}.${fn.signature} has no entry in snapshots/${file}.json`,
+			);
+		}
+	}
+	t.diagnostic(`${entryPoints.length} entry points, each budgeted and limited`);
 });
 
 test("the tripwires are reported by name before any gate runs", () => {
@@ -718,6 +860,7 @@ test("the tripwires are reported by name before any gate runs", () => {
 		"has a coverage floor it meets",
 		"has a gas baseline entry",
 		"says who may call it",
+		"has a gas budget and a limit",
 	]) {
 		assert.match(output, new RegExp(tripwire), output);
 	}

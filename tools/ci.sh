@@ -31,6 +31,7 @@ NOT_PROTOCOL=(contracts/script/AddressBook.sol contracts/script/DeployProbe.s.so
 UNIT_GLOB="test/{unit/*,Toolchain.t.sol}"
 FLOOR_FILE="contracts/coverage-floor.txt"
 BASELINE_FILE="contracts/.gas-snapshot"
+BUDGET_SUITE="test/unit/GasBudgets.t.sol"
 
 # Every report line names where its number came from. Several tools print nothing on success, so
 # for those the number is what this script found, which is not evidence of what the tool read.
@@ -198,13 +199,21 @@ for key, value in wanted.items():
 '
 	if [ ! -f "${BASELINE_FILE}" ]; then
 		unarmed gas "no baseline is committed yet"
-		return 0
+	else
+		# No tolerance flag. Measured, a tolerance of zero reports a difference between equal
+		# values and fails every entry; without the flag the check is plain equality, which on this
+		# baseline has been stable across repeated runs and a clean rebuild.
+		(cd contracts && forge snapshot --check --match-path "${UNIT_GLOB}")
+		counted gas "$(grep -c '(gas: ' "${BASELINE_FILE}")" "baseline entries" script
 	fi
-	# No tolerance flag. Measured, a tolerance of zero reports a difference between equal values
-	# and fails every entry; without the flag the check is plain equality, which on this baseline
-	# has been stable across repeated runs and a clean rebuild.
-	(cd contracts && forge snapshot --check --match-path "${UNIT_GLOB}")
-	counted gas "$(grep -c '(gas: ' "${BASELINE_FILE}")" "baseline entries" script
+	# Per-call budgets, compared by key and by value. Unarmed only while their suite does not exist;
+	# a suite with no committed file is red.
+	if [ -f "contracts/${BUDGET_SUITE}" ]; then
+		"${repo}/tools/budgets.sh" budgets "${BUDGET_SUITE}"
+		counted gas "$(grep -c '": "' contracts/snapshots/budgets.json)" "budgets" script
+	else
+		unarmed gas "no per-call budget suite exists yet"
+	fi
 }
 
 gate_coverage() {

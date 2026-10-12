@@ -172,7 +172,9 @@ contract PositionVault {
     /// @dev One formula for every outcome, rounded down once over the sum, so no set of redemptions
     ///      can pay more than the collateral the legs were split from; what is rounded off stays in
     ///      the vault. The amounts are arguments, rather than the caller's whole balance, so that
-    ///      the redemption can be announced before any external call.
+    ///      the redemption can be announced before any external call. A leg redeemed at zero is not
+    ///      called, nor is the collateral for a zero payout: most redemptions are of the winning leg
+    ///      alone, and each call is a cold contract on Monad.
     /// @param yesAmount How much of the yes leg to redeem.
     /// @param noAmount How much of the no leg to redeem.
     /// @custom:access anyone
@@ -185,12 +187,18 @@ contract PositionVault {
         (uint256 yesWeight, uint256 noWeight) = outcome == Outcome.Yes
             ? (uint256(2), uint256(0))
             : outcome == Outcome.No ? (uint256(0), uint256(2)) : (uint256(1), uint256(1));
-        YES.burn(msg.sender, yesAmount);
-        NO.burn(msg.sender, noAmount);
+        if (yesAmount != 0) {
+            YES.burn(msg.sender, yesAmount);
+        }
+        if (noAmount != 0) {
+            NO.burn(msg.sender, noAmount);
+        }
         uint256 payout = (yesAmount * yesWeight + noAmount * noWeight) / 2;
-        uint256 before = COLLATERAL.balanceOf(address(this));
-        COLLATERAL.safeTransfer(msg.sender, payout);
-        _requireMoved(payout, COLLATERAL.balanceOf(address(this)), before);
+        if (payout != 0) {
+            uint256 before = COLLATERAL.balanceOf(address(this));
+            COLLATERAL.safeTransfer(msg.sender, payout);
+            _requireMoved(payout, COLLATERAL.balanceOf(address(this)), before);
+        }
     }
 
     /// @notice Refuses any transfer that moved a different amount of collateral than asked, in

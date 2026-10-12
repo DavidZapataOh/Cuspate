@@ -36,6 +36,12 @@ isolate = true
 # without this is a read during the key-existence check, not a write.
 fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
+# Named gas snapshots are budgets, written only when regenerated on purpose
+# (FORGE_SNAPSHOT_EMIT=true). Left on, every test run rewrites them with what it measured, and
+# every coverage run with instrumented values, so a check made after any other run compares a
+# file against itself.
+gas_snapshot_emit = false
+
 [lint]
 # Linting is a gate, not a build-time surprise.
 lint_on_build = false

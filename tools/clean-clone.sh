@@ -33,6 +33,9 @@ echo 'BUILT contracts'
 pnpm --filter cuspate-web run build
 echo 'BUILT web'
 
+pnpm --filter cuspate-cre run build
+echo 'BUILT cre'
+
 # One selection at a time, and deliberately not the fork selection. Measured: a fork cannot be
 # created without egress even with a warm cache, because the backend asks the endpoint for its
 # chain id before it consults the cache. This gate's claim is about an emptied environment, and
@@ -41,4 +44,5 @@ echo 'BUILT web'
 ./tools/test.sh fuzz
 ./tools/test.sh invariant
 pnpm --filter cuspate-web run test
+pnpm --filter cuspate-cre run test
 "

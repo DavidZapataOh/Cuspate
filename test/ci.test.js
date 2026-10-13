@@ -424,6 +424,23 @@ test("the toolchain the workflow installs is the one the repository pins", () =>
 	for (const version of installed) assert.equal(version, pinned);
 });
 
+test("every job that installs node also installs the Bun the repository pins", () => {
+	// The resolution workflow builds and tests with Bun; a job with node tooling and no Bun would
+	// fail only on the steps that reach it, and a Bun from anywhere but the pin would drift.
+	const text = read(workflowPath);
+	const nodeJobs = text
+		.split(/\n {2}(?=[a-z-]+:\n)/)
+		.filter((job) => job.includes("actions/setup-node@"));
+	assert.ok(nodeJobs.length > 0, "no job installs node");
+	for (const job of nodeJobs) {
+		assert.match(
+			job,
+			/oven-sh\/setup-bun@v2\s*\n\s*with:\s*\n\s*bun-version-file:\s*\.bun-version/,
+			job.split("\n")[0],
+		);
+	}
+});
+
 // --- Each gate on the real tree, and on a planted violation --------------------------------
 
 for (const name of Object.keys(redFixtures)) {

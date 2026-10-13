@@ -48,6 +48,7 @@ test("no build output or local environment file is tracked", () => {
 		"contracts/broadcast",
 		"node_modules",
 		"web/dist",
+		"cre/.build",
 		".env",
 	];
 	for (const pattern of patterns) {

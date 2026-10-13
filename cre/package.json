@@ -1,0 +1,18 @@
+{
+	"name": "cuspate-cre",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"build": "tsc --noEmit && cre-compile resolver-proposer/main.ts .build/resolver-proposer.wasm",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@chainlink/cre-sdk": "1.23.0",
+		"zod": "3.25.76"
+	},
+	"devDependencies": {
+		"@types/bun": "1.4.2",
+		"typescript": "5.9.3"
+	}
+}

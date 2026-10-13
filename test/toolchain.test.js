@@ -105,6 +105,12 @@ test("the pinned Node version is the one Node reports", () => {
 	assert.equal(reported("node", ["--version"]), `v${pinned}`);
 });
 
+test("the pinned Bun version is the one Bun reports", () => {
+	// The resolution workflow compiles and tests with Bun, which its SDK requires.
+	const pinned = readFileSync(path.join(root, ".bun-version"), "utf8").trim();
+	assert.equal(reported("bun", ["--version"]), pinned);
+});
+
 test("the pinned package manager is the one it reports", () => {
 	const { packageManager } = JSON.parse(
 		readFileSync(path.join(root, "package.json"), "utf8"),

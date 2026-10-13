@@ -1,0 +1,8 @@
+# The workflow that reads a sealed event's figure and proposes it to the resolver.
+monad-mainnet:
+  user-workflow:
+    workflow-name: "cuspate-resolver-proposer"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.json"
+    secrets-path: ""

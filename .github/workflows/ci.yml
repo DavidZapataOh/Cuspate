@@ -29,6 +29,9 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.3
@@ -75,6 +78,9 @@ jobs:
         with:
           node-version-file: .node-version
       - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: v1.8.3

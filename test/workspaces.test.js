@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -46,4 +46,15 @@ test("the workspace members pnpm reports are the manifests on disk", () => {
 	const onDisk = walkForManifests(root);
 
 	assert.deepEqual([...listed].sort(), [...onDisk].sort());
+});
+
+test("the workspace exempts no package from the release-age policy", () => {
+	// pnpm writes such an exemption into the workspace file itself when an install resolves a
+	// package published inside the policy window, so a release too new to trust would pass every
+	// later install silently. A package that needs one is pinned to an older release instead.
+	const workspace = readFileSync(
+		path.join(root, "pnpm-workspace.yaml"),
+		"utf8",
+	);
+	assert.doesNotMatch(workspace, /minimumReleaseAge/);
 });

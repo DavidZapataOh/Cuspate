@@ -3,6 +3,8 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/
 web/dist/
+cre/.build/
+**/.cre_build_tmp.js
 
 # Dependencies
 node_modules/

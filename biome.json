@@ -10,7 +10,8 @@
 			"!contracts/cache",
 			"!contracts/broadcast",
 			"!contracts/deployments",
-			"!contracts/snapshots"
+			"!contracts/snapshots",
+			"!cre/.build"
 		]
 	},
 	"formatter": {

@@ -3,6 +3,10 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/
 web/dist/
+web/.next/
+web/next-env.d.ts
+web/test-results/
+web/playwright-report/
 cre/.build/
 indexer/.envio/
 indexer/envio-env.d.ts

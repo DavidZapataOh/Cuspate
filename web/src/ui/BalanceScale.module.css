@@ -1,0 +1,177 @@
+/*
+ * The scale is drawn once in a 1000 x 300 frame; the pans are text laid over it at the beam's ends
+ * and drop with the beam. Drops are in frame units, converted to the figure's height.
+ */
+.scale {
+	position: relative;
+	margin: 0;
+	aspect-ratio: 1000 / 340;
+	width: 100%;
+}
+
+.frame {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.ink {
+	stroke: var(--text);
+	stroke-width: 2;
+	fill: none;
+	stroke-linecap: round;
+}
+
+.pivot {
+	fill: var(--bg);
+	stroke: var(--text);
+	stroke-width: 2;
+}
+
+.beam {
+	transform-box: view-box;
+	transform-origin: 500px 44px;
+	transition: transform var(--beam-duration) var(--ease-out);
+}
+
+.left,
+.right {
+	transition: transform var(--beam-duration) var(--ease-out);
+}
+
+.left {
+	transform: translateY(calc(var(--left-drop) * 1px));
+}
+
+.right {
+	transform: translateY(calc(var(--right-drop) * 1px));
+}
+
+.pan {
+	position: absolute;
+	top: calc((108 + var(--drop)) / 340 * 100%);
+	width: 30%;
+	display: grid;
+	justify-items: center;
+	gap: var(--space-1);
+	padding: var(--space-4) var(--space-3) var(--space-5);
+	border: 1px solid var(--line);
+	border-bottom-color: var(--text);
+	border-radius:
+		var(--radius-2) var(--radius-2) 50% 50% / var(--radius-2) var(--radius-2)
+		22% 22%;
+	background: var(--surface);
+	text-align: center;
+	transition: top var(--beam-duration) var(--ease-out);
+}
+
+.panLeft {
+	--drop: var(--left-drop);
+	left: 1%;
+}
+
+.panRight {
+	--drop: var(--right-drop);
+	right: 1%;
+	border-bottom-color: var(--stone);
+}
+
+.gives {
+	color: var(--text-muted);
+	font-size: var(--step-1);
+}
+
+.sum {
+	font-variant-numeric: tabular-nums;
+	position: absolute;
+	left: 50%;
+	top: 34%;
+	transform: translateX(-50%);
+	display: grid;
+	justify-items: center;
+	gap: 2px;
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg);
+	font-size: var(--step-1);
+	white-space: nowrap;
+}
+
+.total {
+	font-size: var(--step-2);
+	font-weight: 600;
+}
+
+.note {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.scale[data-compact] {
+	aspect-ratio: auto;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-3);
+}
+
+.scale[data-compact] .frame {
+	position: static;
+	grid-column: 1 / -1;
+	margin-bottom: calc(var(--space-2) * -1);
+}
+
+.scale[data-compact] .pan {
+	position: static;
+	width: auto;
+	padding: var(--space-3) var(--space-2) var(--space-4);
+}
+
+.scale[data-compact] .sum {
+	position: static;
+	grid-column: 1 / -1;
+	transform: none;
+	background: none;
+	font-size: var(--step-0);
+}
+
+.scale[data-compact] .total {
+	font-size: var(--step-1);
+}
+
+/* On a narrow screen the pans stand side by side and the sum follows; the drawn frame steps aside. */
+@media (max-width: 640px) {
+	.scale,
+	.scale[data-compact] {
+		aspect-ratio: auto;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+	}
+
+	.frame {
+		display: none;
+	}
+
+	.pan,
+	.scale[data-compact] .pan {
+		position: static;
+		width: auto;
+	}
+
+	.sum,
+	.scale[data-compact] .sum {
+		position: static;
+		grid-column: 1 / -1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.beam,
+	.left,
+	.right,
+	.pan {
+		transition: none;
+	}
+}

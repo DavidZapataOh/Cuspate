@@ -1,0 +1,75 @@
+@import "./tokens.css";
+
+/* The parts of the page nobody draws still carry the design: selection, caret, focus, scrollbars. */
+* {
+	box-sizing: border-box;
+}
+
+html {
+	color-scheme: dark;
+	background: var(--bg);
+	-webkit-text-size-adjust: 100%;
+	scrollbar-color: var(--line) var(--bg);
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
+	font-size: var(--step-1);
+	line-height: var(--leading-body);
+	font-feature-settings: "kern";
+	-webkit-font-smoothing: antialiased;
+	caret-color: var(--amber);
+}
+
+::selection {
+	background: var(--amber);
+	color: var(--bg);
+}
+
+:focus-visible {
+	outline: 2px solid var(--amber);
+	outline-offset: 3px;
+	border-radius: var(--radius-1);
+}
+
+h1,
+h2,
+h3 {
+	margin: 0;
+	line-height: var(--leading-heading);
+	font-weight: 600;
+	letter-spacing: -0.015em;
+	text-wrap: balance;
+}
+
+p {
+	margin: 0;
+	max-width: 68ch;
+	text-wrap: pretty;
+}
+
+a {
+	color: var(--text);
+	text-decoration-color: var(--stone);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.22em;
+}
+
+a:hover {
+	text-decoration-color: var(--amber);
+}
+
+code,
+.mono {
+	font-family: var(--font-mono);
+	font-size: 0.9em;
+}
+
+/* Figures that are read against one another line up. */
+.tabular {
+	font-variant-numeric: tabular-nums;
+}

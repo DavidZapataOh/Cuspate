@@ -3,11 +3,22 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "tsc",
-		"test": "node --test \"dist/test/**/*.test.js\""
+		"build": "NEXT_TELEMETRY_DISABLED=1 next build",
+		"start": "NEXT_TELEMETRY_DISABLED=1 next start",
+		"test": "node --test \"test/unit/*.test.ts\"",
+		"test:browser": "playwright test"
+	},
+	"dependencies": {
+		"next": "16.4.0",
+		"react": "19.3.0",
+		"react-dom": "19.3.0"
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "4.13.0",
+		"@playwright/test": "1.63.0",
 		"@types/node": "^24.19.0",
+		"@types/react": "19.3.0",
+		"@types/react-dom": "19.3.0",
 		"typescript": "5.9.3"
 	}
 }

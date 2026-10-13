@@ -1,0 +1,56 @@
+.disc {
+	display: block;
+	overflow: visible;
+}
+
+.large {
+	fill: var(--text);
+	transition: opacity var(--resolve-duration) var(--ease-out);
+}
+
+.small {
+	fill: var(--stone);
+	transform: translateY(0);
+	transition:
+		transform var(--split-duration) var(--ease-out),
+		opacity var(--resolve-duration) var(--ease-out);
+}
+
+.disc[data-state="split"] .small {
+	transform: translateY(var(--slide));
+}
+
+/* Undoing has its own curve and ends with a one-pixel settle: the moment you change your mind. */
+.disc[data-undoing] .small {
+	animation: undo var(--split-duration) var(--ease-in-out);
+}
+
+@keyframes undo {
+	from {
+		transform: translateY(var(--slide));
+	}
+	85% {
+		transform: translateY(1px);
+	}
+	to {
+		transform: translateY(0);
+	}
+}
+
+.disc[data-state="resolved-yes"] .small,
+.disc[data-state="resolved-no"] .large {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.small,
+	.disc[data-state="split"] .small {
+		transform: none;
+		animation: none;
+		transition: opacity var(--resolve-duration) linear;
+	}
+
+	.disc[data-state="split"] .small {
+		opacity: 0.55;
+	}
+}

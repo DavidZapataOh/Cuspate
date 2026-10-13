@@ -1,0 +1,30 @@
+.wrap {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.bar {
+	display: flex;
+	gap: 3px;
+	height: 6px;
+}
+
+.beat {
+	background: var(--text);
+	border-radius: 3px 0 0 3px;
+}
+
+.dont {
+	flex: 1;
+	background: var(--stone);
+	opacity: 0.55;
+	border-radius: 0 3px 3px 0;
+}
+
+.label {
+	font-size: var(--step-0);
+	color: var(--text-muted);
+	white-space: nowrap;
+}

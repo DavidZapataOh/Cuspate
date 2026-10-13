@@ -1,13 +1,30 @@
 {
 	"compilerOptions": {
-		"target": "es2023",
-		"module": "nodenext",
-		"moduleResolution": "nodenext",
+		"target": "ES2023",
+		"lib": ["dom", "dom.iterable", "es2023"],
+		"allowJs": false,
+		"skipLibCheck": true,
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
-		"outDir": "dist",
-		"rootDir": ".",
+		"noEmit": true,
+		"esModuleInterop": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"erasableSyntaxOnly": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"incremental": true,
+		"plugins": [{ "name": "next" }],
 		"types": ["node"]
 	},
-	"include": ["src", "test"]
+	"include": [
+		"next-env.d.ts",
+		"**/*.ts",
+		"**/*.tsx",
+		".next/types/**/*.ts",
+		".next/dev/types/**/*.ts"
+	],
+	"exclude": ["node_modules", ".next", "test-results", "playwright-report"]
 }

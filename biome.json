@@ -14,11 +14,20 @@
 			"!cre/.build",
 			"!cre/**/fixtures",
 			"!indexer/.envio",
-			"!indexer/envio-env.d.ts"
+			"!indexer/envio-env.d.ts",
+			"!web/.next",
+			"!web/next-env.d.ts",
+			"!web/test-results",
+			"!web/playwright-report"
 		]
 	},
 	"formatter": {
 		"enabled": true
+	},
+	"css": {
+		"parser": {
+			"cssModules": true
+		}
 	},
 	"linter": {
 		"enabled": true,

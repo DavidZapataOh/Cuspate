@@ -1,0 +1,88 @@
+.page {
+	max-width: 1120px;
+	margin: 0 auto;
+	padding: var(--space-8) var(--space-5) var(--space-9);
+	display: grid;
+	gap: var(--space-9);
+}
+
+.head {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.title {
+	font-size: var(--step-4);
+}
+
+.lede,
+.note {
+	color: var(--text-muted);
+}
+
+.section {
+	display: grid;
+	gap: var(--space-5);
+}
+
+.section h2 {
+	font-size: var(--step-3);
+	padding-top: var(--space-5);
+	border-top: 1px solid var(--line);
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-6);
+}
+
+.stack {
+	display: grid;
+	gap: var(--space-4);
+	max-width: 560px;
+}
+
+.split {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: var(--space-5);
+}
+
+.figure {
+	margin: 0;
+	display: grid;
+	justify-items: center;
+	gap: var(--space-3);
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.creamPanel {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-5);
+	background: #f2e9dc;
+	border-radius: var(--radius-2);
+}
+
+.demo {
+	display: grid;
+	justify-items: start;
+	gap: var(--space-5);
+}
+
+@media (max-width: 640px) {
+	.page {
+		padding: var(--space-6) var(--space-4) var(--space-8);
+		gap: var(--space-8);
+	}
+}
+
+/* The identity rows hug their content, so each can be lifted out whole for review. */
+.tight {
+	width: fit-content;
+	max-width: 100%;
+}

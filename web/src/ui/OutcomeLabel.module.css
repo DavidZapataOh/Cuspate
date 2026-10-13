@@ -1,0 +1,13 @@
+.label {
+	font-size: var(--step-2);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.label[data-outcome="beat"] {
+	color: var(--text);
+}
+
+.label[data-outcome="dont"] {
+	color: var(--stone);
+}

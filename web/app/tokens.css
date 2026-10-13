@@ -1,0 +1,48 @@
+/*
+ * The interface's tokens. Colours are opaque hexes, so the colour a browser computes equals the
+ * token; src/lib/palette.ts declares the same values and a test holds the two together.
+ */
+:root {
+	--bg: #14110e;
+	--surface: #1c1814;
+	--surface-2: #25201a;
+	--line: #2f2b27;
+	--text: #d1c9bd;
+	--text-muted: #99938a;
+	--amber: #c8873f;
+	--stone: #a79b8f;
+	--error: #d66e55;
+
+	/* Type: one family, a fixed scale, tabular figures wherever a number is read against another. */
+	--font-sans: var(--font-schibsted), system-ui, sans-serif;
+	--font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+	--step-0: 14px;
+	--step-1: 17px;
+	--step-2: 20px;
+	--step-3: 28px;
+	--step-4: 40px;
+	--step-5: 64px;
+	--leading-body: 1.5;
+	--leading-heading: 1.1;
+
+	/* Space: one rhythm, a 4 px base. */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 24px;
+	--space-6: 32px;
+	--space-7: 48px;
+	--space-8: 64px;
+	--space-9: 96px;
+
+	--radius-1: 6px;
+	--radius-2: 10px;
+
+	/* Motion: the disc splits and comes back in 320 ms; a result settles in 600 ms; the beam is slow. */
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+	--split-duration: 320ms;
+	--resolve-duration: 600ms;
+	--beam-duration: 1200ms;
+}

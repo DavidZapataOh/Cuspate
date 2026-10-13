@@ -1,0 +1,11 @@
+.card {
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-2);
+	padding: var(--space-5);
+}
+
+.card[data-raised] {
+	background: var(--surface-2);
+	box-shadow: 0 12px 32px -16px rgb(0 0 0 / 0.6);
+}

@@ -1,0 +1,29 @@
+.notice {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--space-3);
+	align-items: start;
+	padding: var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+	background: var(--surface);
+	color: var(--text);
+}
+
+.notice[data-tone="error"] {
+	border-color: var(--error);
+}
+
+.icon {
+	margin-top: 2px;
+	color: var(--text-muted);
+}
+
+.notice[data-tone="error"] .icon {
+	color: var(--error);
+}
+
+.body {
+	display: grid;
+	gap: var(--space-1);
+}

@@ -1070,6 +1070,39 @@ test("the keeper is proven against a fork of the production chain in its own job
 	);
 });
 
+test("the interface is proven in the three browser engines in its own job, by a script", () => {
+	// The browsers are toolchain no clean clone provides, so they stay out of the gates and the
+	// clean clone, in a job of their own, like the other jobs that need more than the clone.
+	const block = jobs().web ?? "";
+	assert.match(
+		block,
+		/^\s+run: tools\/web\.sh\s*$/m,
+		"the web job does not run tools/web.sh",
+	);
+	const script = read(path.join(root, "tools", "web.sh"));
+	assert.match(
+		script,
+		/test:browser/,
+		"tools/web.sh does not run the browser tests",
+	);
+	for (const engine of ["chromium", "firefox", "webkit"]) {
+		assert.match(
+			script,
+			new RegExp(engine),
+			`tools/web.sh does not install ${engine}`,
+		);
+	}
+});
+
+test("the clean clone stays browser-free", () => {
+	// It runs with an emptied environment and a cold home directory: a browser download there would
+	// make a met condition depend on the network and on a cache the clone does not provide.
+	const script = read(path.join(root, "tools", "clean-clone.sh"));
+	assert.doesNotMatch(script, /playwright|test:browser/);
+	const manifest = JSON.parse(read(path.join(root, "web", "package.json")));
+	assert.doesNotMatch(manifest.scripts.test, /playwright/);
+});
+
 test("exactly one job holds a secret, and it is the forbidden-terms job", () => {
 	// A job cannot enumerate the repository's secrets from inside, so "carries no secret" is only
 	// assertable over the workflow file. Any in-job check is a denylist of names someone already knew.
@@ -1081,6 +1114,7 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 		"indexer",
 		"keeper",
 		"repository",
+		"web",
 	]);
 	const holding = Object.entries(blocks)
 		.filter(([, block]) => /\$\{\{\s*secrets\./.test(block))

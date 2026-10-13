@@ -7,7 +7,8 @@ import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
-import {ConditionalPoolsCaller} from "../unit/ConditionalPools.t.sol";
+import {PositionVault} from "../../src/PositionVault.sol";
+import {ConditionalPoolsCaller, DollarLegsStub} from "../unit/ConditionalPools.t.sol";
 
 /// @title ConditionalPoolsFuzzTest
 /// @notice The starting price round-trips exactly wherever the exact answer is known in closed
@@ -62,6 +63,47 @@ contract ConditionalPoolsFuzzTest is Test {
         PoolKey memory key = _pair(baseDecimals + 2 * m, baseDecimals);
         uint160 root = caller.sqrtPriceX96(key, IERC20Metadata(HIGH), k * k * 100 ** n, 2 * n);
         assertEq(root, Q96 / (k * 10 ** m));
+    }
+
+    /// @notice Any yes-dollar price strictly between nothing and one dollar opens and reads back as
+    ///         itself or one wei less, never more, in either currency order.
+    /// @param price The yes-dollar's price, 18-decimal.
+    /// @param yesFirst Whether the yes-dollar sorts first.
+    function testFuzz_aYesDollarPriceRoundTrips(uint256 price, bool yesFirst) public {
+        price = bound(price, 1, 1e18 - 1);
+        PositionVault vault = _dollarLegs(yesFirst);
+        uint256 reading =
+            caller.yesDollarPriceAt(vault, caller.sqrtPriceAtYesDollarPrice(vault, price));
+        assertLe(reading, price);
+        assertGe(reading + 1, price);
+    }
+
+    /// @notice The reading moves with the pool's price: up with the yes-dollar first, down with it
+    ///         second, over the whole range a pool can hold.
+    /// @param a One sqrt price.
+    /// @param b Another.
+    /// @param yesFirst Whether the yes-dollar sorts first.
+    function testFuzz_theReadingIsMonotonic(uint160 a, uint160 b, bool yesFirst) public {
+        a = uint160(bound(a, TickMath.MIN_SQRT_PRICE, TickMath.MAX_SQRT_PRICE - 1));
+        b = uint160(bound(b, a, TickMath.MAX_SQRT_PRICE - 1));
+        PositionVault vault = _dollarLegs(yesFirst);
+        uint256 low = caller.yesDollarPriceAt(vault, a);
+        uint256 high = caller.yesDollarPriceAt(vault, b);
+        if (yesFirst) {
+            assertLe(low, high);
+        } else {
+            assertGe(low, high);
+        }
+        assertLt(low, 1e18);
+        assertLt(high, 1e18);
+    }
+
+    /// @notice A dollar vault whose legs sort in the order asked for.
+    /// @param yesFirst Whether the yes leg sorts first.
+    /// @return The vault.
+    function _dollarLegs(bool yesFirst) internal returns (PositionVault) {
+        (address yes, address no) = yesFirst ? (LOW, HIGH) : (HIGH, LOW);
+        return PositionVault(address(new DollarLegsStub(yes, no)));
     }
 
     /// @notice A hookless pool of two tokens at known addresses.

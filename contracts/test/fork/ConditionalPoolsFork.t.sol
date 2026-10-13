@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
@@ -103,6 +104,15 @@ contract ConditionalPoolsForkTest is Test {
     /// @notice The position seeded in each pool, and its half-width: 1,823 ticks is a factor of
     ///         1.2, so the range runs from a fifth below the value to a fifth above it.
     uint128 internal constant LIQUIDITY = 1e16;
+
+    /// @notice The position seeded in the probability pool, over the same range: both of its legs
+    ///         have six decimals, so about 10,736 no-dollars and 7,121 yes-dollars, the same order of
+    ///         depth as a conditional pool.
+    uint128 internal constant PROBABILITY_LIQUIDITY = 1e11;
+
+    /// @notice What a yes-dollar is worth in dollars: the implied probability, counting invalid as
+    ///         half.
+    uint256 internal constant YES_DOLLAR_PRICE = 0.6e18;
     int24 internal constant HALF_WIDTH = 1823;
 
     /// @notice A thousandth of a share, small enough that the position's price impact is far below
@@ -128,6 +138,7 @@ contract ConditionalPoolsForkTest is Test {
     PositionVault internal dollarVault;
     PoolKey internal yesKey;
     PoolKey internal noKey;
+    PoolKey internal probabilityKey;
 
     /// @notice What a pool must read back: its price and tick, and the quotes for a thousandth of
     ///         a share each way, all computed off chain.
@@ -183,6 +194,7 @@ contract ConditionalPoolsForkTest is Test {
             )
         );
         (yesKey, noKey) = ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(address(0)));
+        probabilityKey = ConditionalPools.probabilityKeyOf(dollarVault, IHooks(address(0)));
         swapRouter = new PoolSwapTest(manager);
     }
 
@@ -211,6 +223,114 @@ contract ConditionalPoolsForkTest is Test {
         _seed(pool.key, pool.tick);
         _assertSlot0(pool);
         _assertQuotes(pool);
+    }
+
+    /// @notice The probability pool, opened by a stranger at a yes-dollar price of 0.6 and seeded,
+    ///         publishes that price from the real pool manager, and the real quoter prices one
+    ///         yes-dollar at 1.5 no-dollars less the fee.
+    function testFork_theProbabilityPoolPublishesItsPrice() public {
+        _assertThisForksOrders();
+        (uint160 opening, int24 tick) = _probabilityOpening();
+        assertEq(ConditionalPools.sqrtPriceAtYesDollarPrice(dollarVault, YES_DOLLAR_PRICE), opening);
+        vm.prank(stranger);
+        assertEq(
+            manager.initialize(probabilityKey, opening), tick, "the pool opened at another tick"
+        );
+        _seed(probabilityKey, tick);
+
+        // With the yes-dollar second the reading rounds the inverse up and lands exactly on 0.6.
+        assertEq(
+            ConditionalPools.yesDollarPriceOf(manager, dollarVault, IHooks(address(0))),
+            YES_DOLLAR_PRICE
+        );
+        (uint256 noDollars,) = quoter.quoteExactInputSingle(
+            IQuoterCalls.QuoteExactSingleParams(probabilityKey, false, uint128(1e6), "")
+        );
+        // Fee only, 1.5 * 0.997 = 1.4955 no-dollars; the position's impact takes 19 raw units more.
+        assertEq(noDollars, 1495481, "the quote for one yes-dollar");
+        assertApproxEqAbs(
+            noDollars, 1495500, uint256(1495500) / 1e4 + 1, "more than a tick from the value"
+        );
+    }
+
+    /// @notice The three pools agree. A thousandth of a share is split into its two legs; each leg is
+    ///         sold for dollars in its world's pool; the surplus of yes-dollars is sold for no-dollars
+    ///         until the two are level; and the pair is merged. The dollars returned are the share's
+    ///         unconditional value, 0.6 * 1,040 + 0.4 * 960 = 1,008 per share, less exactly the fees.
+    ///         Every amount is a literal computed off chain from the pools' exact swap arithmetic.
+    function testFork_theThreePoolsReconcile() public {
+        _assertThisForksOrders();
+        Expected[2] memory worlds = [_expectedYes(), _expectedNo()];
+        for (uint256 index = 0; index < 2; index++) {
+            vm.prank(stranger);
+            manager.initialize(worlds[index].key, worlds[index].sqrtPriceX96);
+            _seed(worlds[index].key, worlds[index].tick);
+        }
+        (uint160 opening, int24 tick) = _probabilityOpening();
+        vm.prank(stranger);
+        manager.initialize(probabilityKey, opening);
+        _seed(probabilityKey, tick);
+
+        _split(trader, QUOTED_SHARE, 0);
+        IERC20 yesDollar = IERC20(address(dollarVault.YES()));
+        IERC20 noDollar = IERC20(address(dollarVault.NO()));
+        _sell(yesKey, address(underlyingVault.YES()), QUOTED_SHARE);
+        _sell(noKey, address(underlyingVault.NO()), QUOTED_SHARE);
+        assertEq(yesDollar.balanceOf(trader), 1036876, "the yes leg's dollars");
+        assertEq(noDollar.balanceOf(trader), 957117, "the no leg's dollars");
+
+        _sell(probabilityKey, address(yesDollar), 31961);
+        uint256 yes = yesDollar.balanceOf(trader);
+        uint256 no = noDollar.balanceOf(trader);
+        assertEq(yes, 1004915, "the yes-dollars left");
+        assertEq(no, 1004914, "the no-dollars bought");
+
+        IERC20 dollar = dollarVault.COLLATERAL();
+        vm.prank(trader);
+        dollarVault.mergePositions(no);
+        uint256 merged = dollar.balanceOf(trader);
+        assertEq(merged, 1004914, "the dollars merged");
+        // Fee-only value: D = (Y * P * f + N) / (1 + P * f), with Y and N the legs' dollars, P = 1.5
+        // no-dollars per yes-dollar and f = 0.997, is 1,004,918; the probability pool's impact and
+        // the leftover raw unit take the rest, well inside one tick.
+        assertApproxEqRel(merged, 1004918, 1e14, "more than a tick from the fee-only value");
+    }
+
+    /// @notice The literals in these tests are for the order the legs sort in on this fork: the
+    ///         underlying's leg second in both conditional pools, the yes-dollar second in the
+    ///         probability pool. A redeployment that changed it fails here, by name.
+    function _assertThisForksOrders() internal view {
+        assertFalse(
+            _isUnderlyingLeg(Currency.unwrap(yesKey.currency0)), "the yes pool's order changed"
+        );
+        assertFalse(
+            _isUnderlyingLeg(Currency.unwrap(noKey.currency0)), "the no pool's order changed"
+        );
+        assertFalse(_yesDollarFirst(), "the probability pool's order changed");
+    }
+
+    /// @notice The trader sells an exact amount of one currency in a pool, through v4-core's test
+    ///         swap router, without a price limit.
+    /// @param key The pool.
+    /// @param token What is sold.
+    /// @param amount How much.
+    function _sell(PoolKey memory key, address token, uint256 amount) internal {
+        bool zeroForOne = Currency.unwrap(key.currency0) == token;
+        vm.startPrank(trader);
+        IERC20(token).approve(address(swapRouter), amount);
+        swapRouter.swap(
+            key,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -SafeCast.toInt256(amount),
+                sqrtPriceLimitX96: zeroForOne
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        vm.stopPrank();
     }
 
     /// @notice A real exact-input swap pays exactly what the deployed quoter quoted: the quote and
@@ -411,9 +531,14 @@ contract ConditionalPoolsForkTest is Test {
     /// @param tick The value's tick.
     function _fund(PoolKey memory key, int24 tick) internal {
         (uint128 cap0, uint128 cap1) = _caps(key, tick);
-        bool underlyingFirst = _isUnderlyingLeg(Currency.unwrap(key.currency0));
-        (uint256 shares, uint256 dollars) = underlyingFirst ? (cap0, cap1) : (cap1, cap0);
-        _split(provider, shares, dollars);
+        if (_isProbabilityPool(key)) {
+            // Both currencies are dollar legs, and one split of dollars yields both.
+            _split(provider, 0, cap0 > cap1 ? cap0 : cap1);
+        } else if (_isUnderlyingLeg(Currency.unwrap(key.currency0))) {
+            _split(provider, cap0, cap1);
+        } else {
+            _split(provider, cap1, cap0);
+        }
         address[2] memory currencies =
             [Currency.unwrap(key.currency0), Currency.unwrap(key.currency1)];
         vm.startPrank(provider);
@@ -435,8 +560,9 @@ contract ConditionalPoolsForkTest is Test {
         uint256 tokenId = positions.nextTokenId();
         vm.prank(provider);
         positions.modifyLiquidities(unlockData, vm.getBlockTimestamp());
+        (, uint128 liquidity) = _opening(key);
         assertEq(
-            positions.getPositionLiquidity(tokenId), LIQUIDITY, "the position holds other liquidity"
+            positions.getPositionLiquidity(tokenId), liquidity, "the position holds other liquidity"
         );
     }
 
@@ -447,14 +573,15 @@ contract ConditionalPoolsForkTest is Test {
     function _mintData(PoolKey memory key, int24 tick) internal view returns (bytes memory) {
         (int24 lower, int24 upper) = _range(tick);
         (uint128 cap0, uint128 cap1) = _caps(key, tick);
+        (, uint128 liquidity) = _opening(key);
         bytes[] memory params = new bytes[](2);
         params[0] =
-            abi.encode(key, lower, upper, uint256(LIQUIDITY), cap0, cap1, provider, bytes(""));
+            abi.encode(key, lower, upper, uint256(liquidity), cap0, cap1, provider, bytes(""));
         params[1] = abi.encode(key.currency0, key.currency1);
         return abi.encode(abi.encodePacked(MINT_POSITION, SETTLE_PAIR), params);
     }
 
-    /// @notice What the position needs of each currency at the value's price, rounded up.
+    /// @notice What the position needs of each currency at the pool's opening price, rounded up.
     /// @param key The pool.
     /// @param tick The value's tick.
     /// @return cap0 The first currency.
@@ -465,20 +592,60 @@ contract ConditionalPoolsForkTest is Test {
         returns (uint128 cap0, uint128 cap1)
     {
         (int24 lower, int24 upper) = _range(tick);
-        Expected memory pool = PoolId.unwrap(key.toId()) == PoolId.unwrap(yesKey.toId())
-            ? _expectedYes()
-            : _expectedNo();
-        uint160 price = pool.sqrtPriceX96;
+        (uint160 price, uint128 liquidity) = _opening(key);
         cap0 = uint128(
             SqrtPriceMath.getAmount0Delta(
-                price, TickMath.getSqrtPriceAtTick(upper), LIQUIDITY, true
+                price, TickMath.getSqrtPriceAtTick(upper), liquidity, true
             )
         );
         cap1 = uint128(
             SqrtPriceMath.getAmount1Delta(
-                TickMath.getSqrtPriceAtTick(lower), price, LIQUIDITY, true
+                TickMath.getSqrtPriceAtTick(lower), price, liquidity, true
             )
         );
+    }
+
+    /// @notice The price a pool opens at, a literal computed off chain, and the liquidity seeded in
+    ///         it.
+    /// @param key The pool.
+    /// @return sqrtPriceX96 Its opening price.
+    /// @return liquidity Its position's liquidity.
+    function _opening(PoolKey memory key)
+        internal
+        view
+        returns (uint160 sqrtPriceX96, uint128 liquidity)
+    {
+        if (_isProbabilityPool(key)) {
+            (sqrtPriceX96,) = _probabilityOpening();
+            return (sqrtPriceX96, PROBABILITY_LIQUIDITY);
+        }
+        Expected memory pool = PoolId.unwrap(key.toId()) == PoolId.unwrap(yesKey.toId())
+            ? _expectedYes()
+            : _expectedNo();
+        return (pool.sqrtPriceX96, LIQUIDITY);
+    }
+
+    /// @notice The probability pool's opening at a yes-dollar price of 0.6: a yes-dollar is worth
+    ///         1.5 no-dollars, stored as is with the yes-dollar first and inverted with it second.
+    /// @return sqrtPriceX96 The opening price.
+    /// @return tick Its tick.
+    function _probabilityOpening() internal view returns (uint160 sqrtPriceX96, int24 tick) {
+        return _yesDollarFirst()
+            ? (uint160(97034285709124592626698884146), int24(4054))
+            : (uint160(64689523806083061751132589430), int24(-4055));
+    }
+
+    /// @notice Whether the yes-dollar is the probability pool's first currency.
+    /// @return Whether it is.
+    function _yesDollarFirst() internal view returns (bool) {
+        return Currency.unwrap(probabilityKey.currency0) == address(dollarVault.YES());
+    }
+
+    /// @notice Whether a key is the market's probability pool.
+    /// @param key The pool.
+    /// @return Whether it is.
+    function _isProbabilityPool(PoolKey memory key) internal view returns (bool) {
+        return PoolId.unwrap(key.toId()) == PoolId.unwrap(probabilityKey.toId());
     }
 
     /// @notice The position's range: a fifth either side of the value, widened to the spacing.

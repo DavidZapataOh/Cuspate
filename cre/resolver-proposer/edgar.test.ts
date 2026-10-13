@@ -6,7 +6,7 @@ const fixture = (file: string) =>
 // The issuer's ten most recent 8-K filings as the feed listed them on the fetch date: two earnings
 // releases (item 2.02), filed 2026-06-24 and 2026-09-30, among filings about other matters.
 const feed = await fixture("edgar-8k-feed-0000723125.xml");
-const q4Index = await fixture("0000723125-26-000018-index.json");
+const q4Index = await fixture("0000723125-26-000018-index.html");
 
 describe("releaseFilings", () => {
 	test("lists the earnings releases filed on or after a date, earliest first", () => {
@@ -57,49 +57,71 @@ describe("releaseFilings", () => {
 				cik: "723125",
 			}),
 		).toBe(
-			"https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/index.json",
+			"https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/0000723125-26-000018-index.html",
 		);
 	});
 });
+
+/** An index page with one table row per document, as EDGAR lays its index out. */
+function indexPage(rows: [description: string, name: string, type: string][]) {
+	const cells = rows
+		.map(
+			([description, name, type], seq) =>
+				`<tr><td scope="row">${seq + 1}</td><td scope="row">${description}</td><td scope="row"><a href="/Archives/edgar/data/1/000000000026000001/${name}">${name}</a></td><td scope="row">${type}</td><td scope="row">1000</td></tr>`,
+		)
+		.join("\n");
+	return `<table class="tableFile" summary="Document Format Files"><tr><th>Seq</th><th>Description</th><th>Document</th><th>Type</th><th>Size</th></tr>${cells}</table>`;
+}
 
 describe("exhibitName", () => {
 	test("names the press release exhibit in a filing's index", () => {
 		expect(exhibitName(q4Index)).toBe("a2026q4ex991-pressrelease.htm");
 	});
 
-	test("accepts the naming conventions filers use for exhibit 99.1", () => {
-		for (const name of [
-			"ex99-1.htm",
-			"ex991.htm",
-			"d123dex991.htm",
-			"exhibit99_1.htm",
-			"ex-99.1.html",
-		]) {
-			expect(
-				exhibitName(JSON.stringify({ directory: { item: [{ name }] } })),
-			).toBe(name);
+	test("finds the press release by its type, whatever the filer named the file", async () => {
+		const expected: [string, string][] = [
+			["AMD/0000002488-26-000121-index.html", "q22026991.htm"],
+			["NVDA/0001045810-26-000073-index.html", "q2fy27pr.htm"],
+			["WMT/0000104169-26-000145-index.html", "earningsreleasefy27q2.htm"],
+			["TSLA/0001628280-26-049213-index.html", "exhibit991.htm"],
+			["TSLA/0001628280-26-064366-index.html", "exhibit991111111.htm"],
+			["MSFT/0001193125-26-323632-index.html", "msft-ex99_1.htm"],
+		];
+		for (const [file, name] of expected) {
+			expect(exhibitName(await fixture(file))).toBe(name);
 		}
+	});
+
+	test("reads the type column, never the description", () => {
+		expect(
+			exhibitName(
+				indexPage([
+					["EX-99.1 slides", "slides.htm", "EX-99.2"],
+					["Release", "release.htm", "EX-99.1"],
+				]),
+			),
+		).toBe("release.htm");
+		expect(
+			exhibitName(indexPage([["EX-99.1 slides", "slides.htm", "EX-99.2"]])),
+		).toBeNull();
 	});
 
 	test("names nothing when no exhibit 99.1 is listed, or when several are", () => {
-		const none = q4Index.replace(
-			"a2026q4ex991-pressrelease.htm",
-			"a2026q4-pressrelease.htm",
-		);
-		expect(exhibitName(none)).toBeNull();
-		for (const name of ["ex9910.htm", "ex99.htm", "ex991.xml"]) {
-			expect(
-				exhibitName(JSON.stringify({ directory: { item: [{ name }] } })),
-			).toBeNull();
-		}
-		const two = JSON.stringify({
-			directory: { item: [{ name: "ex991.htm" }, { name: "ex99-1a.htm" }] },
-		});
-		expect(exhibitName(two)).toBeNull();
+		expect(exhibitName(indexPage([["Report", "d8k.htm", "8-K"]]))).toBeNull();
+		expect(
+			exhibitName(
+				indexPage([
+					["Release", "a.htm", "EX-99.1"],
+					["Release", "b.htm", "EX-99.1"],
+				]),
+			),
+		).toBeNull();
 	});
 
 	test("names nothing in a document that is not an index", () => {
-		expect(exhibitName("not json")).toBeNull();
-		expect(exhibitName(JSON.stringify({ directory: {} }))).toBeNull();
+		expect(exhibitName("not an index")).toBeNull();
+		expect(
+			exhibitName("<html>Request rate threshold exceeded</html>"),
+		).toBeNull();
 	});
 });

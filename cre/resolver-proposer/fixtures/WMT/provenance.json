@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0000104169-26-000095-earningsreleasefy27q1.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000095/earningsreleasefy27q1.htm",
+			"fetched": "2026-10-13",
+			"sha256": "f48d5220175e54d4d62bfbaa098f16d12d94b9cbdf4ba09784b6de488cb420ab"
+		},
+		{
+			"file": "0000104169-26-000095-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000095/0000104169-26-000095-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "e961b94539eb2b88765156d11b03e75f4fe5d86325503fe301d93df186ade367"
+		},
+		{
+			"file": "0000104169-26-000145-earningsreleasefy27q2.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000145/earningsreleasefy27q2.htm",
+			"fetched": "2026-10-13",
+			"sha256": "f4759da8c3c2742cb6de865b9ef02a45c24337afe60892c6227f676e4834a18b"
+		},
+		{
+			"file": "0000104169-26-000145-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000145/0000104169-26-000145-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "a23843486e319f0c655da327e2f658525935c6da5ec7ffb9d9943829807a0e2d"
+		},
+		{
+			"file": "edgar-8k-feed-104169.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=104169&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "39a1cf817081a09d9770f2232633c126f0fd065590ef15038da61d69497291b6"
+		}
+	]
+}

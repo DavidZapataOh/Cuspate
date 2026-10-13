@@ -6,16 +6,13 @@ import {
 } from "@chainlink/cre-sdk";
 import { Gunzip } from "fflate";
 import { documentUrl, exhibitName, indexUrl, releaseFilings } from "./edgar";
-import {
-	type AbstainReason,
-	extractFigure,
-	type Figure,
-	type Period,
-	scale,
-} from "./source";
+import { readRelease } from "./issuers/readers";
+import type { AbstainReason, Period } from "./source";
 
 /** Which release the workflow reads, and how it reads it. */
 export type FigureRequest = {
+	/** The issuer, whose reader reads the release. */
+	ticker: string;
 	/** The issuer's SEC Central Index Key, without leading zeros. */
 	cik: string;
 	/** The first date the release can carry, `YYYY-MM-DD`: the announcement the terms name. */
@@ -24,8 +21,6 @@ export type FigureRequest = {
 	userAgent: string;
 	/** The fiscal quarter the terms name. */
 	period: Period;
-	/** The decimals of the sealed threshold. */
-	decimals: number;
 };
 
 /**
@@ -38,9 +33,12 @@ export const FETCH_ABSTAIN_REASONS = [
 	"unavailable",
 ] as const;
 
-/** A figure, or why there is none: a reason of fetching's own, or why the release could not be read. */
+/**
+ * The figure as printed, or why there is none: a reason of fetching's own, or why the release could
+ * not be read. Each event scales the printed figure to its own threshold's decimals.
+ */
 export type Outcome =
-	| Figure
+	| { text: string }
 	| { abstain: AbstainReason | (typeof FETCH_ABSTAIN_REASONS)[number] };
 
 /**
@@ -105,8 +103,8 @@ export function encodeOutcome(outcome: Outcome): string {
 		: `figure:${outcome.text}`;
 }
 
-/** The outcome a canonical string encodes, its figure scaled to `decimals`. */
-export function decodeOutcome(encoded: string, decimals: number): Outcome {
+/** The outcome a canonical string encodes. */
+export function decodeOutcome(encoded: string): Outcome {
 	const [kind, body] = [
 		encoded.slice(0, encoded.indexOf(":")),
 		encoded.slice(encoded.indexOf(":") + 1),
@@ -115,7 +113,7 @@ export function decodeOutcome(encoded: string, decimals: number): Outcome {
 		return {
 			abstain: body as Outcome extends { abstain: infer R } ? R : never,
 		};
-	return scale(body, decimals);
+	return { text: body };
 }
 
 /** One node's outcome: find the release, fetch it, read it. */
@@ -163,7 +161,7 @@ function fetchOne(
 		if (name === null) return encodeOutcome({ abstain: "exhibit-not-found" });
 		const document = get(documentUrl(filing, name));
 		if (document === null) return unavailable;
-		outcome = extractFigure(document, request.period, request.decimals);
+		outcome = readRelease(request.ticker, document, request.period);
 		if (!("abstain" in outcome) || outcome.abstain !== "period-not-found")
 			break;
 	}
@@ -185,5 +183,5 @@ export function readFigure(
 			consensusIdenticalAggregation<string>(),
 		)(request)
 		.result();
-	return decodeOutcome(agreed, request.decimals);
+	return decodeOutcome(agreed);
 }

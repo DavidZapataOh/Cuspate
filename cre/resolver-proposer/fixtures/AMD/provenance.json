@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0000002488-26-000072-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000072/0000002488-26-000072-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "ee01becfee4a2ccea6909ba22b4b4780be9bf0318410de34fce1ec4a0948c56d"
+		},
+		{
+			"file": "0000002488-26-000072-q12026991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000072/q12026991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "aed169f975fe66e801d0f04e264b8dad47b290049948c2dc73c5ebe5f4639416"
+		},
+		{
+			"file": "0000002488-26-000121-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000121/0000002488-26-000121-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "2414da601912f8a8c09aa5865a3d70db1c329cb0540dd73a645458b06c073168"
+		},
+		{
+			"file": "0000002488-26-000121-q22026991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000121/q22026991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "418844861bf2db49c69655b6da7ea102148f581bc035b4b84559a256423e2a28"
+		},
+		{
+			"file": "edgar-8k-feed-2488.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=2488&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "213897c249a8cff8fe5fbb24e03f0db2f54a350ffff3b2132452f3ce32514005"
+		}
+	]
+}

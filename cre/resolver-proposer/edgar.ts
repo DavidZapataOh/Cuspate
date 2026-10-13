@@ -13,9 +13,10 @@ const ENTRY = /<entry>([\s\S]*?)<\/entry>/g;
 // Item 2.02 of Form 8-K is "Results of Operations and Financial Condition", the item an earnings
 // release is furnished under.
 const RESULTS_ITEM = /\b2\.02\b/;
-// Exhibit 99.1 under the names filers give it: ex99-1, ex991, exhibit99_1, ex-99.1, with any prefix
-// and suffix, but never 99.10 or a bare 99.
-const EXHIBIT_99_1 = /ex(?:hibit)?[-_.]?99[-_.]?0?1(?![0-9])[^/]*\.html?$/i;
+// A row of the index's document table, and the cells it holds.
+const ROW = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+const CELL = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+const HREF = /href="[^"]*\/([^"/]+)"/i;
 
 function field(entry: string, name: string): string | undefined {
 	return new RegExp(`<${name}>([^<]*)</${name}>`).exec(entry)?.[1].trim();
@@ -57,9 +58,12 @@ export function releaseFilings(feed: string, notBefore: string): Filing[] {
 	);
 }
 
-/** Where EDGAR keeps a filing's index of documents. */
+/**
+ * Where EDGAR keeps a filing's index page, which lists each document with the type the filer declared
+ * for it: the exhibit is chosen by that type, since filers name the file anything.
+ */
 export function indexUrl(filing: Filing): string {
-	return `https://www.sec.gov/Archives/edgar/data/${filing.cik}/${filing.accession.replaceAll("-", "")}/index.json`;
+	return `https://www.sec.gov/Archives/edgar/data/${filing.cik}/${filing.accession.replaceAll("-", "")}/${filing.accession}-index.html`;
 }
 
 /** Where EDGAR keeps one of a filing's documents. */
@@ -69,19 +73,17 @@ export function documentUrl(filing: Filing, name: string): string {
 
 /**
  * The name of the filing's exhibit 99.1, the press release, or null when the index lists none or
- * more than one, since then which document is the release is a guess.
- * @param index The filing's `index.json`.
+ * more than one, since then which document is the release is a guess. The document table's fourth
+ * column is the type the filer declared; the description column is free text and is not read.
+ * @param index The filing's index page, HTML.
  */
 export function exhibitName(index: string): string | null {
-	let items: unknown;
-	try {
-		items = JSON.parse(index)?.directory?.item;
-	} catch {
-		return null;
+	const names: string[] = [];
+	for (const [, row] of index.matchAll(ROW)) {
+		const cells = [...row.matchAll(CELL)].map(([, cell]) => cell);
+		if (cells.length < 4 || cells[3].trim() !== "EX-99.1") continue;
+		const name = HREF.exec(cells[2])?.[1];
+		if (name) names.push(name);
 	}
-	if (!Array.isArray(items)) return null;
-	const names = items
-		.map((item) => (typeof item?.name === "string" ? item.name : ""))
-		.filter((name) => EXHIBIT_99_1.test(name));
 	return names.length === 1 ? names[0] : null;
 }

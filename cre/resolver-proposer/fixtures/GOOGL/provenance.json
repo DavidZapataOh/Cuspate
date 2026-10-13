@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0001652044-26-000043-googexhibit991q12026.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000043/googexhibit991q12026.htm",
+			"fetched": "2026-10-13",
+			"sha256": "a9cefb4976172f1137ff71d4638cbd8d10a03c0f78239b72403fed4ab31809d2"
+		},
+		{
+			"file": "0001652044-26-000043-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000043/0001652044-26-000043-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "fdb66d9a6fc88e80845e64a412de521bcf67c26f6386bdcb0c35b7c3c88000f8"
+		},
+		{
+			"file": "0001652044-26-000066-googexhibit991q22026.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000066/googexhibit991q22026.htm",
+			"fetched": "2026-10-13",
+			"sha256": "3b2d5502d789c3b220c8e76c573d5063e993151f3cfa1b2c01527465a3d79fea"
+		},
+		{
+			"file": "0001652044-26-000066-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000066/0001652044-26-000066-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "5ee40bfe49f92a442b68823293b06190aca2b51d01d35ce20851619d35111a3e"
+		},
+		{
+			"file": "edgar-8k-feed-1652044.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1652044&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "4c7347df767e928c7c013d0e415303437bfdddbf9b96ffa5d4a66bbbf95b4f92"
+		}
+	]
+}

@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0001193125-26-191457-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191457/0001193125-26-191457-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "bf368d778b884ec7efc192e117f6234227c56b2a32fc4dacbda1f68b6baf90cf"
+		},
+		{
+			"file": "0001193125-26-191457-msft-ex99_1.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526191457/msft-ex99_1.htm",
+			"fetched": "2026-10-13",
+			"sha256": "6af3859b69761a27f31bdaf31144ba6b9d0cfe183bbcc4eee698ff253a5f8b04"
+		},
+		{
+			"file": "0001193125-26-323632-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323632/0001193125-26-323632-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "2588079e72145d5811c2df314450927422ed7fc365057e33522c1a54f16f9b5c"
+		},
+		{
+			"file": "0001193125-26-323632-msft-ex99_1.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/789019/000119312526323632/msft-ex99_1.htm",
+			"fetched": "2026-10-13",
+			"sha256": "70e6a550efddd93208973991dedc399b5954602fe275884f810627d601725d91"
+		},
+		{
+			"file": "edgar-8k-feed-789019.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=789019&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "3bcf1ef0821313516449f4f5b301b1c9e03cfeb7212f99fca0b3a3c957b51cc7"
+		}
+	]
+}

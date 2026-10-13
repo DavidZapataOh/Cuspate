@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0001628280-26-028364-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028364/0001628280-26-028364-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "67172b5ecbc452c596e6e6454dc1db4a396656984349f4f08feff2689e866ae5"
+		},
+		{
+			"file": "0001628280-26-028364-meta-03312026xexhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026028364/meta-03312026xexhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "46ed72c12518052a81364921ebba3c9ed7497829a44dc676b113f3bd14fc1a4d"
+		},
+		{
+			"file": "0001628280-26-050596-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050596/0001628280-26-050596-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "f3465b5b27a15f894e057f44ae074b28a9f0195d4ac0c32c4fb4d702f25c2314"
+		},
+		{
+			"file": "0001628280-26-050596-meta-06302026xexhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050596/meta-06302026xexhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "b362e013916d4c3b4303c5191c95c92b45122a77417593129870e7ba44ba3056"
+		},
+		{
+			"file": "edgar-8k-feed-1326801.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1326801&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "1f6eb609fd03e2ba789a506420da4ba703a5cb898afc8d1bc316b6e81b7dc4da"
+		}
+	]
+}

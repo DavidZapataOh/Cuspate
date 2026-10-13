@@ -163,17 +163,22 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
  * Whether the workflow may read and propose for the event now, and if so at which decimals and from
  * which filing date. A pure function of what the chain says, so every node decides the same.
  * @param view The event, as read.
- * @param config The receiver proposing, and the terms the configuration was written for.
+ * @param config The receiver proposing, and the terms and announcement the configuration was
+ *        written for.
  * @param now The network's time.
  */
 export function screen(
 	view: EventView,
-	config: { receiver: string; terms: string },
+	config: { receiver: string; terms: string; announcesAt: bigint },
 	now: Date,
 ): { abstain: ChainAbstainReason } | { decimals: number; notBefore: string } {
 	if (same(view.sealer, zeroAddress) || !same(view.sealer, view.trustedSealer))
 		return { abstain: "not-sealed" };
-	if (view.terms !== toHex(config.terms)) return { abstain: "terms-mismatch" };
+	if (
+		view.terms !== toHex(config.terms) ||
+		view.announcesAt !== config.announcesAt
+	)
+		return { abstain: "terms-mismatch" };
 	if (BigInt(Math.floor(now.getTime() / 1000)) < view.announcesAt)
 		return { abstain: "too-early" };
 	if (view.pendingArbitration) return { abstain: "arbitration" };
@@ -220,31 +225,39 @@ function call(
 	} as DecodeFunctionResultParameters);
 }
 
-/** The event as the resolver and its registry hold it, at the last finalized block. */
+/** What every event a run reads shares: the resolver's registry and the one sealer it trusts. */
+export type ResolverContext = { registry: Address; trustedSealer: Address };
+
+/** The resolver's registry and trusted sealer, read once per run. */
+export function readContext(
+	runtime: Runtime<unknown>,
+	evm: EVMClient,
+	resolver: Address,
+): ResolverContext {
+	return {
+		registry: call(runtime, evm, resolver, RESOLVER_ABI, "REGISTRY") as Address,
+		trustedSealer: call(
+			runtime,
+			evm,
+			resolver,
+			RESOLVER_ABI,
+			"SEALER",
+		) as Address,
+	};
+}
+
+/** The event as the resolver and its registry hold it, at the last finalized block: two reads. */
 export function readEvent(
 	runtime: Runtime<unknown>,
 	evm: EVMClient,
 	resolver: Address,
+	context: ResolverContext,
 	eventId: Hex,
 ): EventView {
-	const registry = call(
-		runtime,
-		evm,
-		resolver,
-		RESOLVER_ABI,
-		"REGISTRY",
-	) as Address;
-	const trustedSealer = call(
-		runtime,
-		evm,
-		resolver,
-		RESOLVER_ABI,
-		"SEALER",
-	) as Address;
 	const [sealer, , threshold] = call(
 		runtime,
 		evm,
-		registry,
+		context.registry,
 		REGISTRY_ABI,
 		"sealOf",
 		[eventId],
@@ -258,7 +271,7 @@ export function readEvent(
 	};
 	return {
 		sealer,
-		trustedSealer,
+		trustedSealer: context.trustedSealer,
 		decimals: threshold.decimals,
 		announcesAt: threshold.announcesAt,
 		terms: threshold.terms,

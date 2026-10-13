@@ -21,7 +21,11 @@ const view: EventView = {
 	openProposer: NOBODY,
 	firstProposer: NOBODY,
 };
-const config = { receiver: RECEIVER, terms: TERMS } as const;
+const config = {
+	receiver: RECEIVER,
+	terms: TERMS,
+	announcesAt: ANNOUNCES_AT,
+} as const;
 const after = new Date(Number(ANNOUNCES_AT) * 1000 + 60_000);
 
 describe("screen", () => {
@@ -30,6 +34,12 @@ describe("screen", () => {
 			decimals: 2,
 			notBefore: "2026-12-16",
 		});
+	});
+
+	test("abstains when the chain's announcement is not the one the configuration was written for", () => {
+		expect(
+			screen(view, { ...config, announcesAt: ANNOUNCES_AT + 3600n }, after),
+		).toEqual({ abstain: "terms-mismatch" });
 	});
 
 	test("abstains for an event the resolver's sealer did not seal", () => {

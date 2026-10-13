@@ -1,5 +1,5 @@
 {
-	"note": "Documents recorded from SEC EDGAR exactly as fetched: the issuer's feed of recent 8-K filings, the index of each earnings filing, and each earnings release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"note": "Documents recorded from SEC EDGAR exactly as fetched: the issuer's feed of recent 8-K filings, the index page of each earnings filing, and each earnings release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
 	"documents": [
 		{
 			"file": "edgar-8k-feed-0000723125.xml",
@@ -8,18 +8,18 @@
 			"sha256": "d763b32eed2918061bace31052048784b718f848455580fbc97dc41e16eb2a74"
 		},
 		{
-			"file": "0000723125-26-000018-index.json",
-			"url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/index.json",
+			"file": "0000723125-26-000018-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000018/0000723125-26-000018-index.html",
 			"filed": "2026-09-30",
 			"fetched": "2026-10-13",
-			"sha256": "aa905041973ab75c55960563c7a267f3f559ddfc2c56c7410d08ebb2924cc93a"
+			"sha256": "bda394e8b8f41e492a0051b11b92a9469c2bdac5d280e273763b8946519861e4"
 		},
 		{
-			"file": "0000723125-26-000013-index.json",
-			"url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000013/index.json",
+			"file": "0000723125-26-000013-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000013/0000723125-26-000013-index.html",
 			"filed": "2026-06-24",
 			"fetched": "2026-10-13",
-			"sha256": "c186a2f7bc67491f0275691f616c1d49e519e3a996a7c9bfcb06e16c072f9706"
+			"sha256": "46a1f468f26acc2ad4253af3e57678e1feeea7a6e62e9388a1fa34bdf0ad6660"
 		},
 		{
 			"file": "0000723125-26-000018-ex991.htm",

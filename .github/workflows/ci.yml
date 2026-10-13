@@ -1,11 +1,16 @@
-# Three jobs, one per secret tier: building and testing need nothing, reading real chain state
-# needs only egress, and the one secret lives in a job that builds nothing and publishes nothing.
+# Jobs by secret tier: building and testing need nothing, reading real chain state needs only egress,
+# and two secrets each live in one job of their own: the scanner's salt in a job that builds nothing and
+# publishes nothing, and a CRE key, used only to simulate, in the resolution workflow's end-to-end run.
 # No step holds logic. Each gate is a command that runs identically on a laptop.
 name: ci
 
 on:
   push:
   pull_request:
+  # Daily, for the end-to-end run against EDGAR, whose documents change without a push.
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
 
 # Queued, never cancelled: a cancelled run is neither green nor red, and a result nobody can read
 # is not a gate.
@@ -198,3 +203,29 @@ jobs:
           SCAN_SALT: ${{ secrets.SCAN_SALT }}
           SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           SCAN_HEAD: ${{ github.sha }}
+
+  cre-e2e:
+    # A pull request receives no secret and would only report not evaluated.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: cre-e2e
+        run: tools/cre-e2e.sh
+        env:
+          CRE_API_KEY: ${{ secrets.CRE_E2E_API_KEY }}

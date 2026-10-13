@@ -5,10 +5,12 @@
 	"license": "MIT",
 	"scripts": {
 		"build": "tsc --noEmit && cre-compile resolver-proposer/main.ts .build/resolver-proposer.wasm",
-		"test": "bun test"
+		"test": "bun test",
+		"e2e": "bun e2e/run.ts"
 	},
 	"dependencies": {
 		"@chainlink/cre-sdk": "1.23.0",
+		"cuspate-shared": "workspace:*",
 		"fflate": "0.8.2",
 		"viem": "2.57.4",
 		"zod": "3.25.76"

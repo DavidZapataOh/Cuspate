@@ -1,0 +1,35 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0001783879-26-000061-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1783879/000178387926000061/0001783879-26-000061-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "ed720bcaa380ad035831fb2dfc87ad97751169b85809c540f4cc0b225a017c66"
+		},
+		{
+			"file": "0001783879-26-000061-q12026robinhoodexhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1783879/000178387926000061/q12026robinhoodexhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "b5a7200e88adbe2a0c55885961fb26728562c7ee93952055d2683766747ea061"
+		},
+		{
+			"file": "0001783879-26-000113-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1783879/000178387926000113/0001783879-26-000113-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "0cce28867a26c1a7ff27d0bd9da8276b929106070a2c8353603fe6f885cb35f2"
+		},
+		{
+			"file": "0001783879-26-000113-q22026robinhoodexhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1783879/000178387926000113/q22026robinhoodexhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "276c2726a51f7a075a5a84205ce1bdedc6d054af81f83fd13b73e8a9021e7001"
+		},
+		{
+			"file": "edgar-8k-feed-1783879.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1783879&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "454a40912a6bede318c8f01b3319f717405e95c41b7768292bd254860c3287fb"
+		}
+	]
+}

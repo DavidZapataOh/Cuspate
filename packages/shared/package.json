@@ -1,0 +1,17 @@
+{
+	"name": "cuspate-shared",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "tsc --noEmit",
+		"test": "node --test \"test/**/*.test.ts\""
+	},
+	"devDependencies": {
+		"@types/node": "24.10.1",
+		"typescript": "5.9.3"
+	}
+}

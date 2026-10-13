@@ -17,12 +17,10 @@ const archive = "https://www.sec.gov/Archives/edgar/data/723125";
 // EDGAR as it answered on the fetch date, address by address.
 const edgar: Record<string, Buffer> = {
 	[feedUrl("723125")]: await bytes("edgar-8k-feed-0000723125.xml"),
-	[`${archive}/000072312526000013/index.json`]: await bytes(
-		"0000723125-26-000013-index.json",
-	),
-	[`${archive}/000072312526000018/index.json`]: await bytes(
-		"0000723125-26-000018-index.json",
-	),
+	[`${archive}/000072312526000013/0000723125-26-000013-index.html`]:
+		await bytes("0000723125-26-000013-index.html"),
+	[`${archive}/000072312526000018/0000723125-26-000018-index.html`]:
+		await bytes("0000723125-26-000018-index.html"),
 	[`${archive}/000072312526000013/a2026q3ex991-pressrelease.htm`]: await bytes(
 		"0000723125-26-000013-ex991.htm",
 	),
@@ -32,11 +30,11 @@ const edgar: Record<string, Buffer> = {
 };
 
 const q4: FigureRequest = {
+	ticker: "MU",
 	cik: "723125",
 	notBefore: "2026-09-01",
 	userAgent: "Cuspate ops@cuspate.xyz",
 	period: { quarter: 4, fiscalYear: 2026 },
-	decimals: 2,
 };
 
 /** Serves `site` to the workflow, and records what it asked for. */
@@ -85,14 +83,10 @@ function serveCompressed(site: Record<string, Buffer>, declared = true) {
 describe("readFigure", () => {
 	test("finds the release the issuer filed and reads its figure", () => {
 		const asked = serve(edgar);
-		expect(readFigure(newTestRuntime(), q4)).toEqual({
-			text: "33.42",
-			value: 3342n,
-			decimals: 2,
-		});
+		expect(readFigure(newTestRuntime(), q4)).toEqual({ text: "33.42" });
 		expect(asked.map((request) => request.url)).toEqual([
 			feedUrl("723125"),
-			`${archive}/000072312526000018/index.json`,
+			`${archive}/000072312526000018/0000723125-26-000018-index.html`,
 			`${archive}/000072312526000018/a2026q4ex991-pressrelease.htm`,
 		]);
 	});
@@ -104,11 +98,7 @@ describe("readFigure", () => {
 			notBefore: "2026-06-10",
 			period: { quarter: 3, fiscalYear: 2026 },
 		} as const;
-		expect(readFigure(newTestRuntime(), q3)).toEqual({
-			text: "25.11",
-			value: 2511n,
-			decimals: 2,
-		});
+		expect(readFigure(newTestRuntime(), q3)).toEqual({ text: "25.11" });
 	});
 
 	test("passes over an earlier results filing that reports another period", () => {
@@ -117,11 +107,7 @@ describe("readFigure", () => {
 		const asked = serve(edgar);
 		expect(
 			readFigure(newTestRuntime(), { ...q4, notBefore: "2026-06-10" }),
-		).toEqual({
-			text: "33.42",
-			value: 3342n,
-			decimals: 2,
-		});
+		).toEqual({ text: "33.42" });
 		expect(asked.length).toBe(5);
 	});
 
@@ -172,10 +158,17 @@ describe("readFigure", () => {
 	});
 
 	test("abstains when the filing's index names no press release", () => {
-		const index = `${archive}/000072312526000018/index.json`;
+		const index = `${archive}/000072312526000018/0000723125-26-000018-index.html`;
 		serve({
 			...edgar,
-			[index]: Buffer.from(edgar[index].toString().replace("ex991", "ex99")),
+			[index]: Buffer.from(
+				edgar[index]
+					.toString()
+					.replaceAll(
+						'<td scope="row">EX-99.1</td>',
+						'<td scope="row">EX-99.2</td>',
+					),
+			),
 		});
 		expect(readFigure(newTestRuntime(), q4)).toEqual({
 			abstain: "exhibit-not-found",
@@ -211,23 +204,45 @@ describe("readFigure", () => {
 	});
 });
 
+describe("another issuer", () => {
+	test("is found by its own CIK and read by its own reader, the exhibit chosen by its type", async () => {
+		const nvidia =
+			"https://www.sec.gov/Archives/edgar/data/1045810/000104581026000073";
+		const asked = serve({
+			[feedUrl("1045810")]: await bytes("NVDA/edgar-8k-feed-1045810.xml"),
+			[`${nvidia}/0001045810-26-000073-index.html`]: await bytes(
+				"NVDA/0001045810-26-000073-index.html",
+			),
+			[`${nvidia}/q2fy27pr.htm`]: await bytes(
+				"NVDA/0001045810-26-000073-q2fy27pr.htm",
+			),
+		});
+		expect(
+			readFigure(newTestRuntime(), {
+				ticker: "NVDA",
+				cik: "1045810",
+				notBefore: "2026-08-25",
+				userAgent: q4.userAgent,
+				period: { quarter: 2, fiscalYear: 2027 },
+			}),
+		).toEqual({ text: "2.22" });
+		expect(asked.map((request) => request.url)).toEqual([
+			feedUrl("1045810"),
+			`${nvidia}/0001045810-26-000073-index.html`,
+			`${nvidia}/q2fy27pr.htm`,
+		]);
+	});
+});
+
 describe("a compressed answer", () => {
 	test("is decompressed, and the release read from it", () => {
 		serveCompressed(edgar);
-		expect(readFigure(newTestRuntime(), q4)).toEqual({
-			text: "33.42",
-			value: 3342n,
-			decimals: 2,
-		});
+		expect(readFigure(newTestRuntime(), q4)).toEqual({ text: "33.42" });
 	});
 
 	test("is recognised by its own bytes when the header does not declare it", () => {
 		serveCompressed(edgar, false);
-		expect(readFigure(newTestRuntime(), q4)).toEqual({
-			text: "33.42",
-			value: 3342n,
-			decimals: 2,
-		});
+		expect(readFigure(newTestRuntime(), q4)).toEqual({ text: "33.42" });
 	});
 
 	test("is what the platform's response limit admits, where the release itself is not", () => {
@@ -280,19 +295,17 @@ describe("a compressed answer", () => {
 
 describe("the outcome the nodes agree on", () => {
 	test("is a canonical string that round-trips every outcome", () => {
-		const figure = { text: "33.42", value: 3342n, decimals: 2 };
-		expect(decodeOutcome(encodeOutcome(figure), 2)).toEqual(figure);
-		const loss = { text: "-1.31", value: -1310n, decimals: 3 };
-		expect(decodeOutcome(encodeOutcome(loss), 3)).toEqual(loss);
-		expect(decodeOutcome(encodeOutcome({ abstain: "ambiguous" }), 2)).toEqual({
-			abstain: "ambiguous",
-		});
+		for (const outcome of [
+			{ text: "33.42" },
+			{ text: "-1.31" },
+			{ abstain: "ambiguous" as const },
+		]) {
+			expect(decodeOutcome(encodeOutcome(outcome))).toEqual(outcome);
+		}
 	});
 
-	test("does not carry the scaled value, which every node derives from the printed figure", () => {
-		expect(encodeOutcome({ text: "33.42", value: 3342n, decimals: 2 })).toBe(
-			"figure:33.42",
-		);
+	test("carries the figure as printed, which every event scales to its own decimals", () => {
+		expect(encodeOutcome({ text: "33.42" })).toBe("figure:33.42");
 		expect(encodeOutcome({ abstain: "precision" })).toBe("abstain:precision");
 	});
 });

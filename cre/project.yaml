@@ -4,3 +4,8 @@ monad-mainnet:
   rpcs:
     - chain-name: monad-mainnet
       url: ${MONAD_RPC_URL}
+# The end-to-end run's local chain, whose id is the production chain's. Localhost only.
+local-e2e:
+  rpcs:
+    - chain-name: monad-mainnet
+      url: ${LOCAL_E2E_RPC_URL}

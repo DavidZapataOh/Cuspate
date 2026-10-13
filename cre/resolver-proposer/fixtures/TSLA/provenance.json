@@ -1,0 +1,47 @@
+{
+	"note": "Documents recorded from SEC EDGAR exactly as served, decompressed: the issuer's feed of recent 8-K filings, the index page of each results filing, and each press release (exhibit 99.1 to the Form 8-K). The workflow is tested against them; sha256 holds each file to what was fetched.",
+	"documents": [
+		{
+			"file": "0001628280-26-026551-exhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026026551/exhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "73b2e5a389ade0e72c420fc63abece42ba978d5cb3bf0ccbc84e25958203d160"
+		},
+		{
+			"file": "0001628280-26-026551-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026026551/0001628280-26-026551-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "0a04ab496a093a66acc9d778b4addd855e65eca84aad8ba3dffd43583ef281fa"
+		},
+		{
+			"file": "0001628280-26-049213-exhibit991.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049213/exhibit991.htm",
+			"fetched": "2026-10-13",
+			"sha256": "5289442b0da332df284dc75b56ad80a2e98e9bc381c0d5a07ebc8320cb5e4076"
+		},
+		{
+			"file": "0001628280-26-049213-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026049213/0001628280-26-049213-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "b14f00f0dc4f13e21af1efbf3421c4c3460427d32afdfa5371d545a3f3f48081"
+		},
+		{
+			"file": "0001628280-26-064366-exhibit991111111.htm",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026064366/exhibit991111111.htm",
+			"fetched": "2026-10-13",
+			"sha256": "a4cbb8ee8d1271c6b1a1f06814311ce3c1ee0194b8b2f217c1cb6c843f0fa119"
+		},
+		{
+			"file": "0001628280-26-064366-index.html",
+			"url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026064366/0001628280-26-064366-index.html",
+			"fetched": "2026-10-13",
+			"sha256": "5de7ae28c46fba611c64938fd767582b164a4a609540259478d5268900a7692c"
+		},
+		{
+			"file": "edgar-8k-feed-1318605.xml",
+			"url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=1318605&type=8-K&dateb=&owner=include&count=10&output=atom",
+			"fetched": "2026-10-13",
+			"sha256": "01481741dc89e2a3f192e96fce0f18fa87c3b01a0aad45310c20ab63f467a5ee"
+		}
+	]
+}

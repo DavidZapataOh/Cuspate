@@ -332,7 +332,7 @@ function jobs() {
 	const blocks = {};
 	let current = null;
 	for (const line of text.slice(start + 7).split("\n")) {
-		const header = line.match(/^ {2}([a-z][a-z-]*):\s*$/);
+		const header = line.match(/^ {2}([a-z][a-z0-9-]*):\s*$/);
 		if (header) {
 			current = header[1];
 			blocks[current] = "";
@@ -1129,11 +1129,12 @@ test("the clean clone stays browser-free", () => {
 	assert.doesNotMatch(manifest.scripts.test, /playwright/);
 });
 
-test("exactly one job holds a secret, and it is the forbidden-terms job", () => {
+test("two jobs hold a secret, each its own: the forbidden-terms job and the resolution workflow's end-to-end run", () => {
 	// A job cannot enumerate the repository's secrets from inside, so "carries no secret" is only
 	// assertable over the workflow file. Any in-job check is a denylist of names someone already knew.
 	const blocks = jobs();
 	assert.deepEqual(Object.keys(blocks).sort(), [
+		"cre-e2e",
 		"forbidden-terms",
 		"fork",
 		"gates",
@@ -1145,8 +1146,38 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 	]);
 	const holding = Object.entries(blocks)
 		.filter(([, block]) => /\$\{\{\s*secrets\./.test(block))
-		.map(([name]) => name);
-	assert.deepEqual(holding, ["forbidden-terms"]);
+		.map(([name]) => name)
+		.sort();
+	assert.deepEqual(holding, ["cre-e2e", "forbidden-terms"]);
+	const secretsOf = (block) =>
+		[...block.matchAll(/\$\{\{\s*secrets\.([A-Z0-9_]+)/g)].map(
+			(match) => match[1],
+		);
+	assert.deepEqual(secretsOf(blocks["cre-e2e"]), ["CRE_E2E_API_KEY"]);
+	assert.deepEqual(secretsOf(blocks["forbidden-terms"]), ["SCAN_SALT"]);
+});
+
+test("the resolution workflow runs end to end in its own job, by a script, never on a pull request", () => {
+	// It needs a CRE key, EDGAR and the production chain's forwarder code. A pull request receives no
+	// secret and would only report not evaluated, so the job runs on pushes, on a schedule and by hand.
+	const block = jobs()["cre-e2e"] ?? "";
+	assert.match(block, /^\s+run: tools\/cre-e2e\.sh\s*$/m, block);
+	assert.match(block, /if: github\.event_name != 'pull_request'/, block);
+	assert.match(block, /foundry-rs\/foundry-toolchain@v1/, block);
+	const text = read(workflowPath);
+	assert.match(text, /^\s+schedule:\s*$/m, "the workflow has no schedule");
+	assert.match(
+		text,
+		/^\s+workflow_dispatch:\s*$/m,
+		"the workflow cannot be run by hand",
+	);
+	const script = read(path.join(root, "tools", "cre-e2e.sh"));
+	assert.match(script, /CRE_VERSION="1\.38\.0"/, "the CRE CLI is not pinned");
+	assert.match(
+		script,
+		/[0-9a-f]{64}/,
+		"the CRE CLI is installed without a checksum",
+	);
 });
 
 test("the forbidden-terms job scans tracked files and the pushed message range, with full history", () => {

@@ -4,6 +4,7 @@ packages:
   - indexer
   - keeper
   - ops
+  - packages/shared
 # No dependency runs install scripts. esbuild's, which arrives with the test runner, only checks the
 # platform binary pnpm already installs as its optional dependency; pnpm refuses to install while a
 # dependency's scripts are neither allowed nor declined, so it is declined here.

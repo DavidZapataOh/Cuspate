@@ -6,3 +6,11 @@ monad-mainnet:
     workflow-path: "./main.ts"
     config-path: "./config.json"
     secrets-path: ""
+# The end-to-end run: the same workflow, its configuration written by the harness.
+local-e2e:
+  user-workflow:
+    workflow-name: "cuspate-resolver-proposer"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.json"
+    secrets-path: ""

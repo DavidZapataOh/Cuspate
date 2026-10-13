@@ -1,4 +1,59 @@
 {
+  "manifest": {
+    "creProposer": {
+      "workflowName": "cuspate-resolver-proposer"
+    },
+    "deployer": "0x000000000000000000000000000000000000de10",
+    "logical": {
+      "dollar": "thirdParty:dollar",
+      "stockOracle": "thirdParty:stockOracle"
+    },
+    "placeholders": true,
+    "resolver": {
+      "arbiterTimeout": 604800,
+      "bond": "10000000",
+      "burn": "2000000",
+      "expiry": 604800,
+      "liveness": 7200
+    },
+    "roles": {
+      "arbiter": {
+        "owners": [
+          "0x000000000000000000000000000000000000de10"
+        ],
+        "saltNonce": "1",
+        "threshold": 1
+      },
+      "guardian": {
+        "owners": [
+          "0x000000000000000000000000000000000000de10"
+        ],
+        "saltNonce": "2",
+        "threshold": 1
+      },
+      "keeper": {
+        "owners": [
+          "0x000000000000000000000000000000000000de10"
+        ],
+        "saltNonce": "5",
+        "threshold": 1
+      },
+      "sealer": {
+        "owners": [
+          "0x000000000000000000000000000000000000de10"
+        ],
+        "saltNonce": "3",
+        "threshold": 1
+      },
+      "treasury": {
+        "owners": [
+          "0x000000000000000000000000000000000000de10"
+        ],
+        "saltNonce": "4",
+        "threshold": 1
+      }
+    }
+  },
   "pinnedBlock": 109200000,
   "thirdParty": {
     "collateral": [

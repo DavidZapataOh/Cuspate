@@ -115,7 +115,7 @@ function freePort(): Promise<number> {
 export const FORK_REQUEST_TIMEOUT_MS = 120_000;
 
 /** A running fork and clients for it. */
-export type Fork = Awaited<ReturnType<typeof startFork>>;
+export type Fork = Awaited<ReturnType<typeof connect>>;
 
 /** Starts a local node forking the production chain at the pinned block. */
 export async function startFork() {
@@ -133,7 +133,19 @@ export async function startFork() {
 		],
 		{ stdio: "ignore" },
 	);
-	const url = `http://127.0.0.1:${port}`;
+	return connect(`http://127.0.0.1:${port}`, CHAIN_ID, () => node.kill());
+}
+
+/**
+ * Attaches to a local node someone else started, such as a deployment rehearsal's fork of another
+ * network, with the same clients and helpers as a fork this harness starts. Stopping it is the
+ * starter's.
+ */
+export function attachFork(url: string, chainId: number) {
+	return connect(url, chainId, () => undefined);
+}
+
+async function connect(url: string, chainId: number, stop: () => unknown) {
 	const account = privateKeyToAccount(DEPLOYER_KEY);
 	const client = createTestClient({
 		mode: "anvil",
@@ -144,12 +156,12 @@ export async function startFork() {
 		.extend(walletActions);
 	for (let attempt = 0; ; attempt++) {
 		try {
-			if ((await client.getChainId()) !== CHAIN_ID)
-				throw new Error("the fork is not of the production chain");
+			if ((await client.getChainId()) !== chainId)
+				throw new Error(`the node is not a fork of chain ${chainId}`);
 			break;
 		} catch (error) {
 			if (attempt > 120) {
-				node.kill();
+				stop();
 				throw error;
 			}
 			await new Promise((resolve) => setTimeout(resolve, 250));
@@ -159,7 +171,7 @@ export async function startFork() {
 		url,
 		client,
 		account: account.address,
-		stop: () => node.kill(),
+		stop,
 		/** A wallet acting as `address`, which the node lets anyone impersonate. */
 		async as(address: Address) {
 			await client.impersonateAccount({ address });

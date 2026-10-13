@@ -1,0 +1,19 @@
+{
+	"name": "cuspate-ops",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"build": "tsc --noEmit",
+		"test": "vitest run test/unit",
+		"test:rehearsal": "vitest run test/rehearsal"
+	},
+	"dependencies": {
+		"viem": "2.57.4"
+	},
+	"devDependencies": {
+		"@types/node": "24.10.1",
+		"typescript": "5.9.3",
+		"vitest": "3.2.4"
+	}
+}

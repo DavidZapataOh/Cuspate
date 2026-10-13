@@ -1070,6 +1070,32 @@ test("the keeper is proven against a fork of the production chain in its own job
 	);
 });
 
+test("the deployment is rehearsed on forks of both networks, with its end-to-end gate, in its own job, by a script", () => {
+	const block = jobs().ops ?? "";
+	assert.match(
+		block,
+		/^\s+run: tools\/ops\.sh\s*$/m,
+		"the ops job does not run tools/ops.sh",
+	);
+	assert.match(
+		block,
+		/foundry-rs\/foundry-toolchain@v1/,
+		"the ops job has no local node to fork with",
+	);
+	const script = read(path.join(root, "tools", "ops.sh"));
+	assert.match(
+		script,
+		/DEPLOY_NETWORK=testnet_rehearsal/,
+		"the test network is not rehearsed",
+	);
+	assert.match(
+		script,
+		/DEPLOY_NETWORK=mainnet_rehearsal/,
+		"the production chain is not rehearsed",
+	);
+	assert.doesNotMatch(script, /--broadcast/, "the job must never broadcast");
+});
+
 test("the interface is proven in the three browser engines in its own job, by a script", () => {
 	// The browsers are toolchain no clean clone provides, so they stay out of the gates and the
 	// clean clone, in a job of their own, like the other jobs that need more than the clone.
@@ -1113,6 +1139,7 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 		"gates",
 		"indexer",
 		"keeper",
+		"ops",
 		"repository",
 		"web",
 	]);

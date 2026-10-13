@@ -22,6 +22,16 @@ function solidityFiles(dir) {
 	return found;
 }
 
+// The test-network contracts are not part of the protocol: they exist only on the test network and
+// on local chains, so they carry the licence the rest of the repository uses, with their own copy of
+// it beside them.
+const testnet = path.join(root, "contracts", "src", "testnet");
+
+/** The licence a first-party Solidity file must declare, by where it lives. */
+function licenceOf(file) {
+	return file.startsWith(`${testnet}${path.sep}`) ? "MIT" : "BUSL-1.1";
+}
+
 test("every first-party Solidity file declares the contracts licence", () => {
 	const files = firstParty.flatMap((d) => solidityFiles(path.join(root, d)));
 	assert.ok(
@@ -31,11 +41,20 @@ test("every first-party Solidity file declares the contracts licence", () => {
 
 	const wrong = files.filter((file) => {
 		const first = readFileSync(file, "utf8").split("\n", 1)[0];
-		return first !== "// SPDX-License-Identifier: BUSL-1.1";
+		return first !== `// SPDX-License-Identifier: ${licenceOf(file)}`;
 	});
 	assert.deepEqual(
 		wrong.map((f) => path.relative(root, f)),
 		[],
+	);
+});
+
+test("the test-network contracts carry their own copy of the licence they declare", () => {
+	const files = solidityFiles(testnet);
+	assert.ok(files.length > 0, "no test-network contract exists to check");
+	assert.match(
+		readFileSync(path.join(testnet, "LICENSE"), "utf8"),
+		/^MIT License\n/,
 	);
 });
 

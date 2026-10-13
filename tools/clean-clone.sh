@@ -42,6 +42,9 @@ echo 'BUILT indexer'
 pnpm --filter cuspate-keeper run build
 echo 'BUILT keeper'
 
+pnpm --filter cuspate-ops run build
+echo 'BUILT ops'
+
 # One selection at a time, and deliberately not the fork selection. Measured: a fork cannot be
 # created without egress even with a warm cache, because the backend asks the endpoint for its
 # chain id before it consults the cache. This gate's claim is about an emptied environment, and

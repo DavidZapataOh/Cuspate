@@ -39,6 +39,11 @@ test("a clean clone builds every workspace with an emptied environment", () => {
 		/^BUILT keeper$/m,
 		"the script did not report building the keeper",
 	);
+	assert.match(
+		output,
+		/^BUILT ops$/m,
+		"the script did not report building the deployment tooling",
+	);
 });
 
 test("a clean clone builds on a machine that has never compiled anything", () => {

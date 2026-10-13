@@ -33,8 +33,19 @@ function committedBooks() {
 	return listed ? listed.split("\n") : [];
 }
 
+/**
+ * Where an entry's creation code is built: the source and contract it records, or for an entry
+ * recorded before entries named their source, the probe script's contract of the entry's own name.
+ */
+export function artefactOf(key, entry) {
+	const [file, name] = (
+		entry.contract ?? `script/DeployProbe.s.sol:${key}`
+	).split(":");
+	return path.join("contracts", "out", path.basename(file), `${name}.json`);
+}
+
 /** The creation bytecode this repository builds at a commit, built from that commit. */
-function creationCodeAt(commit, key) {
+function creationCodeAt(commit, key, entry) {
 	const dir = mkdtempSync(path.join(tmpdir(), "atcommit-"));
 	try {
 		execFileSync(
@@ -56,10 +67,7 @@ function creationCodeAt(commit, key) {
 			encoding: "utf8",
 		});
 		const artefact = JSON.parse(
-			readFileSync(
-				path.join(dir, "contracts", "out", "DeployProbe.s.sol", `${key}.json`),
-				"utf8",
-			),
+			readFileSync(path.join(dir, artefactOf(key, entry)), "utf8"),
 		);
 		return artefact.bytecode.object;
 	} finally {
@@ -115,7 +123,7 @@ test("every committed record matches the chain, read with no key and no funds", 
 			).trim();
 
 			const salt = entry.salt.replace(/^0x/, "");
-			const code = creationCodeAt(entry.commit, key).replace(/^0x/, "");
+			const code = creationCodeAt(entry.commit, key, entry).replace(/^0x/, "");
 			const args = entry.constructorArgs.replace(/^0x/, "");
 			assert.equal(
 				sent.toLowerCase(),
@@ -125,4 +133,61 @@ test("every committed record matches the chain, read with no key and no funds", 
 		}
 	}
 	assert.ok(checked > 0, "no deployment of ours was checked against any chain");
+});
+
+test("an entry is built from the source it records, and an older entry from the probe script", () => {
+	assert.equal(
+		artefactOf("MarketFactory", {
+			contract: "src/MarketFactory.sol:MarketFactory",
+		}),
+		path.join("contracts", "out", "MarketFactory.sol", "MarketFactory.json"),
+	);
+	assert.equal(
+		artefactOf("TestnetStock.TSLA", {
+			contract: "src/testnet/TestnetStock.sol:TestnetStock",
+		}),
+		path.join("contracts", "out", "TestnetStock.sol", "TestnetStock.json"),
+	);
+	assert.equal(
+		artefactOf("Probe", {}),
+		path.join("contracts", "out", "DeployProbe.s.sol", "Probe.json"),
+	);
+});
+
+test("every role's Safe a record names exists on its chain with the owners and threshold recorded", (t) => {
+	const SAFE_OWNERS = "getOwners()(address[])";
+	const SAFE_THRESHOLD = "getThreshold()(uint256)";
+	let checked = 0;
+	for (const book of committedBooks()) {
+		const chainId = path.basename(book, ".json");
+		const roles = JSON.parse(readFileSync(path.join(root, book), "utf8")).roles;
+		if (!roles) continue;
+		const url = process.env[readTier[chainId]] ?? fallback[chainId];
+		for (const [role, safe] of Object.entries(roles)) {
+			const owners = execFileSync(
+				"cast",
+				["call", safe.address, SAFE_OWNERS, "--rpc-url", url],
+				{ encoding: "utf8" },
+			)
+				.trim()
+				.toLowerCase();
+			for (const owner of safe.owners)
+				assert.ok(
+					owners.includes(owner.toLowerCase()),
+					`${book} ${role}: ${owner} is not an owner`,
+				);
+			const threshold = execFileSync(
+				"cast",
+				["call", safe.address, SAFE_THRESHOLD, "--rpc-url", url],
+				{ encoding: "utf8" },
+			).trim();
+			assert.equal(
+				Number(threshold),
+				safe.threshold,
+				`${book} ${role}: threshold`,
+			);
+			checked++;
+		}
+	}
+	if (checked === 0) t.diagnostic("unarmed: no record names a role's Safe yet");
 });

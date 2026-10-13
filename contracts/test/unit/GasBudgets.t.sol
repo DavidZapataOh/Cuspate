@@ -25,6 +25,10 @@ import {OptimisticResolver} from "../../src/OptimisticResolver.sol";
 import {ThresholdRegistry} from "../../src/ThresholdRegistry.sol";
 import {TestCollateral} from "./PositionVault.t.sol";
 import {TestStock} from "./MarketFactory.t.sol";
+import {TestnetDollar} from "../../src/testnet/TestnetDollar.sol";
+import {TestnetStock} from "../../src/testnet/TestnetStock.sol";
+import {TestnetStockOracle} from "../../src/testnet/TestnetStockOracle.sol";
+import {TestnetToken} from "../../src/testnet/TestnetToken.sol";
 
 /// @title GasCases
 /// @notice Every entry point a user or a pool calls, performed as its own transaction in the worst
@@ -731,6 +735,79 @@ abstract contract GasCases is Test {
         vm.prank(unlimited);
         leg.transferFrom(holder, other, amount / 8);
         _record("PositionToken.transferFrom unlimited allowance, to a holder", "");
+    }
+
+    /// @notice The test network's tokens and price feed: what a visitor, the owner and the publisher
+    ///         pay there. Recorded on the test network's chain id, the only one they deploy on.
+    function test_testnet() public {
+        vm.chainId(10_143);
+        address owner = makeAddr("test network owner");
+        TestnetDollar dollar = new TestnetDollar(owner);
+        TestnetStock stock = new TestnetStock("Tesla test stock", "TSLA", owner);
+        _tokenCases(dollar, "TestnetDollar");
+        _tokenCases(stock, "TestnetStock");
+
+        TestnetStockOracle oracle = new TestnetStockOracle(owner);
+        TestnetStockOracle.Post[] memory posts = new TestnetStockOracle.Post[](10);
+        string[10] memory symbols =
+            ["TSLA", "META", "HOOD", "MSFT", "GOOGL", "AAPL", "AMD", "NVDA", "WMT", "MU"];
+        for (uint256 i = 0; i < posts.length; ++i) {
+            posts[i] = TestnetStockOracle.Post({
+                priceId: keccak256(bytes(symbols[i])),
+                price: SafeCast.toInt128(SafeCast.toInt256(100e8 + i)),
+                bestBid: SafeCast.toInt128(SafeCast.toInt256(99e8 + i)),
+                bestAsk: SafeCast.toInt128(SafeCast.toInt256(101e8 + i)),
+                feedUpdateTimestamp: SafeCast.toUint64(vm.getBlockTimestamp())
+            });
+        }
+        vm.expectRevert();
+        oracle.latestPrice(posts[0].priceId);
+        vm.prank(owner);
+        oracle.post(posts);
+        _record("TestnetStockOracle.post ten symbols, each one's first round", "");
+        vm.prank(owner);
+        oracle.post(posts);
+        _record("TestnetStockOracle.post ten symbols, a later round", "");
+    }
+
+    /// @notice One test token's cases: a drip, a mint, and its standard transfers.
+    /// @param token The token.
+    /// @param name Its contract's name, which the cases are recorded under.
+    function _tokenCases(TestnetToken token, string memory name) internal {
+        address visitor = makeAddr(string.concat(name, " visitor"));
+        address stranger = makeAddr(string.concat(name, " stranger"));
+        address spender = makeAddr(string.concat(name, " spender"));
+
+        assertEq(token.lastDrip(visitor), 0);
+        vm.prank(visitor);
+        token.drip();
+        _record(string.concat(name, ".drip a first drip"), "");
+        vm.warp(vm.getBlockTimestamp() + token.COOLDOWN());
+        vm.prank(visitor);
+        token.drip();
+        _record(string.concat(name, ".drip again, after the cooldown"), "");
+
+        assertEq(token.balanceOf(stranger), 0);
+        address owner = token.OWNER();
+        uint256 one = token.DRIP();
+        vm.prank(owner);
+        token.mint(stranger, one);
+        _record(string.concat(name, ".mint to an address holding none"), "");
+
+        uint256 amount = token.DRIP() / 4;
+        address other = makeAddr(string.concat(name, " other"));
+        vm.prank(visitor);
+        token.transfer(other, amount);
+        _record(string.concat(name, ".transfer to an address holding none"), "");
+        vm.prank(visitor);
+        token.approve(spender, amount);
+        _record(string.concat(name, ".approve a fresh allowance"), "");
+        address third = makeAddr(string.concat(name, " third"));
+        vm.prank(spender);
+        token.transferFrom(visitor, third, amount);
+        _record(
+            string.concat(name, ".transferFrom exact allowance, to an address holding none"), ""
+        );
     }
 
     /// @notice A holder who has split into a vault.

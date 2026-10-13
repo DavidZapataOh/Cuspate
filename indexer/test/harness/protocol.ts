@@ -111,13 +111,42 @@ function poolKey(a: Address, b: Address, hook: Address) {
 	return { currency0, currency1, fee: 3000, tickSpacing: 60, hooks: hook };
 }
 
+/** The tokens, the pool manager and the protocol's role holders a market's life runs against. */
+export type MarketEnv = {
+	underlying: Address;
+	dollar: Address;
+	manager: Address;
+	roles: typeof ROLES;
+};
+
+/** The production chain's, at the pinned block, with this harness's role holders. */
+export function productionEnv(): MarketEnv {
+	return {
+		underlying: thirdParty("collateral"),
+		dollar: thirdParty("dollar"),
+		manager: thirdParty("poolManager"),
+		roles: ROLES,
+	};
+}
+
 /** Takes one market through its whole life, and says what it created. */
-export async function liveOneMarket(fork: Fork, protocol: Protocol) {
-	const underlying = thirdParty("collateral");
-	const dollar = thirdParty("dollar");
-	const manager = thirdParty("poolManager");
+export async function liveOneMarket(
+	fork: Fork,
+	protocol: Protocol,
+	env: MarketEnv = productionEnv(),
+) {
+	const { underlying, dollar, manager } = env;
+	const ROLES = env.roles;
 	const { factory, registry, resolver, hook, router } = protocol;
 	const { holder } = ROLES;
+	// The deployed resolver's own window and bond, so the same life runs against any deployment.
+	const liveness = await read<bigint>(
+		fork,
+		resolver.address,
+		resolver.abi,
+		"LIVENESS",
+	);
+	const bond = await read<bigint>(fork, resolver.address, resolver.abi, "BOND");
 	const now = (await fork.client.getBlock()).timestamp;
 	const announcesAt = now + DAY;
 
@@ -288,7 +317,7 @@ export async function liveOneMarket(fork: Fork, protocol: Protocol) {
 	// Resolution: a proposal, disputed; a second, settled; the first contest ruled.
 	await fork.warp(DAY);
 	for (const who of [ROLES.proposer, ROLES.disputer, ROLES.reproposer]) {
-		await fork.deal(dollar, who, 10n * BOND);
+		await fork.deal(dollar, who, 10n * bond);
 		await send(fork, who, dollar, ERC20, "approve", [
 			resolver.address,
 			maxUint256,
@@ -314,7 +343,7 @@ export async function liveOneMarket(fork: Fork, protocol: Protocol) {
 		"proposeFigure",
 		[eventId, 3342n, 2],
 	);
-	await fork.warp(LIVENESS);
+	await fork.warp(liveness);
 	await send(fork, holder, resolver.address, resolver.abi, "settle", [eventId]);
 	await send(
 		fork,

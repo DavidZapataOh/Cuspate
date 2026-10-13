@@ -10,6 +10,14 @@
 set -eu
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
+
+# The protocol: every contract, the roles' Safes and on the test network its test contracts, from one
+# runbook that predicts every address, records each from its receipt, rehearses on a fork with an
+# end-to-end gate, and refuses a broadcast no rehearsal of the same commit vouched for.
+if [ "${1:-}" = "protocol" ]; then
+	shift
+	exec node "${repo}/ops/src/runbook.ts" "$@"
+fi
 factory="0x4e59b44847b379578588920cA78FbF26c0B4956C"
 key="Probe"
 

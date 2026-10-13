@@ -7,5 +7,142 @@
     "factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
     "salt": "0x45cc9c1545bac4cce9103d88f405ab570ac75c25c2028225ff9401ea5c6ccfec",
     "txHash": "0xb4f6130adf14d17a0023a45a32f131440ac0fc2ae640e98abb7db00fecbfc97e"
+  },
+  "manifest": {
+    "creProposer": {
+      "workflowName": "cuspate-resolver-proposer"
+    },
+    "deployer": "0xD521E05AEbB8d39087bC7B9101CD590177468fca",
+    "logical": {
+      "dollar": "generated:TestnetDollar",
+      "stockOracle": "generated:TestnetStockOracle"
+    },
+    "publisher": "0xD605372d7b0C8412217c6f80D3E41712C82C7599",
+    "resolver": {
+      "arbiterTimeout": 7200,
+      "bond": "10000000",
+      "burn": "2000000",
+      "expiry": 86400,
+      "liveness": 600
+    },
+    "roles": {
+      "arbiter": {
+        "owners": [
+          "0xD521E05AEbB8d39087bC7B9101CD590177468fca"
+        ],
+        "saltNonce": "1",
+        "threshold": 1
+      },
+      "guardian": {
+        "owners": [
+          "0xD521E05AEbB8d39087bC7B9101CD590177468fca"
+        ],
+        "saltNonce": "2",
+        "threshold": 1
+      },
+      "keeper": {
+        "owners": [
+          "0x33bbf72ac776E31452B655C970bc98Eb21858C88"
+        ],
+        "saltNonce": "5",
+        "threshold": 1
+      },
+      "sealer": {
+        "owners": [
+          "0xD521E05AEbB8d39087bC7B9101CD590177468fca"
+        ],
+        "saltNonce": "3",
+        "threshold": 1
+      },
+      "treasury": {
+        "owners": [
+          "0xD521E05AEbB8d39087bC7B9101CD590177468fca"
+        ],
+        "saltNonce": "4",
+        "threshold": 1
+      }
+    },
+    "testnet": {
+      "stocks": [
+        {
+          "name": "Tesla test stock",
+          "symbol": "TSLA"
+        },
+        {
+          "name": "Meta test stock",
+          "symbol": "META"
+        },
+        {
+          "name": "Robinhood test stock",
+          "symbol": "HOOD"
+        },
+        {
+          "name": "Microsoft test stock",
+          "symbol": "MSFT"
+        },
+        {
+          "name": "Alphabet test stock",
+          "symbol": "GOOGL"
+        },
+        {
+          "name": "Apple test stock",
+          "symbol": "AAPL"
+        },
+        {
+          "name": "AMD test stock",
+          "symbol": "AMD"
+        },
+        {
+          "name": "NVIDIA test stock",
+          "symbol": "NVDA"
+        },
+        {
+          "name": "Walmart test stock",
+          "symbol": "WMT"
+        },
+        {
+          "name": "Micron test stock",
+          "symbol": "MU"
+        }
+      ]
+    }
+  },
+  "thirdParty": {
+    "creForwarder": [
+      "0xF8344CFd5c43616a4366C34E3EEE75af79a74482"
+    ],
+    "creSimulationForwarder": [
+      "0xB9F79d863261869B234c481D1f9A7af84AeAd192"
+    ],
+    "permit2": [
+      "0x000000000022D473030F116dDEE9F6B43aC78BA3"
+    ],
+    "poolManager": [
+      "0x451D64ab3b650040d2aE1886602b97ed6eDc643d"
+    ],
+    "positionManager": [
+      "0x3Bb14E3D0Cd50aBe3EdACa06d06c29C78676C31A"
+    ],
+    "safeFallbackHandler": [
+      "0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99"
+    ],
+    "safeMultiSendCallOnly": [
+      "0x9641d764fc13c8B624c04430C7356C1C7C8102e2"
+    ],
+    "safeProxyFactory": [
+      "0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67"
+    ],
+    "safeSingleton": [
+      "0x29fcB43b46531BcA003ddC8FCB67FFE91900C762"
+    ],
+    "stateView": [
+      "0xB639209539c61BaF67AC04876315786F8D0b153c"
+    ],
+    "universalRouter": [
+      "0x1b7bFCd2870329B987191910D85c22C7287f3c22"
+    ],
+    "v4Quoter": [
+      "0x869834d127b230283fe63E0d0A9bEB67216a94C7"
+    ]
   }
 }

@@ -1,0 +1,80 @@
+# The protocol's indexer. Envio 3.x; the schema is the CLI's own evm.schema.json, not the V2 docs.
+#
+# The protocol's addresses and the first block come from the environment, so the same file indexes a
+# local fork in the tests and the production deployment; the defaults exist only so that code
+# generation needs no environment. The pool manager is the production chain's, from the address book.
+name: cuspate-indexer
+schema: ./schema.graphql
+contracts:
+  - name: MarketFactory
+    abi_file_path: ../contracts/out/MarketFactory.sol/MarketFactory.json
+    events:
+      - event: MarketCreated
+      - event: OutcomeReported
+  - name: PositionVault
+    abi_file_path: ../contracts/out/PositionVault.sol/PositionVault.json
+    events:
+      - event: PositionSplit
+      - event: PositionsMerge
+      - event: PayoutRedemption
+  - name: PositionToken
+    abi_file_path: ../contracts/out/PositionToken.sol/PositionToken.json
+    events:
+      - event: Transfer
+  - name: FreezeHook
+    abi_file_path: ../contracts/out/FreezeHook.sol/FreezeHook.json
+    events:
+      - event: MarketRegistered
+      - event: FrozenEarly
+  - name: PositionRouter
+    abi_file_path: ../contracts/out/PositionRouter.sol/PositionRouter.json
+    events:
+      - event: Entered
+      - event: Exited
+  - name: ThresholdRegistry
+    abi_file_path: ../contracts/out/ThresholdRegistry.sol/ThresholdRegistry.json
+    events:
+      - event: ThresholdSealed
+  - name: OptimisticResolver
+    abi_file_path: ../contracts/out/OptimisticResolver.sol/OptimisticResolver.json
+    events:
+      - event: FigureProposed
+      - event: InvalidProposed
+      - event: Disputed
+      - event: ProposalSettled
+      - event: OutcomeRuled
+      - event: ContestRuled
+      - event: Expired
+      - event: ContestReleased
+      - event: Withdrawn
+  - name: PoolManager
+    abi_file_path: ../contracts/out/IPoolManager.sol/IPoolManager.json
+    events:
+      - event: Initialize
+      - event: ModifyLiquidity
+      - event: Swap
+chains:
+  - id: 143
+    start_block: ${CUSPATE_START_BLOCK:-109200000}
+    rpc:
+      url: ${CUSPATE_RPC_URL:-http://127.0.0.1:8545}
+      # The endpoint is read for history, never replaced by a hosted source behind its back. The
+      # production chain's public endpoints serve at most a hundred blocks of logs per request.
+      for: sync
+      initial_block_interval: 100
+      interval_ceiling: 100
+    contracts:
+      - name: MarketFactory
+        address: "${CUSPATE_MARKET_FACTORY:-0x0000000000000000000000000000000000000000}"
+      - name: PositionVault
+      - name: PositionToken
+      - name: FreezeHook
+        address: "${CUSPATE_FREEZE_HOOK:-0x0000000000000000000000000000000000000000}"
+      - name: PositionRouter
+        address: "${CUSPATE_POSITION_ROUTER:-0x0000000000000000000000000000000000000000}"
+      - name: ThresholdRegistry
+        address: "${CUSPATE_THRESHOLD_REGISTRY:-0x0000000000000000000000000000000000000000}"
+      - name: OptimisticResolver
+        address: "${CUSPATE_RESOLVER:-0x0000000000000000000000000000000000000000}"
+      - name: PoolManager
+        address: "0x188d586ddcf52439676ca21a244753fa19f9ea8e"

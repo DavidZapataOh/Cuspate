@@ -1,0 +1,17 @@
+{
+	"name": "cuspate-indexer",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"build": "envio codegen && tsc --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"envio": "3.12.1",
+		"typescript": "5.9.3",
+		"viem": "2.57.4",
+		"vitest": "3.2.4",
+		"@types/node": "24.10.1"
+	}
+}

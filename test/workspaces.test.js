@@ -58,3 +58,20 @@ test("the workspace exempts no package from the release-age policy", () => {
 	);
 	assert.doesNotMatch(workspace, /minimumReleaseAge/);
 });
+
+test("no dependency is allowed to run install scripts", () => {
+	// A dependency's install script runs arbitrary code on every machine that installs; each one pnpm
+	// asks about is declined, by name.
+	const workspace = readFileSync(
+		path.join(root, "pnpm-workspace.yaml"),
+		"utf8",
+	);
+	const builds = workspace.split(/^allowBuilds:\s*$/m)[1] ?? "";
+	const entries = [...builds.matchAll(/^\s+([@\w./-]+):\s*(\S+)\s*$/gm)];
+	for (const [, name, allowed] of entries)
+		assert.equal(allowed, "false", `${name} may run its install script`);
+	assert.doesNotMatch(
+		workspace,
+		/onlyBuiltDependencies|neverBuiltDependencies|dangerouslyAllowAllBuilds/,
+	);
+});

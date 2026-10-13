@@ -1041,6 +1041,21 @@ test("the tripwires are reported by name before any gate runs", () => {
 
 // --- The pipeline's secret tier, read from the workflow -------------------------------------
 
+test("the indexer is reconciled with a fork of the production chain in its own job, by a script", () => {
+	// It needs the chain's archive endpoint, as the fork selection does, so it is kept out of the gates.
+	const block = jobs().indexer ?? "";
+	assert.match(
+		block,
+		/^\s+run: tools\/indexer\.sh\s*$/m,
+		"the indexer job does not run tools/indexer.sh",
+	);
+	assert.match(
+		block,
+		/foundry-rs\/foundry-toolchain@v1/,
+		"the indexer job has no local node to fork with",
+	);
+});
+
 test("exactly one job holds a secret, and it is the forbidden-terms job", () => {
 	// A job cannot enumerate the repository's secrets from inside, so "carries no secret" is only
 	// assertable over the workflow file. Any in-job check is a denylist of names someone already knew.
@@ -1049,6 +1064,7 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 		"forbidden-terms",
 		"fork",
 		"gates",
+		"indexer",
 		"repository",
 	]);
 	const holding = Object.entries(blocks)

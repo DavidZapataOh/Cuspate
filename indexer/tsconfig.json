@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ESNext"],
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"resolveJsonModule": true,
+		"types": ["node"]
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts", "envio-env.d.ts"]
+}

@@ -12,7 +12,9 @@
 			"!contracts/deployments",
 			"!contracts/snapshots",
 			"!cre/.build",
-			"!cre/**/fixtures"
+			"!cre/**/fixtures",
+			"!indexer/.envio",
+			"!indexer/envio-env.d.ts"
 		]
 	},
 	"formatter": {

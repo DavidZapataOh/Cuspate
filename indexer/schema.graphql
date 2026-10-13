@@ -1,0 +1,158 @@
+# What the protocol's events say, and the state that follows from them and nothing else. Values a
+# contract computes from rules (the bonds the resolver owes) are read from the chain, not re-derived.
+
+type Market {
+	id: ID!
+	eventId: String!
+	resolver: String!
+	condition: String!
+	underlying: String!
+	dollar: String!
+	underlyingVault: String!
+	dollarVault: String!
+}
+
+type Vault {
+	id: ID!
+	market: String!
+	collateral: String!
+	cap: BigInt!
+	yes: String!
+	no: String!
+}
+
+type Leg {
+	id: ID!
+	vault: String!
+	yes: Boolean!
+	supply: BigInt!
+}
+
+type Balance {
+	id: ID!
+	leg: String!
+	holder: String!
+	amount: BigInt!
+}
+
+type Conversion {
+	id: ID!
+	vault: String!
+	stakeholder: String!
+	merge: Boolean!
+	amount: BigInt!
+}
+
+type Redemption {
+	id: ID!
+	vault: String!
+	redeemer: String!
+	yesAmount: BigInt!
+	noAmount: BigInt!
+}
+
+type Condition {
+	id: ID!
+	resolver: String!
+	eventId: String!
+	outcome: Int!
+}
+
+type Pool {
+	id: ID!
+	market: String!
+	kind: String!
+	freezesAt: BigInt!
+	frozenEarly: Boolean!
+	initialized: Boolean!
+	currency0: String!
+	currency1: String!
+	sqrtPriceX96: BigInt!
+	tick: Int!
+	liquidity: BigInt!
+}
+
+type Swap {
+	id: ID!
+	pool: String!
+	sender: String!
+	amount0: BigInt!
+	amount1: BigInt!
+	sqrtPriceX96: BigInt!
+	liquidity: BigInt!
+	tick: Int!
+	fee: Int!
+}
+
+type LiquidityChange {
+	id: ID!
+	pool: String!
+	sender: String!
+	tickLower: Int!
+	tickUpper: Int!
+	liquidityDelta: BigInt!
+	salt: String!
+}
+
+type Entry {
+	id: ID!
+	market: String!
+	payer: String!
+	recipient: String!
+	yes: Boolean!
+	dollars: BigInt!
+	shares: BigInt!
+}
+
+type Exit {
+	id: ID!
+	market: String!
+	holder: String!
+	recipient: String!
+	yes: Boolean!
+	shares: BigInt!
+	kept: BigInt!
+	out: BigInt!
+	levelOut: BigInt!
+	dollars: BigInt!
+}
+
+type Seal {
+	id: ID!
+	sealer: String!
+	sealBlock: BigInt!
+	value: BigInt!
+	decimals: Int!
+	announcesAt: BigInt!
+	deadline: BigInt!
+	terms: String!
+}
+
+type Resolution {
+	id: ID!
+	round: Int!
+	pendingArbitration: Boolean!
+	outcomeReason: String!
+}
+
+type Proposal {
+	id: ID!
+	resolution: String!
+	round: Int!
+	proposer: String!
+	proposedAt: BigInt!
+	invalid: Boolean!
+	settled: Boolean!
+	figure: BigInt!
+	decimals: Int!
+	disputer: String!
+	ruled: Boolean!
+	ruledAt: BigInt!
+	reason: String!
+}
+
+type Withdrawal {
+	id: ID!
+	account: String!
+	amount: BigInt!
+}

@@ -102,6 +102,28 @@ jobs:
       - name: fork
         run: tools/test.sh fork
 
+  indexer:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: indexer
+        run: tools/indexer.sh
+
   forbidden-terms:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5

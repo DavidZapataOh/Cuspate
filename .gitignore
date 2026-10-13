@@ -4,6 +4,8 @@ contracts/cache/
 contracts/broadcast/
 web/dist/
 cre/.build/
+indexer/.envio/
+indexer/envio-env.d.ts
 **/.cre_build_tmp.js
 
 # Dependencies

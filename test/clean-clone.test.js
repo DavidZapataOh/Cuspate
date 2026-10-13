@@ -29,6 +29,11 @@ test("a clean clone builds every workspace with an emptied environment", () => {
 		/^BUILT cre$/m,
 		"the script did not report building the resolution workflow",
 	);
+	assert.match(
+		output,
+		/^BUILT indexer$/m,
+		"the script did not report building the indexer",
+	);
 });
 
 test("a clean clone builds on a machine that has never compiled anything", () => {

@@ -49,6 +49,8 @@ test("no build output or local environment file is tracked", () => {
 		"node_modules",
 		"web/dist",
 		"cre/.build",
+		"indexer/.envio",
+		"indexer/envio-env.d.ts",
 		".env",
 	];
 	for (const pattern of patterns) {

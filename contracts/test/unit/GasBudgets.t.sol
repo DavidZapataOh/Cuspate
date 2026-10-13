@@ -361,6 +361,66 @@ abstract contract GasCases is Test {
         _record("PositionRouter.enter the no world, a recipient holding no legs", "");
     }
 
+    /// @notice Exiting a yes position to a recipient holding nothing: without levelling (the
+    ///         surplus no-dollars come back) and levelled (almost all of it comes back as dollars).
+    function test_positionRouterExit() public {
+        (PositionRouter router, bytes32 marketId,, PositionVault dollars) = _routerMarket();
+        uint256 amount = 100 * 10 ** Metadata(address(dollars.COLLATERAL())).decimals();
+        (address holder, uint256 first, uint256 second) = _twoPositions(router, marketId, amount);
+
+        address plain = makeAddr("plain exit recipient");
+        PositionRouter.ExitOrder memory order = PositionRouter.ExitOrder({
+            marketId: marketId,
+            yes: true,
+            shares: first,
+            kept: amount,
+            minOut: 1,
+            levelSellsWorldDollar: false,
+            level: 0,
+            minLevelOut: 0,
+            recipient: plain,
+            deadline: vm.getBlockTimestamp()
+        });
+        assertEq(dollars.COLLATERAL().balanceOf(plain) + dollars.NO().balanceOf(plain), 0);
+        vm.prank(holder);
+        uint256 back = router.exit(order);
+        _record("PositionRouter.exit the yes world, not levelled", "");
+
+        // Without a level the dollars back are the shares' sale, so the surplus is what is left of
+        // the kept leg; selling about this much of it levels the two at a yes-dollar of 0.6.
+        (order.shares, order.recipient) = (second, makeAddr("levelled exit recipient"));
+        (order.level, order.minLevelOut) = ((amount - back) * 1000 / 1665, 1);
+        vm.prank(holder);
+        router.exit(order);
+        _record("PositionRouter.exit the yes world, levelled", "");
+    }
+
+    /// @notice A holder who entered the yes world twice and allowed the router both positions.
+    /// @param router The router.
+    /// @param marketId The market.
+    /// @param amount The dollars of each entry.
+    /// @return holder The holder.
+    /// @return first The shares of the first entry.
+    /// @return second The shares of the second.
+    function _twoPositions(PositionRouter router, bytes32 marketId, uint256 amount)
+        internal
+        returns (address holder, uint256 first, uint256 second)
+    {
+        (PositionVault shares, PositionVault dollars) = factory.markets(marketId);
+        holder = makeAddr("router holder");
+        _fund(dollars, holder, 2 * amount);
+        IERC20 dollar = dollars.COLLATERAL();
+        IERC20 shareLeg = IERC20(address(shares.YES()));
+        IERC20 keptLeg = IERC20(address(dollars.NO()));
+        vm.startPrank(holder);
+        dollar.approve(address(router), 2 * amount);
+        first = router.enter(marketId, true, amount, 1, holder, vm.getBlockTimestamp());
+        second = router.enter(marketId, true, amount, 1, holder, vm.getBlockTimestamp());
+        shareLeg.approve(address(router), first + second);
+        keptLeg.approve(address(router), 2 * amount);
+        vm.stopPrank();
+    }
+
     /// @notice A sealed, registered market over the fixture's collaterals, its yes and no pools open
     ///         at 1,040 and 960 dollars a share and seeded a fifth either side, and a router over it.
     /// @return router The router.
@@ -393,8 +453,6 @@ abstract contract GasCases is Test {
         );
         hook.register(underlyingVault.COLLATERAL(), dollarVault.COLLATERAL(), eventId);
         (shares, dollars) = factory.markets(marketId);
-        (PoolKey memory yes, PoolKey memory no) =
-            ConditionalPools.keysOf(shares, dollars, IHooks(hookAddress));
         PoolModifyLiquidityTest seeder = new PoolModifyLiquidityTest(manager);
         _fund(shares, address(this), 100 * 10 ** Metadata(address(shares.COLLATERAL())).decimals());
         _fund(
@@ -411,32 +469,70 @@ abstract contract GasCases is Test {
             vaults[index].YES().approve(address(seeder), type(uint256).max);
             vaults[index].NO().approve(address(seeder), type(uint256).max);
         }
-        _seedPool(manager, seeder, yes, address(shares.YES()), 1040);
-        _seedPool(manager, seeder, no, address(shares.NO()), 960);
+        _seedRouterPools(manager, seeder, shares, dollars, hookAddress);
         router = new PositionRouter(hook);
     }
 
-    /// @notice Opens a pool at a share's value in dollars and seeds it a fifth either side.
+    /// @notice Opens and seeds a market's three pools: the yes and no pools at 1,040 and 960 dollars
+    ///         a share, the probability pool at a yes-dollar of 0.6.
+    /// @param manager The pool manager.
+    /// @param seeder The liquidity router.
+    /// @param shares The vault over the underlying.
+    /// @param dollars The vault over the dollar.
+    /// @param hookAddress The freeze hook.
+    function _seedRouterPools(
+        IPoolManager manager,
+        PoolModifyLiquidityTest seeder,
+        PositionVault shares,
+        PositionVault dollars,
+        address hookAddress
+    ) internal {
+        (PoolKey memory yes, PoolKey memory no) =
+            ConditionalPools.keysOf(shares, dollars, IHooks(hookAddress));
+        _seedPool(
+            manager,
+            seeder,
+            yes,
+            ConditionalPools.sqrtPriceX96(yes, Metadata(address(shares.YES())), 1040, 0),
+            1e16
+        );
+        _seedPool(
+            manager,
+            seeder,
+            no,
+            ConditionalPools.sqrtPriceX96(no, Metadata(address(shares.NO())), 960, 0),
+            1e16
+        );
+        _seedPool(
+            manager,
+            seeder,
+            ConditionalPools.probabilityKeyOf(dollars, IHooks(hookAddress)),
+            ConditionalPools.sqrtPriceAtYesDollarPrice(dollars, 0.6e18),
+            1e11
+        );
+    }
+
+    /// @notice Opens a pool at a price and seeds it a fifth either side.
     /// @param manager The pool manager.
     /// @param seeder The liquidity router.
     /// @param key The pool.
-    /// @param share The underlying leg in it.
-    /// @param value The share's value in whole dollars.
+    /// @param sqrtPriceX96 Its opening price.
+    /// @param liquidity The position's liquidity.
     function _seedPool(
         IPoolManager manager,
         PoolModifyLiquidityTest seeder,
         PoolKey memory key,
-        address share,
-        uint256 value
+        uint160 sqrtPriceX96,
+        uint128 liquidity
     ) internal {
-        int24 tick = manager.initialize(
-            key, ConditionalPools.sqrtPriceX96(key, Metadata(share), value, 0)
-        );
+        int24 tick = manager.initialize(key, sqrtPriceX96);
         int24 lower = (tick - 1823) / 60 * 60 - 60;
         int24 upper = (tick + 1823) / 60 * 60 + 60;
         seeder.modifyLiquidity(
             key,
-            IPoolManager.ModifyLiquidityParams(lower, upper, SafeCast.toInt256(uint256(1e16)), 0),
+            IPoolManager.ModifyLiquidityParams(
+                lower, upper, SafeCast.toInt256(uint256(liquidity)), 0
+            ),
             ""
         );
     }

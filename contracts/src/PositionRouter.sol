@@ -18,7 +18,8 @@ import {MarketFactory} from "./MarketFactory.sol";
 import {PositionVault} from "./PositionVault.sol";
 
 /// @title PositionRouter
-/// @notice Buys a share of the underlying only in one world, in one call: "buy the stock only if
+/// @notice Enters and exits conditional positions. Entry buys a share of the underlying only in one
+///         world, in one call: "buy the stock only if
 ///         the event happens; if not, keep your dollars". The caller's dollars are split into both
 ///         dollar legs; the chosen world's dollar leg is sold, in full, for that world's leg of the
 ///         underlying in the market's hooked pool; and the recipient receives that leg and every unit
@@ -52,6 +53,44 @@ contract PositionRouter is IUnlockCallback {
         address output;
         uint256 amountIn;
         address recipient;
+    }
+
+    /// @notice An exit: the position to close and how.
+    /// @param marketId The market.
+    /// @param yes The world of the underlying leg held.
+    /// @param shares How much of that leg to sell; more than zero, so every exit meets the hook.
+    /// @param kept How much of the other world's dollar leg to merge with; may be zero.
+    /// @param minOut The least of the world's dollar leg to accept for the shares.
+    /// @param levelSellsWorldDollar Whether the level sells the world's dollar leg (or the kept one).
+    /// @param level How much of that leg to sell in the probability pool before merging; zero to skip.
+    /// @param minLevelOut The least to accept for the level; non-zero exactly when the level is.
+    /// @param recipient Who receives the dollars and any remainder; neither zero nor this router.
+    /// @param deadline The latest timestamp the exit may run at.
+    struct ExitOrder {
+        bytes32 marketId;
+        bool yes;
+        uint256 shares;
+        uint256 kept;
+        uint256 minOut;
+        bool levelSellsWorldDollar;
+        uint256 level;
+        uint256 minLevelOut;
+        address recipient;
+        uint256 deadline;
+    }
+
+    /// @notice What an exit filled.
+    /// @param out The world's dollar leg the shares sold for.
+    /// @param levelOut What the level sold for; zero without one.
+    /// @param dollars The dollars merged and sent.
+    /// @param yesLeft The yes-dollars sent back unmerged.
+    /// @param noLeft The no-dollars sent back unmerged.
+    struct Fill {
+        uint256 out;
+        uint256 levelOut;
+        uint256 dollars;
+        uint256 yesLeft;
+        uint256 noLeft;
     }
 
     /// @notice Thrown when the hook given is the zero address.
@@ -89,6 +128,16 @@ contract PositionRouter is IUnlockCallback {
     /// @param minimum The floor.
     error TooLittleOut(uint256 out, uint256 minimum);
 
+    /// @notice Thrown when a level and its floor are not both zero or both non-zero.
+    /// @param level The level.
+    /// @param minLevelOut Its floor.
+    error LevelFloorMismatch(uint256 level, uint256 minLevelOut);
+
+    /// @notice Thrown when a level exceeds the named leg's surplus over the other.
+    /// @param level The level.
+    /// @param surplus The surplus; zero when the named leg is not the larger.
+    error LevelTooLarge(uint256 level, uint256 surplus);
+
     /// @notice A position was entered.
     /// @param marketId The market.
     /// @param payer Who paid the dollars.
@@ -103,6 +152,20 @@ contract PositionRouter is IUnlockCallback {
         bool yes,
         uint256 dollars,
         uint256 shares
+    );
+
+    /// @notice A position was exited.
+    /// @param marketId The market.
+    /// @param holder Who held the position.
+    /// @param recipient Who received the dollars and the remainders.
+    /// @param order The exit as ordered.
+    /// @param fill What it filled, every amount, so each pool's fee can be itemised.
+    event Exited(
+        bytes32 indexed marketId,
+        address indexed holder,
+        address indexed recipient,
+        ExitOrder order,
+        Fill fill
     );
 
     /// @notice Creates the router over one freeze hook; the pool manager and the factory are read from
@@ -149,6 +212,44 @@ contract PositionRouter is IUnlockCallback {
         // state, so a reentrant entry can only log its own true values, never alter this one's.
         // forge-lint: disable-next-line(reentrancy-events)
         emit Entered(marketId, msg.sender, recipient, yes, dollars, shares);
+    }
+
+    /// @notice Closes a position before the freeze: takes the shares and the kept dollar leg from the
+    ///         caller, sells the shares for the world's dollar leg, optionally sells part of whichever
+    ///         dollar leg the order names in the probability pool, merges the smaller of the two dollar
+    ///         legs into dollars, and sends the recipient the dollars and both remainders. Each swap
+    ///         has its own floor; every check on the order comes before any funds move.
+    /// @param order The exit.
+    /// @return dollars The dollars merged and sent.
+    /// @custom:access anyone
+    function exit(ExitOrder calldata order) external returns (uint256 dollars) {
+        _checkExit(order);
+        (PositionVault underlyingVault, PositionVault dollarVault, PoolKey memory worldKey) =
+            _poolsOf(order.marketId, order.yes);
+        (address share, address worldDollar, address keptDollar) = order.yes
+            ? (
+                address(underlyingVault.YES()),
+                address(dollarVault.YES()),
+                address(dollarVault.NO())
+            )
+            : (address(underlyingVault.NO()), address(dollarVault.NO()), address(dollarVault.YES()));
+        IERC20(share).safeTransferFrom(msg.sender, address(this), order.shares);
+        if (order.kept > 0) {
+            IERC20(keptDollar).safeTransferFrom(msg.sender, address(this), order.kept);
+        }
+
+        Fill memory fill;
+        fill.out = _swap(Swap(worldKey, share, worldDollar, order.shares, address(this)));
+        if (fill.out < order.minOut) {
+            revert TooLittleOut(fill.out, order.minOut);
+        }
+        (uint256 world, uint256 kept) = _level(order, dollarVault, fill, worldDollar, keptDollar);
+        _merge(order, dollarVault, fill, world, kept);
+        // Emitted last because the amounts are known only after the swaps. The router keeps no
+        // state, so a reentrant call can only log its own true values, never alter this one's.
+        // forge-lint: disable-next-line(reentrancy-events)
+        emit Exited(order.marketId, msg.sender, order.recipient, order, fill);
+        return fill.dollars;
     }
 
     /// @notice Runs one swap inside the pool manager's unlock: sells exactly the input, refusing a
@@ -253,6 +354,126 @@ contract PositionRouter is IUnlockCallback {
                 noKey, address(dollarVault.NO()), address(underlyingVault.NO()), dollars, recipient
             );
             kept = address(dollarVault.YES());
+        }
+    }
+
+    /// @notice Refuses a malformed exit, before anything is read or moved.
+    /// @param order The exit.
+    function _checkExit(ExitOrder calldata order) private view {
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp > order.deadline) {
+            revert Expired(order.deadline);
+        }
+        if (order.shares == 0) {
+            revert ZeroAmount();
+        }
+        if (order.minOut == 0) {
+            revert NoFloor();
+        }
+        if ((order.level == 0) != (order.minLevelOut == 0)) {
+            revert LevelFloorMismatch(order.level, order.minLevelOut);
+        }
+        if (order.recipient == address(0) || order.recipient == address(this)) {
+            revert BadRecipient(order.recipient);
+        }
+    }
+
+    /// @notice A market's vaults and the pool of one world, refusing a market without registered
+    ///         pools. The probability pool is registered with the others, so it needs no check.
+    /// @param marketId The market.
+    /// @param yes The world.
+    /// @return underlyingVault The vault over the underlying.
+    /// @return dollarVault The vault over the dollar.
+    /// @return worldKey The world's pool.
+    function _poolsOf(bytes32 marketId, bool yes)
+        private
+        view
+        returns (PositionVault underlyingVault, PositionVault dollarVault, PoolKey memory worldKey)
+    {
+        (underlyingVault, dollarVault) = FACTORY.markets(marketId);
+        if (address(underlyingVault) == address(0)) {
+            revert NotAMarket(marketId);
+        }
+        (PoolKey memory yesKey, PoolKey memory noKey) =
+            ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(address(HOOK)));
+        if (HOOK.freezesAt(yesKey.toId()) == 0) {
+            revert NotAMarket(marketId);
+        }
+        worldKey = yes ? yesKey : noKey;
+    }
+
+    /// @notice Sells the order's level of the leg it names in the probability pool, if any, within
+    ///         that leg's surplus over the other, as computed from the amounts this exit holds.
+    /// @param order The exit.
+    /// @param dollarVault The vault over the dollar.
+    /// @param fill The fill so far; its level output is written.
+    /// @param worldDollar The world's dollar leg.
+    /// @param keptDollar The other world's dollar leg.
+    /// @return world The world's dollar leg held after the level.
+    /// @return kept The other world's dollar leg held after the level.
+    function _level(
+        ExitOrder calldata order,
+        PositionVault dollarVault,
+        Fill memory fill,
+        address worldDollar,
+        address keptDollar
+    ) private returns (uint256 world, uint256 kept) {
+        (world, kept) = (fill.out, order.kept);
+        if (order.level == 0) {
+            return (world, kept);
+        }
+        (uint256 named, uint256 other) = order.levelSellsWorldDollar ? (world, kept) : (kept, world);
+        uint256 surplus = named > other ? named - other : 0;
+        if (order.level > surplus) {
+            revert LevelTooLarge(order.level, surplus);
+        }
+        (address sold, address bought) =
+            order.levelSellsWorldDollar ? (worldDollar, keptDollar) : (keptDollar, worldDollar);
+        fill.levelOut = _swap(
+            Swap(
+                ConditionalPools.probabilityKeyOf(dollarVault, IHooks(address(HOOK))),
+                sold,
+                bought,
+                order.level,
+                address(this)
+            )
+        );
+        if (fill.levelOut < order.minLevelOut) {
+            revert TooLittleOut(fill.levelOut, order.minLevelOut);
+        }
+        if (order.levelSellsWorldDollar) {
+            (world, kept) = (world - order.level, kept + fill.levelOut);
+        } else {
+            (world, kept) = (world + fill.levelOut, kept - order.level);
+        }
+    }
+
+    /// @notice Merges the smaller of the two dollar legs into dollars and sends the recipient the
+    ///         dollars and both remainders.
+    /// @param order The exit.
+    /// @param dollarVault The vault over the dollar.
+    /// @param fill The fill; its dollars and remainders are written.
+    /// @param world The world's dollar leg held.
+    /// @param kept The other world's dollar leg held.
+    function _merge(
+        ExitOrder calldata order,
+        PositionVault dollarVault,
+        Fill memory fill,
+        uint256 world,
+        uint256 kept
+    ) private {
+        fill.dollars = world < kept ? world : kept;
+        (uint256 yesDollars, uint256 noDollars) = order.yes ? (world, kept) : (kept, world);
+        (fill.yesLeft, fill.noLeft) = (yesDollars - fill.dollars, noDollars - fill.dollars);
+        if (fill.dollars > 0) {
+            dollarVault.mergePositions(fill.dollars);
+            dollarVault.COLLATERAL().safeTransfer(order.recipient, fill.dollars);
+        }
+        if (fill.yesLeft > 0) {
+            IERC20(address(dollarVault.YES())).safeTransfer(order.recipient, fill.yesLeft);
+        }
+        if (fill.noLeft > 0) {
+            IERC20(address(dollarVault.NO())).safeTransfer(order.recipient, fill.noLeft);
         }
     }
 

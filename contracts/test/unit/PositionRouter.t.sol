@@ -28,6 +28,12 @@ abstract contract PositionRouterSetup is FreezeHookSetup {
 
     /// @notice The position seeded in each conditional pool, and its half-width in ticks.
     uint128 internal constant LIQUIDITY = 1e16;
+
+    /// @notice The position seeded in the probability pool: both legs have six decimals.
+    uint128 internal constant PROBABILITY_LIQUIDITY = 1e11;
+
+    /// @notice The probability pool's opening: a yes-dollar at 0.6 dollars.
+    uint256 internal constant YES_DOLLAR_PRICE = 0.6e18;
     int24 internal constant HALF_WIDTH = 1823;
 
     PositionRouter internal router;
@@ -52,8 +58,13 @@ abstract contract PositionRouterSetup is FreezeHookSetup {
         for (uint256 index = 0; index < 4; index++) {
             IERC20(legs[index]).approve(address(liquidityRouter), type(uint256).max);
         }
-        _open(yesKey, address(underlyingVault.YES()), 1040);
-        _open(noKey, address(underlyingVault.NO()), 960);
+        _open(yesKey, _valueOf(yesKey, address(underlyingVault.YES()), 1040), LIQUIDITY);
+        _open(noKey, _valueOf(noKey, address(underlyingVault.NO()), 960), LIQUIDITY);
+        _open(
+            probabilityKey,
+            ConditionalPools.sqrtPriceAtYesDollarPrice(dollarVault, YES_DOLLAR_PRICE),
+            PROBABILITY_LIQUIDITY
+        );
         router = new PositionRouter(hook);
     }
 
@@ -114,14 +125,25 @@ abstract contract PositionRouterSetup is FreezeHookSetup {
         }
     }
 
-    /// @notice Opens a pool at a share's value in dollars and seeds it a fifth either side.
+    /// @notice The opening price of a conditional pool at a share's value in whole dollars.
     /// @param key The pool.
     /// @param share The underlying leg in it.
-    /// @param value The share's value in whole dollars.
-    function _open(PoolKey memory key, address share, uint256 value) internal {
-        int24 tick = manager.initialize(
-            key, ConditionalPools.sqrtPriceX96(key, IERC20Metadata(share), value, 0)
-        );
+    /// @param value The value.
+    /// @return The sqrt price.
+    function _valueOf(PoolKey memory key, address share, uint256 value)
+        internal
+        view
+        returns (uint160)
+    {
+        return ConditionalPools.sqrtPriceX96(key, IERC20Metadata(share), value, 0);
+    }
+
+    /// @notice Opens a pool at a price and seeds it a fifth either side.
+    /// @param key The pool.
+    /// @param sqrtPriceX96 Its opening price.
+    /// @param liquidity The position's liquidity.
+    function _open(PoolKey memory key, uint160 sqrtPriceX96, uint128 liquidity) internal {
+        int24 tick = manager.initialize(key, sqrtPriceX96);
         int24 spacing = ConditionalPools.TICK_SPACING;
         int24 lower = tick - HALF_WIDTH;
         lower = lower / spacing * spacing - (lower % spacing < 0 ? spacing : int24(0));
@@ -130,10 +152,129 @@ abstract contract PositionRouterSetup is FreezeHookSetup {
         liquidityRouter.modifyLiquidity(
             key,
             IPoolManager.ModifyLiquidityParams(
-                lower, upper, SafeCast.toInt256(uint256(LIQUIDITY)), 0
+                lower, upper, SafeCast.toInt256(uint256(liquidity)), 0
             ),
             ""
         );
+    }
+
+    /// @notice The user enters a world with `dollars` and holds the position.
+    /// @param yes The world.
+    /// @param dollars The amount.
+    /// @return shares The underlying leg bought.
+    function _position(bool yes, uint256 dollars) internal returns (uint256 shares) {
+        _fundUser(dollars);
+        vm.prank(user);
+        shares = router.enter(marketId, yes, dollars, 1, user, vm.getBlockTimestamp());
+    }
+
+    /// @notice What an exit does, done by hand with the pools and the vault on a copy of the state
+    ///         that is then discarded: the sale, the level, the merge.
+    /// @param order The exit.
+    /// @return fill What it fills.
+    function _handExit(PositionRouter.ExitOrder memory order)
+        internal
+        returns (PositionRouter.Fill memory fill)
+    {
+        uint256 snapshot = vm.snapshotState();
+        (address share, address worldDollar, address keptDollar) = _legs(order.yes);
+        fill.out = _handSwap(order.yes ? yesKey : noKey, share, order.shares);
+        uint256 world = fill.out;
+        uint256 kept = order.kept;
+        if (order.level > 0) {
+            address sold = order.levelSellsWorldDollar ? worldDollar : keptDollar;
+            fill.levelOut = _handSwap(probabilityKey, sold, order.level);
+            if (order.levelSellsWorldDollar) {
+                (world, kept) = (world - order.level, kept + fill.levelOut);
+            } else {
+                (world, kept) = (world + fill.levelOut, kept - order.level);
+            }
+        }
+        fill.dollars = world < kept ? world : kept;
+        (uint256 yesDollars, uint256 noDollars) = order.yes ? (world, kept) : (kept, world);
+        (fill.yesLeft, fill.noLeft) = (yesDollars - fill.dollars, noDollars - fill.dollars);
+        vm.revertToState(snapshot);
+    }
+
+    /// @notice One exact-input swap by hand, from a fresh holder of the input.
+    /// @param key The pool.
+    /// @param input What is sold.
+    /// @param amount How much.
+    /// @return out What it pays.
+    function _handSwap(PoolKey memory key, address input, uint256 amount)
+        internal
+        returns (uint256 out)
+    {
+        address seller = makeAddr("hand seller");
+        bool zeroForOne = Currency.unwrap(key.currency0) == input;
+        address output =
+            zeroForOne ? Currency.unwrap(key.currency1) : Currency.unwrap(key.currency0);
+        deal(input, seller, amount);
+        PoolSwapTest swapper = new PoolSwapTest(manager);
+        uint256 before = IERC20(output).balanceOf(seller);
+        vm.startPrank(seller);
+        IERC20(input).approve(address(swapper), amount);
+        swapper.swap(
+            key,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -SafeCast.toInt256(amount),
+                sqrtPriceLimitX96: zeroForOne
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        vm.stopPrank();
+        out = IERC20(output).balanceOf(seller) - before;
+    }
+
+    /// @notice A world's underlying leg, its dollar leg and the other world's dollar leg.
+    /// @param yes The world.
+    /// @return share The underlying leg.
+    /// @return worldDollar The world's dollar leg.
+    /// @return keptDollar The other world's dollar leg.
+    function _legs(bool yes)
+        internal
+        view
+        returns (address share, address worldDollar, address keptDollar)
+    {
+        return yes
+            ? (
+                address(underlyingVault.YES()),
+                address(dollarVault.YES()),
+                address(dollarVault.NO())
+            )
+            : (address(underlyingVault.NO()), address(dollarVault.NO()), address(dollarVault.YES()));
+    }
+
+    /// @notice An exit of the whole position, with the user's approvals in place.
+    /// @param yes The world.
+    /// @param shares The underlying leg held.
+    /// @param kept The other world's dollar leg held.
+    /// @return order The order, with no level and a floor of one.
+    function _exitOrder(bool yes, uint256 shares, uint256 kept)
+        internal
+        returns (PositionRouter.ExitOrder memory order)
+    {
+        order = PositionRouter.ExitOrder({
+            marketId: marketId,
+            yes: yes,
+            shares: shares,
+            kept: kept,
+            minOut: 1,
+            levelSellsWorldDollar: false,
+            level: 0,
+            minLevelOut: 0,
+            recipient: user,
+            deadline: vm.getBlockTimestamp()
+        });
+        (address share,, address keptDollar) = _legs(yes);
+        vm.startPrank(user);
+        IERC20(share).approve(address(router), shares);
+        IERC20(keptDollar).approve(address(router), kept);
+        vm.stopPrank();
     }
 
     /// @notice Gives `holder` legs of both vaults by splitting freshly minted collateral.
@@ -256,6 +397,219 @@ contract PositionRouterTest is PositionRouterSetup {
         vm.expectRevert(_frozen(IHooks.beforeSwap.selector, yesKey, announcesAt));
         vm.prank(user);
         router.enter(marketId, true, 100e6, 1, user, vm.getBlockTimestamp());
+    }
+
+    /// @notice Exiting without levelling: the share is sold, the dollar legs that match are merged
+    ///         into dollars, and the surplus leg comes back; everything equals the same steps done
+    ///         by hand, and the router keeps nothing.
+    function test_exitWithoutLevelling() public {
+        uint256 shares = _position(true, 100e6);
+        PositionRouter.ExitOrder memory order = _exitOrder(true, shares, 100e6);
+        _exitAndCheck(order);
+    }
+
+    /// @notice A full exit: the surplus no-dollars are levelled into yes-dollars first, so almost
+    ///         everything comes back as dollars; in both worlds.
+    function test_exitLevelledInBothWorlds() public {
+        bool[2] memory worlds = [true, false];
+        for (uint256 index = 0; index < 2; index++) {
+            uint256 shares = _position(worlds[index], 100e6);
+            PositionRouter.ExitOrder memory order = _exitOrder(worlds[index], shares, 100e6);
+            PositionRouter.Fill memory plain = _handExit(order);
+            // The kept leg is the surplus; selling about this much of it levels the two, at a
+            // yes-dollar of 0.6 and the fee, whichever world it is.
+            uint256 surplus = 100e6 - plain.out;
+            order.level = worlds[index] ? surplus * 1000 / 1665 : surplus * 1000 / 2496;
+            order.minLevelOut = 1;
+            PositionRouter.Fill memory fill = _exitAndCheck(order);
+            assertLt(fill.yesLeft + fill.noLeft, surplus / 50, "the level left most of the surplus");
+        }
+    }
+
+    /// @notice After the yes world's price rises enough, the sale fetches more yes-dollars than the
+    ///         no-dollars kept, so the level sells the world's own dollar leg.
+    function test_exitLevellingTheWorldLegAfterAGain() public {
+        uint256 shares = _position(true, 100e6);
+        // Someone buys the yes share with yes-dollars, raising its price well past the two fees.
+        _handSwap(yesKey, address(dollarVault.YES()), 3_000e6);
+        PositionRouter.ExitOrder memory order = _exitOrder(true, shares, 100e6);
+        uint256 out = _handExit(order).out;
+        assertGt(out, 100e6, "the price did not rise enough for the world leg to be the surplus");
+        // Selling about this much of the yes-dollars for no-dollars at 1.5 each, less the fee,
+        // levels the two.
+        (order.levelSellsWorldDollar, order.level, order.minLevelOut) =
+        (true, (out - 100e6) * 1000 / 2496, 1);
+        PositionRouter.Fill memory fill = _exitAndCheck(order);
+        assertLt(
+            fill.yesLeft + fill.noLeft, (out - 100e6) / 50, "the level left most of the surplus"
+        );
+    }
+
+    /// @notice Only the share, no kept leg: the share's dollars come back unmerged.
+    function test_exitWithoutAKeptLeg() public {
+        uint256 shares = _position(true, 100e6);
+        PositionRouter.Fill memory fill = _exitAndCheck(_exitOrder(true, shares, 0));
+        assertEq(fill.dollars, 0);
+    }
+
+    /// @notice Every malformed exit is refused before any funds move: the user here has approved
+    ///         nothing, so a pull attempted first would fail with the token's error instead.
+    function test_RevertWhen_anExitIsMalformed() public {
+        PositionRouter.ExitOrder memory order = PositionRouter.ExitOrder({
+            marketId: marketId,
+            yes: true,
+            shares: 1e15,
+            kept: 1e6,
+            minOut: 1,
+            levelSellsWorldDollar: false,
+            level: 0,
+            minLevelOut: 0,
+            recipient: user,
+            deadline: vm.getBlockTimestamp()
+        });
+        vm.startPrank(user);
+        order.deadline -= 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.Expired.selector, order.deadline));
+        router.exit(order);
+        order.deadline += 1;
+        order.shares = 0;
+        vm.expectRevert(PositionRouter.ZeroAmount.selector);
+        router.exit(order);
+        order.shares = 1e15;
+        order.minOut = 0;
+        vm.expectRevert(PositionRouter.NoFloor.selector);
+        router.exit(order);
+        order.minOut = 1;
+        order.level = 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.LevelFloorMismatch.selector, 1, 0));
+        router.exit(order);
+        (order.level, order.minLevelOut) = (0, 1);
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.LevelFloorMismatch.selector, 0, 1));
+        router.exit(order);
+        order.minLevelOut = 0;
+        order.recipient = address(router);
+        vm.expectRevert(
+            abi.encodeWithSelector(PositionRouter.BadRecipient.selector, address(router))
+        );
+        router.exit(order);
+        order.recipient = user;
+        order.marketId = keccak256("no such market");
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.NotAMarket.selector, order.marketId));
+        router.exit(order);
+        vm.stopPrank();
+        // A market that exists but whose pools were never registered with the hook.
+        order.marketId = factory.createMarket(
+            underlying, dollar, _seal(sealer, announcesAt + 1), address(resolver)
+        );
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.NotAMarket.selector, order.marketId));
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice A level larger than the named leg's surplus is refused, and so is any level of a leg
+    ///         that is not the larger.
+    function test_RevertWhen_theLevelExceedsTheSurplus() public {
+        uint256 shares = _position(true, 100e6);
+        PositionRouter.ExitOrder memory order = _exitOrder(true, shares, 100e6);
+        uint256 surplus = 100e6 - _handExit(order).out;
+        (order.level, order.minLevelOut) = (surplus + 1, 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(PositionRouter.LevelTooLarge.selector, surplus + 1, surplus)
+        );
+        vm.prank(user);
+        router.exit(order);
+        (order.levelSellsWorldDollar, order.level) = (true, 1);
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.LevelTooLarge.selector, 1, 0));
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice Each swap has its own floor: the sale below its floor is refused, and the level below
+    ///         its floor is refused.
+    function test_RevertWhen_aSwapIsBelowItsFloor() public {
+        uint256 shares = _position(false, 100e6);
+        PositionRouter.ExitOrder memory order = _exitOrder(false, shares, 100e6);
+        uint256 out = _handExit(order).out;
+        order.minOut = out + 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.TooLittleOut.selector, out, out + 1));
+        vm.prank(user);
+        router.exit(order);
+        order.minOut = out;
+        order.level = (100e6 - out) / 3;
+        order.minLevelOut = 1;
+        uint256 levelOut = _handExit(order).levelOut;
+        order.minLevelOut = levelOut + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(PositionRouter.TooLittleOut.selector, levelOut, levelOut + 1)
+        );
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice The sandwich a single floor on the merged dollars allowed: someone sells the share
+    ///         just before the exit, which would have moved value out of the returned surplus; the
+    ///         sale's own floor now refuses it.
+    function test_RevertWhen_anExitIsSandwiched() public {
+        uint256 shares = _position(true, 100e6);
+        PositionRouter.ExitOrder memory order = _exitOrder(true, shares, 100e6);
+        order.minOut = _handExit(order).out;
+        _handSwapKept(yesKey, address(underlyingVault.YES()), 2e18);
+        vm.expectPartialRevert(PositionRouter.TooLittleOut.selector);
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice From the freeze no exit is possible: the hook's error, with the world pool's id, in
+    ///         both worlds.
+    function test_RevertWhen_anExitMeetsTheFreeze() public {
+        uint256 yesShares = _position(true, 100e6);
+        uint256 noShares = _position(false, 100e6);
+        PositionRouter.ExitOrder memory yesOrder = _exitOrder(true, yesShares, 100e6);
+        PositionRouter.ExitOrder memory noOrder = _exitOrder(false, noShares, 100e6);
+        vm.warp(announcesAt);
+        yesOrder.deadline = announcesAt;
+        noOrder.deadline = announcesAt;
+        vm.expectRevert(_frozen(IHooks.beforeSwap.selector, yesKey, announcesAt));
+        vm.prank(user);
+        router.exit(yesOrder);
+        vm.expectRevert(_frozen(IHooks.beforeSwap.selector, noKey, announcesAt));
+        vm.prank(user);
+        router.exit(noOrder);
+    }
+
+    /// @notice Exits and checks every balance against the same steps done by hand: the recipient
+    ///         receives the dollars and both remainders, the holder's legs are gone, the router keeps
+    ///         nothing, and the event says the same.
+    /// @param order The exit.
+    /// @return fill What it filled.
+    function _exitAndCheck(PositionRouter.ExitOrder memory order)
+        internal
+        returns (PositionRouter.Fill memory fill)
+    {
+        PositionRouter.Fill memory expected = _handExit(order);
+        uint256 dollarsBefore = dollar.balanceOf(user);
+        uint256 yesBefore = dollarVault.YES().balanceOf(user) - (order.yes ? 0 : order.kept);
+        uint256 noBefore = dollarVault.NO().balanceOf(user) - (order.yes ? order.kept : 0);
+        vm.expectEmit(address(router));
+        emit PositionRouter.Exited(order.marketId, user, order.recipient, order, expected);
+        vm.prank(user);
+        assertEq(router.exit(order), expected.dollars);
+        assertEq(dollar.balanceOf(user) - dollarsBefore, expected.dollars);
+        assertEq(dollarVault.YES().balanceOf(user) - yesBefore, expected.yesLeft);
+        assertEq(dollarVault.NO().balanceOf(user) - noBefore, expected.noLeft);
+        (address share,,) = _legs(order.yes);
+        assertEq(IERC20(share).balanceOf(user), 0);
+        assertEq(IERC20(share).allowance(user, address(router)), 0);
+        _assertRouterHoldsNothing();
+        fill = expected;
+    }
+
+    /// @notice A third party sells into a pool for real, moving its price.
+    /// @param key The pool.
+    /// @param input What is sold.
+    /// @param amount How much.
+    function _handSwapKept(PoolKey memory key, address input, uint256 amount) internal {
+        _handSwap(key, input, amount);
     }
 
     /// @notice The callback answers only the pool manager.

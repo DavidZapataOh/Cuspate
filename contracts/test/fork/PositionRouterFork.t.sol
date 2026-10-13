@@ -13,6 +13,12 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {CustomRevert} from "@uniswap/v4-core/src/libraries/CustomRevert.sol";
 import {PoolModifyLiquidityTest} from "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol";
+import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
+import {FullMath} from "@uniswap/v4-core/src/libraries/FullMath.sol";
+import {SqrtPriceMath} from "@uniswap/v4-core/src/libraries/SqrtPriceMath.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {AddressBook} from "../../script/AddressBook.sol";
 import {ConditionalPools} from "../../src/ConditionalPools.sol";
 import {PositionRouter} from "../../src/PositionRouter.sol";
@@ -92,6 +98,8 @@ contract PositionRouterForkTest is Test {
     PositionVault internal underlyingVault;
     PositionVault internal dollarVault;
     PoolKey internal yesKey;
+    PoolKey internal noKey;
+    PoolKey internal probabilityKey;
 
     /// @notice A sealed, registered market over the real underlying and dollar, its pools open at
     ///         1,040 and 960 dollars a share and seeded, the router, and an account holding only
@@ -135,10 +143,23 @@ contract PositionRouterForkTest is Test {
         marketId = factory.createMarket(underlying, dollar, eventId, address(resolver));
         FreezeHook(HOOK).register(underlying, dollar, eventId);
         (underlyingVault, dollarVault) = factory.markets(marketId);
-        PoolKey memory noKey;
         (yesKey, noKey) = ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(HOOK));
-        _seed(yesKey, address(underlyingVault.YES()), 1040);
-        _seed(noKey, address(underlyingVault.NO()), 960);
+        probabilityKey = ConditionalPools.probabilityKeyOf(dollarVault, IHooks(HOOK));
+        _seed(
+            yesKey,
+            ConditionalPools.sqrtPriceX96(
+                yesKey, IERC20Metadata(address(underlyingVault.YES())), 1040, 0
+            ),
+            1e16
+        );
+        _seed(
+            noKey,
+            ConditionalPools.sqrtPriceX96(
+                noKey, IERC20Metadata(address(underlyingVault.NO())), 960, 0
+            ),
+            1e16
+        );
+        _seed(probabilityKey, ConditionalPools.sqrtPriceAtYesDollarPrice(dollarVault, 0.6e18), 1e11);
 
         router = new PositionRouter(FreezeHook(HOOK));
         account = new BatchAccount(owner);
@@ -172,6 +193,252 @@ contract PositionRouterForkTest is Test {
         assertEq(dollar.balanceOf(address(router)), 0);
         assertEq(dollarVault.YES().balanceOf(address(router)), 0);
         assertEq(dollarVault.NO().balanceOf(address(router)), 0);
+    }
+
+    /// @notice The Done-when: a position opened and closed before the freeze settles at the quoted
+    ///         prices, with every fee accounted. The account enters 100 dollars in the yes world in
+    ///         one batch and exits all of it, levelled, in a second. The sale and the level each pay
+    ///         exactly the deployed quoter's quote; each of the three swaps' fee, read from its pool's
+    ///         price before and after rather than from any quote, is 0.3% of its input; no protocol
+    ///         fee is taken; and the dollars back agree with the closed form.
+    function testFork_aRoundTripSettlesAtTheQuotedPricesWithEveryFeeAccounted() public {
+        (uint256 shares, uint160 yesAfterEntry) = _enterMeasuringTheFee();
+        PositionRouter.Fill memory fill = _exitMeasuringTheFees(shares, yesAfterEntry);
+
+        // Closed form: a round trip in one pool loses the fee twice and its impact cancels, so the
+        // world dollars are about D * f**2; levelling the gap at a yes-dollar of p costs one more
+        // fee: D - (D - D * f**2) / (1 + f * (1 - p) / p) = 99,640,108 for D = 100 dollars,
+        // f = 0.997, p = 0.6. What remains is rounding and the probability pool's impact.
+        assertApproxEqRel(
+            fill.dollars, 99_640_108, 1e12, "the dollars back are not the closed form"
+        );
+        assertEq(dollar.balanceOf(address(account)), fill.dollars);
+        assertEq(underlyingVault.YES().balanceOf(address(account)), 0);
+        assertEq(underlyingVault.YES().allowance(address(account), address(router)), 0);
+        assertEq(dollarVault.NO().allowance(address(account), address(router)), 0);
+        PoolKey[3] memory keys = [yesKey, noKey, probabilityKey];
+        for (uint256 index = 0; index < 3; index++) {
+            (,, uint24 protocolFee,) = StateLibrary.getSlot0(manager, keys[index].toId());
+            assertEq(protocolFee, 0, "a protocol fee is taken");
+        }
+    }
+
+    /// @notice The entry, at the quoter's quote, its fee read from the yes pool's state.
+    /// @return shares The shares bought.
+    /// @return yesAfterEntry The yes pool's price after the entry.
+    function _enterMeasuringTheFee() internal returns (uint256 shares, uint160 yesAfterEntry) {
+        (uint160 yesBefore,,,) = StateLibrary.getSlot0(manager, yesKey.toId());
+        bool dollarFirst = Currency.unwrap(yesKey.currency0) == address(dollarVault.YES());
+        (shares,) = quoter.quoteExactInputSingle(
+            IQuoterCalls.QuoteExactSingleParams(yesKey, dollarFirst, uint128(DOLLARS), "")
+        );
+        BatchAccount.Call[] memory calls = _batch(shares);
+        vm.prank(owner);
+        account.execute(calls);
+        (yesAfterEntry,,,) = StateLibrary.getSlot0(manager, yesKey.toId());
+        _assertFee(yesKey, yesBefore, yesAfterEntry, DOLLARS, shares, dollarFirst);
+    }
+
+    /// @notice The exit, levelled as the interface would level it: the sale and the level at their
+    ///         quotes exactly, each fee read from its pool's state.
+    /// @param shares The shares to sell.
+    /// @param yesAfterEntry The yes pool's price before the sale.
+    /// @return fill What the exit filled.
+    function _exitMeasuringTheFees(uint256 shares, uint160 yesAfterEntry)
+        internal
+        returns (PositionRouter.Fill memory fill)
+    {
+        bool shareFirst =
+            Currency.unwrap(yesKey.currency0) == address(underlyingVault.YES());
+        (uint256 out,) = quoter.quoteExactInputSingle(
+            IQuoterCalls.QuoteExactSingleParams(yesKey, shareFirst, uint128(shares), "")
+        );
+        (uint256 level, uint256 levelOut) = _searchLevel(shares, out);
+        assertGt(level, 0);
+        (uint160 probabilityBefore,,,) = StateLibrary.getSlot0(manager, probabilityKey.toId());
+        // Built first: the batch reads the legs, and a prank is spent on the first call made.
+        BatchAccount.Call[] memory calls = _exitBatch(shares, out, level, levelOut);
+        vm.recordLogs();
+        vm.prank(owner);
+        account.execute(calls);
+        fill = _exited();
+        assertEq(fill.out, out, "the sale is not its quote");
+        assertEq(fill.levelOut, levelOut, "the level is not its quote");
+        assertLe(fill.yesLeft + fill.noLeft, 1, "the level left more than a raw unit");
+
+        (uint160 yesAfterExit,,,) = StateLibrary.getSlot0(manager, yesKey.toId());
+        _assertFee(yesKey, yesAfterEntry, yesAfterExit, shares, out, shareFirst);
+        (uint160 probabilityAfter,,,) = StateLibrary.getSlot0(manager, probabilityKey.toId());
+        bool noDollarFirst = Currency.unwrap(probabilityKey.currency0) == address(dollarVault.NO());
+        _assertFee(
+            probabilityKey, probabilityBefore, probabilityAfter, level, levelOut, noDollarFirst
+        );
+    }
+
+    /// @notice From the freeze no position can be closed: the exit batch reverts whole, with the
+    ///         hook's error and the yes pool's id, and the account keeps its legs.
+    function testFork_theExitBatchRevertsAtTheFreeze() public {
+        (uint256 shares,) = _enterMeasuringTheFee();
+        vm.warp(announcesAt);
+        BatchAccount.Call[] memory calls = _exitBatch(shares, 1, 0, 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                HOOK,
+                IHooks.beforeSwap.selector,
+                abi.encodeWithSelector(FreezeHook.Frozen.selector, yesKey.toId(), announcesAt),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        vm.prank(owner);
+        account.execute(calls);
+        assertEq(underlyingVault.YES().balanceOf(address(account)), shares);
+        assertEq(dollarVault.NO().balanceOf(address(account)), DOLLARS);
+    }
+
+    /// @notice One swap's fee, from its pool's state: with liquidity constant over the move, the
+    ///         input that moved the price is the price delta's amount rounded up, the output the
+    ///         other side's rounded down, and the fee is the rest of the input, 0.3% of it.
+    /// @param key The pool.
+    /// @param before Its price before the swap.
+    /// @param after_ Its price after.
+    /// @param amountIn The swap's input.
+    /// @param out The swap's output.
+    /// @param zeroForOne Its direction.
+    function _assertFee(
+        PoolKey memory key,
+        uint160 before,
+        uint160 after_,
+        uint256 amountIn,
+        uint256 out,
+        bool zeroForOne
+    ) internal view {
+        uint128 liquidity = StateLibrary.getLiquidity(manager, key.toId());
+        (uint256 moving, uint256 paid) = zeroForOne
+            ? (
+                SqrtPriceMath.getAmount0Delta(after_, before, liquidity, true),
+                SqrtPriceMath.getAmount1Delta(after_, before, liquidity, false)
+            )
+            : (
+                SqrtPriceMath.getAmount1Delta(before, after_, liquidity, true),
+                SqrtPriceMath.getAmount0Delta(before, after_, liquidity, false)
+            );
+        assertEq(out, paid, "the output is not what the price move pays");
+        assertApproxEqAbs(
+            amountIn - moving,
+            FullMath.mulDivRoundingUp(amountIn, 3000, 1e6),
+            1,
+            "the fee is not 0.3%"
+        );
+    }
+
+    /// @notice The level, as the interface finds it: on a copy of the state with the sale done, the
+    ///         largest amount of the kept no-dollars whose quoted yes-dollars still leave at least as
+    ///         many no-dollars as yes-dollars; and its quote.
+    /// @param shares The shares sold.
+    /// @param out What they sell for.
+    /// @return level The level.
+    /// @return levelOut Its quote.
+    function _searchLevel(uint256 shares, uint256 out)
+        internal
+        returns (uint256 level, uint256 levelOut)
+    {
+        uint256 snapshot = vm.snapshotState();
+        _sellByHand(yesKey, address(underlyingVault.YES()), shares);
+        bool noFirst = Currency.unwrap(probabilityKey.currency0) == address(dollarVault.NO());
+        (uint256 low, uint256 high) = (0, DOLLARS - out);
+        while (low < high) {
+            uint256 middle = (low + high + 1) / 2;
+            (uint256 quote,) = quoter.quoteExactInputSingle(
+                IQuoterCalls.QuoteExactSingleParams(probabilityKey, noFirst, uint128(middle), "")
+            );
+            if (DOLLARS - middle >= out + quote) {
+                low = middle;
+            } else {
+                high = middle - 1;
+            }
+        }
+        level = low;
+        (levelOut,) = quoter.quoteExactInputSingle(
+            IQuoterCalls.QuoteExactSingleParams(probabilityKey, noFirst, uint128(level), "")
+        );
+        vm.revertToState(snapshot);
+    }
+
+    /// @notice Sells by hand through v4-core's test router, from a holder given the input.
+    /// @param key The pool.
+    /// @param input What is sold.
+    /// @param amount How much.
+    function _sellByHand(PoolKey memory key, address input, uint256 amount) internal {
+        PoolSwapTest swapper = new PoolSwapTest(manager);
+        bool zeroForOne = Currency.unwrap(key.currency0) == input;
+        deal(input, address(this), amount);
+        IERC20(input).approve(address(swapper), amount);
+        swapper.swap(
+            key,
+            IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -SafeCast.toInt256(amount),
+                sqrtPriceLimitX96: zeroForOne
+                    ? TickMath.MIN_SQRT_PRICE + 1
+                    : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+    }
+
+    /// @notice The exit batch: approve the shares and the kept no-dollars, then exit with both floors
+    ///         at their quotes.
+    /// @param shares The shares.
+    /// @param out The sale's quote.
+    /// @param level The level.
+    /// @param levelOut Its quote.
+    /// @return calls The batch.
+    function _exitBatch(uint256 shares, uint256 out, uint256 level, uint256 levelOut)
+        internal
+        view
+        returns (BatchAccount.Call[] memory calls)
+    {
+        PositionRouter.ExitOrder memory order = PositionRouter.ExitOrder({
+            marketId: marketId,
+            yes: true,
+            shares: shares,
+            kept: DOLLARS,
+            minOut: out,
+            levelSellsWorldDollar: false,
+            level: level,
+            minLevelOut: levelOut,
+            recipient: address(account),
+            deadline: vm.getBlockTimestamp()
+        });
+        calls = new BatchAccount.Call[](3);
+        calls[0] = BatchAccount.Call(
+            address(underlyingVault.YES()),
+            abi.encodeCall(IERC20.approve, (address(router), shares))
+        );
+        calls[1] = BatchAccount.Call(
+            address(dollarVault.NO()), abi.encodeCall(IERC20.approve, (address(router), DOLLARS))
+        );
+        calls[2] = BatchAccount.Call(address(router), abi.encodeCall(PositionRouter.exit, (order)));
+    }
+
+    /// @notice The fill the router announced, read from the recorded logs.
+    /// @return fill The fill.
+    function _exited() internal returns (PositionRouter.Fill memory fill) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 index = 0; index < logs.length; index++) {
+            if (
+                logs[index].emitter == address(router)
+                    && logs[index].topics[0] == PositionRouter.Exited.selector
+            ) {
+                (, fill) = abi.decode(
+                    logs[index].data, (PositionRouter.ExitOrder, PositionRouter.Fill)
+                );
+                return fill;
+            }
+        }
+        revert("no exit was announced");
     }
 
     /// @notice From the freeze the same transaction reverts whole, with the hook's error inside the
@@ -209,12 +476,11 @@ contract PositionRouterForkTest is Test {
         );
     }
 
-    /// @notice Opens a pool at a share's value and seeds it a fifth either side from fabricated
-    ///         collateral.
+    /// @notice Opens a pool at a price and seeds it a fifth either side from fabricated collateral.
     /// @param key The pool.
-    /// @param share The underlying leg in it.
-    /// @param value The share's value in whole dollars.
-    function _seed(PoolKey memory key, address share, uint256 value) internal {
+    /// @param sqrtPriceX96 Its opening price.
+    /// @param liquidity The position's liquidity.
+    function _seed(PoolKey memory key, uint160 sqrtPriceX96, uint128 liquidity) internal {
         PoolModifyLiquidityTest seeder = new PoolModifyLiquidityTest(manager);
         PositionVault[2] memory vaults = [underlyingVault, dollarVault];
         uint256[2] memory amounts = [uint256(100e18), 200_000e6];
@@ -226,14 +492,14 @@ contract PositionRouterForkTest is Test {
             vaults[index].YES().approve(address(seeder), type(uint256).max);
             vaults[index].NO().approve(address(seeder), type(uint256).max);
         }
-        int24 tick = manager.initialize(
-            key, ConditionalPools.sqrtPriceX96(key, IERC20Metadata(share), value, 0)
-        );
+        int24 tick = manager.initialize(key, sqrtPriceX96);
         int24 lower = (tick - 1823) / 60 * 60 - 60;
         int24 upper = (tick + 1823) / 60 * 60 + 60;
         seeder.modifyLiquidity(
             key,
-            IPoolManager.ModifyLiquidityParams(lower, upper, SafeCast.toInt256(uint256(1e16)), 0),
+            IPoolManager.ModifyLiquidityParams(
+                lower, upper, SafeCast.toInt256(uint256(liquidity)), 0
+            ),
             ""
         );
     }

@@ -1264,3 +1264,26 @@ test("the forbidden-terms command reports a hit in a commit message by identifie
 		rmSync(dir, { recursive: true, force: true });
 	}
 });
+
+// A job runs on a fresh checkout, where the contracts' build output does not exist. The indexer,
+// the keeper and the deployment tooling read their ABIs and bytecode from it, so each of their
+// scripts builds the contracts before it tests; a script that relies on a previous local build
+// passes on a workstation and fails in the pipeline.
+test("every job that reads the contracts' build output builds it before testing", () => {
+	for (const script of [
+		"tools/indexer.sh",
+		"tools/keeper.sh",
+		"tools/ops.sh",
+	]) {
+		const lines = readFileSync(path.join(root, script), "utf8").split("\n");
+		const build = lines.findIndex(
+			(line) => /\bforge build\b/.test(line) && !line.trim().startsWith("#"),
+		);
+		const tests = lines.findIndex((line) => /run test\b/.test(line));
+		assert.ok(tests >= 0, `${script} runs its tests`);
+		assert.ok(
+			build >= 0 && build < tests,
+			`${script} builds the contracts before its tests`,
+		);
+	}
+});

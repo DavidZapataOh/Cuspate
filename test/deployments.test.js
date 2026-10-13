@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,35 +44,43 @@ export function artefactOf(key, entry) {
 	return path.join("contracts", "out", path.basename(file), `${name}.json`);
 }
 
+/**
+ * A checkout of a commit with its contracts built, one per commit for the whole run: every entry
+ * of a deployment usually records the same commit, and building once per entry multiplies the
+ * slowest step of this file by the number of contracts deployed.
+ */
+const builtAt = new Map();
+function buildAt(commit) {
+	if (builtAt.has(commit)) return builtAt.get(commit);
+	const dir = mkdtempSync(path.join(tmpdir(), "atcommit-"));
+	execFileSync("git", ["clone", "--quiet", "--recurse-submodules", root, dir], {
+		encoding: "utf8",
+	});
+	execFileSync("git", ["checkout", "--quiet", commit], { cwd: dir });
+	execFileSync(
+		"git",
+		["submodule", "update", "--init", "--recursive", "--quiet"],
+		{
+			cwd: dir,
+		},
+	);
+	execFileSync("forge", ["build", "--root", path.join(dir, "contracts")], {
+		encoding: "utf8",
+	});
+	builtAt.set(commit, dir);
+	return dir;
+}
+after(() => {
+	for (const dir of builtAt.values())
+		rmSync(dir, { recursive: true, force: true });
+});
+
 /** The creation bytecode this repository builds at a commit, built from that commit. */
 function creationCodeAt(commit, key, entry) {
-	const dir = mkdtempSync(path.join(tmpdir(), "atcommit-"));
-	try {
-		execFileSync(
-			"git",
-			["clone", "--quiet", "--recurse-submodules", root, dir],
-			{
-				encoding: "utf8",
-			},
-		);
-		execFileSync("git", ["checkout", "--quiet", commit], { cwd: dir });
-		execFileSync(
-			"git",
-			["submodule", "update", "--init", "--recursive", "--quiet"],
-			{
-				cwd: dir,
-			},
-		);
-		execFileSync("forge", ["build", "--root", path.join(dir, "contracts")], {
-			encoding: "utf8",
-		});
-		const artefact = JSON.parse(
-			readFileSync(path.join(dir, artefactOf(key, entry)), "utf8"),
-		);
-		return artefact.bytecode.object;
-	} finally {
-		rmSync(dir, { recursive: true, force: true });
-	}
+	const artefact = JSON.parse(
+		readFileSync(path.join(buildAt(commit), artefactOf(key, entry)), "utf8"),
+	);
+	return artefact.bytecode.object;
 }
 
 test("every committed record matches the chain, read with no key and no funds", () => {

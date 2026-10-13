@@ -109,6 +109,39 @@ export function refuseBroadcast(
 	return null;
 }
 
+/**
+ * What to do with one step, given its record and the code at its address. The address commits to the
+ * creation code (and for a Safe to its whole set-up), so code already there is this exact contract,
+ * whoever sent it: recorded, it is skipped and never re-sent; unrecorded, a person checks its creation
+ * transaction and records it by hand before anything continues.
+ */
+export function stepStatus(
+	key: string,
+	address: Address,
+	recorded: unknown,
+	code: Hex | undefined,
+): "skip" | "send" {
+	const present = code !== undefined && code !== "0x";
+	if (present && recorded) return "skip";
+	if (present)
+		throw new Error(
+			`${key}: code exists at ${address} with no record; record it by hand after checking its creation transaction`,
+		);
+	return "send";
+}
+
+/**
+ * A rehearsal starts from the chain's committed record, so a deployment already made on that chain
+ * is skipped exactly as a resumed broadcast skips it; its own writes still go only under `.rehearsal/`.
+ */
+export function rehearsalBook(
+	committed: Book,
+	manifest: Book["manifest"],
+	thirdParty: Book["thirdParty"],
+): Book {
+	return { ...committed, manifest, thirdParty };
+}
+
 /** Sends every step not already on chain, recording each from its receipt the moment it lands. */
 export async function deploy(options: {
 	url: string;
@@ -131,16 +164,10 @@ export async function deploy(options: {
 				? book.roles?.[step.role]
 				: (book[step.key] as Generated | undefined);
 		const code = await client.getCode({ address: step.address });
-		if (recorded && code && code !== "0x") {
+		if (stepStatus(step.key, step.address, recorded, code) === "skip") {
 			skipped.push(step.key);
 			continue;
 		}
-		// The address commits to the creation code (and for a Safe to its whole set-up), so code
-		// already there is this exact contract, whoever sent it: it is accepted, never re-sent.
-		if (code && code !== "0x")
-			throw new Error(
-				`${step.key}: code exists at ${step.address} with no record; record it by hand after checking its creation transaction`,
-			);
 		const receipt = send(url, deployer, signer, step.to, step.data);
 		const deployed = await client.getCode({ address: step.address });
 		if (!deployed || deployed === "0x")
@@ -291,7 +318,15 @@ export async function main(argv: string[]): Promise<void> {
 			})) as Hex;
 			const steps = plan(network.chainId, manifest, creation);
 			const bookFile = rehearsalPath(network.chainId);
-			writeBook(bookFile, { manifest, thirdParty: manifest.thirdParty });
+			const committedFile = committedPath(network.chainId);
+			writeBook(
+				bookFile,
+				rehearsalBook(
+					existsSync(committedFile) ? readBook(committedFile) : {},
+					manifest,
+					manifest.thirdParty,
+				),
+			);
 			const { sent } = await deploy({
 				url: node.url,
 				chainId: network.chainId,

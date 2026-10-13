@@ -8,6 +8,8 @@ set -eu
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${repo}"
 
+# The deployment tooling reads its artefacts, test contracts included, from the contracts build output.
+(cd contracts && forge build > /dev/null)
 pnpm --filter cuspate-ops run build
 pnpm --filter cuspate-ops run test
 DEPLOY_NETWORK=testnet_rehearsal tools/deploy.sh protocol

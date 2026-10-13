@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {AddressBook} from "../../script/AddressBook.sol";
 import {GasCases} from "../unit/GasBudgets.t.sol";
 
@@ -36,5 +37,11 @@ contract GasLimitsForkTest is GasCases {
             IERC20(AddressBook.thirdParty("collateral", 0)),
             IERC20(AddressBook.thirdParty("dollar", 0))
         );
+    }
+
+    /// @notice The pool manager as deployed at the pinned block.
+    /// @return The manager.
+    function _manager() internal view override returns (IPoolManager) {
+        return IPoolManager(AddressBook.thirdParty("poolManager", 0));
     }
 }

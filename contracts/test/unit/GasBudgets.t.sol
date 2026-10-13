@@ -11,6 +11,13 @@ import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {ConditionalPools} from "../../src/ConditionalPools.sol";
 import {FreezeHook} from "../../src/FreezeHook.sol";
+import {PositionRouter} from "../../src/PositionRouter.sol";
+import {
+    IERC20Metadata as Metadata
+} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {PoolManager} from "@uniswap/v4-core/src/PoolManager.sol";
+import {PoolModifyLiquidityTest} from "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol";
 import {MarketFactory} from "../../src/MarketFactory.sol";
 import {Outcome, PositionVault} from "../../src/PositionVault.sol";
 import {OptimisticResolver} from "../../src/OptimisticResolver.sol";
@@ -44,6 +51,10 @@ abstract contract GasCases is Test {
     /// @return underlying The underlying.
     /// @return dollar The dollar.
     function _collaterals() internal virtual returns (IERC20 underlying, IERC20 dollar);
+
+    /// @notice The pool manager the router cases trade through.
+    /// @return The manager.
+    function _manager() internal virtual returns (IPoolManager);
 
     /// @notice A market over the two collaterals.
     function setUp() public virtual {
@@ -318,6 +329,118 @@ abstract contract GasCases is Test {
         _record("FreezeHook.freezeNow a market's three pools", "");
     }
 
+    /// @notice Entering a position through the router: in the yes world for a recipient holding no
+    ///         legs (the worst case) and again for the same recipient (the steady one), and in the no
+    ///         world for a fresh recipient. The case builds its own hook, market and seeded pools, so
+    ///         the fixture every other case measures is unchanged.
+    function test_positionRouter() public {
+        (PositionRouter router, bytes32 marketId, PositionVault shares, PositionVault dollars) =
+            _routerMarket();
+        uint256 amount = 100 * 10 ** Metadata(address(dollars.COLLATERAL())).decimals();
+        address payer = makeAddr("router payer");
+        _fund(dollars, payer, 3 * amount);
+        // Read first: a prank is spent on the first call, and a view call in the same statement is one.
+        IERC20 dollar = dollars.COLLATERAL();
+        vm.prank(payer);
+        dollar.approve(address(router), 3 * amount);
+        address first = makeAddr("first recipient");
+        address second = makeAddr("second recipient");
+
+        assertEq(shares.YES().balanceOf(first) + dollars.NO().balanceOf(first), 0);
+        vm.prank(payer);
+        router.enter(marketId, true, amount, 1, first, vm.getBlockTimestamp());
+        _record("PositionRouter.enter the yes world, a recipient holding no legs", "");
+
+        vm.prank(payer);
+        router.enter(marketId, true, amount, 1, first, vm.getBlockTimestamp());
+        _record("PositionRouter.enter the yes world, a recipient holding both legs", "");
+
+        assertEq(shares.NO().balanceOf(second) + dollars.YES().balanceOf(second), 0);
+        vm.prank(payer);
+        router.enter(marketId, false, amount, 1, second, vm.getBlockTimestamp());
+        _record("PositionRouter.enter the no world, a recipient holding no legs", "");
+    }
+
+    /// @notice A sealed, registered market over the fixture's collaterals, its yes and no pools open
+    ///         at 1,040 and 960 dollars a share and seeded a fifth either side, and a router over it.
+    /// @return router The router.
+    /// @return marketId The market.
+    /// @return shares Its vault over the underlying.
+    /// @return dollars Its vault over the dollar.
+    function _routerMarket()
+        internal
+        returns (
+            PositionRouter router,
+            bytes32 marketId,
+            PositionVault shares,
+            PositionVault dollars
+        )
+    {
+        IPoolManager manager = _manager();
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory, registry, address(this), address(this), dollarVault.COLLATERAL(), 1, 1, 1, 1, 1
+        );
+        address hookAddress =
+            address(uint160(0x4444 << 144) | Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG);
+        deployCodeTo(
+            "FreezeHook.sol:FreezeHook", abi.encode(manager, resolver_, address(this)), hookAddress
+        );
+        FreezeHook hook = FreezeHook(hookAddress);
+        bytes32 eventId =
+            registry.seal(_sealable(uint64(vm.getBlockTimestamp() + 1 days), "routed"));
+        marketId = factory.createMarket(
+            underlyingVault.COLLATERAL(), dollarVault.COLLATERAL(), eventId, address(resolver_)
+        );
+        hook.register(underlyingVault.COLLATERAL(), dollarVault.COLLATERAL(), eventId);
+        (shares, dollars) = factory.markets(marketId);
+        (PoolKey memory yes, PoolKey memory no) =
+            ConditionalPools.keysOf(shares, dollars, IHooks(hookAddress));
+        PoolModifyLiquidityTest seeder = new PoolModifyLiquidityTest(manager);
+        _fund(shares, address(this), 100 * 10 ** Metadata(address(shares.COLLATERAL())).decimals());
+        _fund(
+            dollars,
+            address(this),
+            200_000 * 10 ** Metadata(address(dollars.COLLATERAL())).decimals()
+        );
+        PositionVault[2] memory vaults = [shares, dollars];
+        for (uint256 index = 0; index < 2; index++) {
+            IERC20 collateral = vaults[index].COLLATERAL();
+            uint256 held = collateral.balanceOf(address(this));
+            collateral.approve(address(vaults[index]), held);
+            vaults[index].splitPosition(held);
+            vaults[index].YES().approve(address(seeder), type(uint256).max);
+            vaults[index].NO().approve(address(seeder), type(uint256).max);
+        }
+        _seedPool(manager, seeder, yes, address(shares.YES()), 1040);
+        _seedPool(manager, seeder, no, address(shares.NO()), 960);
+        router = new PositionRouter(hook);
+    }
+
+    /// @notice Opens a pool at a share's value in dollars and seeds it a fifth either side.
+    /// @param manager The pool manager.
+    /// @param seeder The liquidity router.
+    /// @param key The pool.
+    /// @param share The underlying leg in it.
+    /// @param value The share's value in whole dollars.
+    function _seedPool(
+        IPoolManager manager,
+        PoolModifyLiquidityTest seeder,
+        PoolKey memory key,
+        address share,
+        uint256 value
+    ) internal {
+        int24 tick = manager.initialize(
+            key, ConditionalPools.sqrtPriceX96(key, Metadata(share), value, 0)
+        );
+        int24 lower = (tick - 1823) / 60 * 60 - 60;
+        int24 upper = (tick + 1823) / 60 * 60 + 60;
+        seeder.modifyLiquidity(
+            key,
+            IPoolManager.ModifyLiquidityParams(lower, upper, SafeCast.toInt256(uint256(1e16)), 0),
+            ""
+        );
+    }
+
     /// @notice A resolver's first report of a condition.
     function test_reportOutcome() public {
         assertEq(uint8(factory.outcomeOf(underlyingVault.CONDITION())), uint8(Outcome.Unresolved));
@@ -513,5 +636,11 @@ contract GasBudgetsTest is GasCases {
     /// @return The dollar.
     function _collaterals() internal override returns (IERC20, IERC20) {
         return (IERC20(address(new TestStock())), IERC20(address(new TestCollateral())));
+    }
+
+    /// @notice A fresh local pool manager.
+    /// @return The manager.
+    function _manager() internal override returns (IPoolManager) {
+        return new PoolManager(address(this));
     }
 }

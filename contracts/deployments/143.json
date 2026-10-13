@@ -28,6 +28,12 @@
     "stateView": [
       "0x77395F3b2E73aE90843717371294fa97cC419D64"
     ],
+    "stockOracle": [
+      "0x037848af338C38e1e0AB722bE80BF4C2E612a1F7"
+    ],
+    "universalRouter": [
+      "0x0D97Dc33264bfC1c226207428A79b26757fb9dc3"
+    ],
     "v4Quoter": [
       "0xa222Dd357A9076d1091Ed6Aa2e16C9742dD26891"
     ]

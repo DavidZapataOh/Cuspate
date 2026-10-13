@@ -4,6 +4,7 @@ import {
 	type HTTPSendRequester,
 	type Runtime,
 } from "@chainlink/cre-sdk";
+import { Gunzip } from "fflate";
 import { documentUrl, exhibitName, indexUrl, releaseFilings } from "./edgar";
 import {
 	type AbstainReason,
@@ -48,6 +49,46 @@ export type Outcome =
  */
 export const MAX_FILINGS = 3;
 
+/**
+ * The largest document, decompressed, the workflow reads: several times any release, and a bound on
+ * what a small compressed body may expand to.
+ */
+export const MAX_DOCUMENT_BYTES = 2_000_000;
+
+type Response = ReturnType<
+	ReturnType<HTTPSendRequester["sendRequest"]>["result"]
+>;
+
+/**
+ * The response's document as text, decompressed when it came gzipped; null when it does not
+ * decompress, or would decompress past `MAX_DOCUMENT_BYTES`. A gzip body is told by its own first
+ * two bytes, which no text document begins with, so the answer reads the same whether or not a
+ * header declares it.
+ */
+function documentText(response: Response): string | null {
+	const gzipped = response.body[0] === 0x1f && response.body[1] === 0x8b;
+	if (!gzipped) return new TextDecoder().decode(response.body);
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	try {
+		// Decompressed as it streams, so a body that would expand past the bound stops there.
+		new Gunzip((chunk) => {
+			size += chunk.length;
+			if (size > MAX_DOCUMENT_BYTES) throw new Error("too large");
+			chunks.push(chunk);
+		}).push(response.body, true);
+	} catch {
+		return null;
+	}
+	const document = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		document.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return new TextDecoder().decode(document);
+}
+
 /** The issuer's EDGAR feed of its ten most recent 8-K filings. */
 export function feedUrl(cik: string): string {
 	return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=8-K&dateb=&owner=include&count=10&output=atom`;
@@ -83,25 +124,26 @@ function fetchOne(
 	request: FigureRequest,
 ): string {
 	// A request the capability itself fails, a response over its size limit or a timeout, is a
-	// source that did not answer with the document, like any other status.
+	// source that did not answer with the document, like any other status, and so is a body that
+	// does not decompress. A release is larger than the response the platform accepts, and a small
+	// fraction of it compressed, so every request accepts a compressed answer.
 	const get = (url: string): string | null => {
-		let response: ReturnType<
-			ReturnType<HTTPSendRequester["sendRequest"]>["result"]
-		>;
+		let response: Response;
 		try {
 			response = sendRequester
 				.sendRequest({
 					url,
 					method: "GET",
-					headers: { "User-Agent": request.userAgent },
+					headers: {
+						"User-Agent": request.userAgent,
+						"Accept-Encoding": "gzip",
+					},
 				})
 				.result();
 		} catch {
 			return null;
 		}
-		return response.statusCode === 200
-			? new TextDecoder().decode(response.body)
-			: null;
+		return response.statusCode === 200 ? documentText(response) : null;
 	};
 	const unavailable = encodeOutcome({ abstain: "unavailable" });
 

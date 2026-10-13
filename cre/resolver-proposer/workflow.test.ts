@@ -129,6 +129,11 @@ describe("configuration", () => {
 		expect(configSchema.safeParse(committed).success).toBe(true);
 	});
 
+	test("the committed sender is reached at the project's own domain, never at a person's address", () => {
+		// The address travels in every request to the SEC and is published with the repository.
+		expect(committed.userAgent).toMatch(/^Cuspate [a-z]+@cuspate\.xyz$/);
+	});
+
 	test("a schedule without seconds is refused", () => {
 		expect(refused({ schedule: "*/10 * * * *" })).toBe(true);
 	});

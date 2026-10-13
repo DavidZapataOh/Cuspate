@@ -1,10 +1,12 @@
 import { describe, expect } from "bun:test";
 import { HttpActionsMock, newTestRuntime, test } from "@chainlink/cre-sdk/test";
+import { gzipSync } from "fflate";
 import {
 	decodeOutcome,
 	encodeOutcome,
 	type FigureRequest,
 	feedUrl,
+	MAX_DOCUMENT_BYTES,
 	MAX_FILINGS,
 	readFigure,
 } from "./fetch";
@@ -32,7 +34,7 @@ const edgar: Record<string, Buffer> = {
 const q4: FigureRequest = {
 	cik: "723125",
 	notBefore: "2026-09-01",
-	userAgent: "Cuspate research@cuspate.invalid",
+	userAgent: "Cuspate ops@cuspate.xyz",
 	period: { quarter: 4, fiscalYear: 2026 },
 	decimals: 2,
 };
@@ -56,6 +58,28 @@ function serve(site: Record<string, Buffer | number>) {
 			: { statusCode: 200, body: page.toString("base64") };
 	};
 	return asked;
+}
+
+/**
+ * Serves `site` compressed, as EDGAR answers a client that accepts gzip: every document gzipped, the
+ * encoding declared in the response header unless `declared` is false.
+ */
+function serveCompressed(site: Record<string, Buffer>, declared = true) {
+	HttpActionsMock.testInstance().sendRequest = (input) => {
+		const page = site[input.url];
+		if (page === undefined)
+			return {
+				statusCode: 404,
+				body: Buffer.from("Not found").toString("base64"),
+			};
+		return {
+			statusCode: 200,
+			body: Buffer.from(gzipSync(page)).toString("base64"),
+			multiHeaders: declared
+				? { "Content-Encoding": { values: ["gzip"] } }
+				: ({} as Record<string, { values: string[] }>),
+		};
+	};
 }
 
 describe("readFigure", () => {
@@ -124,14 +148,18 @@ describe("readFigure", () => {
 		expect(asked.length).toBeLessThanOrEqual(1 + 2 * MAX_FILINGS);
 	});
 
-	test("asks by GET, declaring who is asking, every time", () => {
-		// The SEC refuses requests that do not identify their sender.
+	test("asks by GET, declaring who is asking and accepting a compressed answer, every time", () => {
+		// The SEC refuses requests that do not identify their sender. A release is larger than the
+		// response the platform accepts, and fits compressed.
 		const asked = serve(edgar);
 		readFigure(newTestRuntime(), q4);
 		expect(asked.length).toBe(3);
 		for (const request of asked) {
 			expect(request.method).toBe("GET");
-			expect(request.headers).toEqual({ "User-Agent": q4.userAgent });
+			expect(request.headers).toEqual({
+				"User-Agent": q4.userAgent,
+				"Accept-Encoding": "gzip",
+			});
 		}
 	});
 
@@ -180,6 +208,73 @@ describe("readFigure", () => {
 				});
 			}
 		}
+	});
+});
+
+describe("a compressed answer", () => {
+	test("is decompressed, and the release read from it", () => {
+		serveCompressed(edgar);
+		expect(readFigure(newTestRuntime(), q4)).toEqual({
+			text: "33.42",
+			value: 3342n,
+			decimals: 2,
+		});
+	});
+
+	test("is recognised by its own bytes when the header does not declare it", () => {
+		serveCompressed(edgar, false);
+		expect(readFigure(newTestRuntime(), q4)).toEqual({
+			text: "33.42",
+			value: 3342n,
+			decimals: 2,
+		});
+	});
+
+	test("is what the platform's response limit admits, where the release itself is not", () => {
+		// The platform refuses a response body over 250,000 bytes.
+		const release =
+			edgar[`${archive}/000072312526000018/a2026q4ex991-pressrelease.htm`];
+		expect(release.length).toBeGreaterThan(250_000);
+		expect(gzipSync(release).length).toBeLessThan(250_000);
+	});
+
+	test("that does not decompress is a source that did not answer with the document", () => {
+		const release = `${archive}/000072312526000018/a2026q4ex991-pressrelease.htm`;
+		HttpActionsMock.testInstance().sendRequest = (input) => {
+			const page = edgar[input.url];
+			const compressed = Buffer.from(gzipSync(page));
+			const body =
+				input.url === release
+					? compressed.subarray(0, compressed.length / 2)
+					: compressed;
+			return {
+				statusCode: 200,
+				body: body.toString("base64"),
+				multiHeaders: { "Content-Encoding": { values: ["gzip"] } },
+			};
+		};
+		expect(readFigure(newTestRuntime(), q4)).toEqual({
+			abstain: "unavailable",
+		});
+	});
+
+	test("that decompresses past the largest document read is refused, not expanded", () => {
+		// A small body can expand without bound; the workflow stops at a size no release approaches.
+		const release = `${archive}/000072312526000018/a2026q4ex991-pressrelease.htm`;
+		const bomb = Buffer.concat([
+			edgar[release],
+			Buffer.alloc(MAX_DOCUMENT_BYTES, " "),
+		]);
+		expect(gzipSync(bomb).length).toBeLessThan(250_000);
+		serveCompressed({ ...edgar, [release]: bomb });
+		expect(readFigure(newTestRuntime(), q4)).toEqual({
+			abstain: "unavailable",
+		});
+	});
+
+	test("leaves room: the largest document read is several times the largest release", () => {
+		for (const file of Object.values(edgar))
+			expect(file.length * 4).toBeLessThan(MAX_DOCUMENT_BYTES);
 	});
 });
 

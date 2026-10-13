@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { CHAIN_ABSTAIN_REASONS, REPORT_GAS_LIMIT } from "./chain";
-import { FETCH_ABSTAIN_REASONS, MAX_FILINGS } from "./fetch";
+import {
+	FETCH_ABSTAIN_REASONS,
+	MAX_DOCUMENT_BYTES,
+	MAX_FILINGS,
+} from "./fetch";
 import { ABSTAIN_REASONS } from "./source";
 
 const runbook = await Bun.file(`${import.meta.dir}/../README.md`).text();
@@ -22,5 +26,6 @@ describe("the operations runbook", () => {
 	test("states the limits the code applies", () => {
 		expect(runbook).toContain(Number(REPORT_GAS_LIMIT).toLocaleString("en-US"));
 		expect(runbook).toContain(`at most ${MAX_FILINGS} filings`);
+		expect(runbook).toContain(`stops at ${MAX_DOCUMENT_BYTES / 1_000_000} MB`);
 	});
 });

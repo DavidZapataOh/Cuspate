@@ -15,7 +15,11 @@ only: it cannot see the fallback source, so it cannot know that no source has th
    has no open proposal, no pending arbitration and no disputed proposal of this workflow's own.
 2. Reads the issuer's 8-K feed and, earliest first, at most 3 filings under item 2.02 (results) from the
    day before the announcement, the first release that reports the configured quarter is read. Each node
-   does this itself; the nodes must agree on the outcome.
+   does this itself; the nodes must agree on the outcome. Every request accepts a gzip answer and the
+   workflow decompresses it: the platform refuses a response body over 250 KB, and a release is larger.
+   Measured on 2026-10-13 in a simulation under the production limits, the fourth quarter's release is
+   357,009 bytes, refused uncompressed, and about 17 KB compressed. Decompression stops at 2 MB, several
+   times any release, so a small body cannot expand without bound.
 3. Writes the report `(eventId, figure, decimals)` to the receiver with a gas limit of 500,000. Delivery
    was measured at about 332,000 on a fork of the production chain; the network charges the limit, so
    it is not padded further.
@@ -34,7 +38,7 @@ Every run logs one result, `resolver-proposer: <result>`, and returns it.
 | `abstain:own-disputed` | The open round follows this workflow's own disputed proposal; a person decides. |
 | `abstain:not-filed` | No results filing is listed yet. Expected between the announcement and the filing. |
 | `abstain:exhibit-not-found` | The filing's index names no single press release. |
-| `abstain:unavailable` | EDGAR did not answer with the document: an error status, a rate limit, a timeout or a response over the size limit. |
+| `abstain:unavailable` | EDGAR did not answer with the document: an error status, a rate limit, a timeout, a response over the size limit, or a compressed body that does not decompress within 2 MB. |
 | `abstain:period-not-found` | No listed release reports the configured quarter. |
 | `abstain:figure-not-found` | The quarter's highlights state no non-GAAP figure. |
 | `abstain:ambiguous` | The release's statements of the figure disagree, or nothing confirms it. |
@@ -59,7 +63,8 @@ proposal comes within ten minutes of the filing.
   sealed. Zero until deployment; the workflow abstains until they are set.
 - `cik`, `period`: the issuer's SEC Central Index Key and the fiscal quarter the terms name.
 - `userAgent`: a name and a reachable contact address. The SEC refuses requests that do not identify
-  their sender. The committed address is a placeholder and must be a real contact before deployment.
+  their sender. It is the project's own address, `ops@cuspate.xyz`, a monitored mailbox; a test keeps
+  the committed sender on the project's domain, never a person's address.
 
 The threshold's decimals and the earliest filing date are read from the chain, not configured.
 

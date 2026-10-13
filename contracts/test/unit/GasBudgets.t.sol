@@ -4,6 +4,13 @@ pragma solidity 0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {ConditionalPools} from "../../src/ConditionalPools.sol";
+import {FreezeHook} from "../../src/FreezeHook.sol";
 import {MarketFactory} from "../../src/MarketFactory.sol";
 import {Outcome, PositionVault} from "../../src/PositionVault.sol";
 import {OptimisticResolver} from "../../src/OptimisticResolver.sol";
@@ -18,6 +25,8 @@ import {TestStock} from "./MarketFactory.t.sol";
 ///         the fixture cannot quietly turn it into a cheaper one.
 /// @dev Recorded under isolation, so each value is receipt gas: intrinsic cost and calldata included.
 abstract contract GasCases is Test {
+    using PoolIdLibrary for PoolKey;
+
     bytes32 internal constant EVENT = keccak256("an event");
 
     address internal resolver = makeAddr("resolver");
@@ -273,6 +282,40 @@ abstract contract GasCases is Test {
             deadline: announcesAt + 8 days,
             terms: terms
         });
+    }
+
+    /// @notice Registering a market's three pools with the freeze hook, then the guardian bringing
+    ///         their freeze forward. The case builds its own resolver, sealed event and market, so
+    ///         the fixture every other case measures is unchanged.
+    /// @dev Neither call reaches the pool manager, so the hook is given a placeholder for it.
+    function test_freezeHook() public {
+        IERC20 underlying = underlyingVault.COLLATERAL();
+        IERC20 dollar = dollarVault.COLLATERAL();
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory, registry, address(this), address(this), dollar, 1, 1, 1, 1, 1
+        );
+        address hookAddress =
+            address(uint160(0x4444 << 144) | Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG);
+        deployCodeTo(
+            "FreezeHook.sol:FreezeHook",
+            abi.encode(IPoolManager(address(0xdead)), resolver_, address(this)),
+            hookAddress
+        );
+        FreezeHook hook = FreezeHook(hookAddress);
+        bytes32 eventId =
+            registry.seal(_sealable(uint64(vm.getBlockTimestamp() + 1 days), "frozen"));
+        bytes32 marketId = factory.createMarket(underlying, dollar, eventId, address(resolver_));
+        (PositionVault underlyingVault_, PositionVault dollarVault_) = factory.markets(marketId);
+        (PoolKey memory yes,) =
+            ConditionalPools.keysOf(underlyingVault_, dollarVault_, IHooks(hookAddress));
+        assertEq(hook.freezesAt(yes.toId()), 0);
+
+        hook.register(underlying, dollar, eventId);
+        _record("FreezeHook.register a market's three pools", "");
+
+        vm.warp(vm.getBlockTimestamp() + 1 hours);
+        hook.freezeNow(marketId);
+        _record("FreezeHook.freezeNow a market's three pools", "");
     }
 
     /// @notice A resolver's first report of a condition.

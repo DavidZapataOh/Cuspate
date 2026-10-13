@@ -1,4 +1,6 @@
 {
+  "FreezeHook.freezeNow a market's three pools": "102360",
+  "FreezeHook.register a market's three pools": "177060",
   "MarketFactory.createMarket over TSTK and TUSD": "3657264",
   "MarketFactory.reportOutcome first report of a condition": "52885",
   "OptimisticResolver.dispute a first proposal, resetting the event": "102121",

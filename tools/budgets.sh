@@ -32,9 +32,14 @@ measure() {
 
 measure
 # The build cache can collect no suite at all right after a file changes, and then nothing is
-# written; a forced recompile recovers it.
+# written; a recompile recovers it. The whole project's, never a forced filtered run, which
+# deletes the artefacts of every file outside the filter.
 if [ ! -f "${scratch}/${group}.json" ]; then
-	measure --force
+	forge build --force > "${scratch}/build.log" 2>&1 || {
+		cat "${scratch}/build.log" >&2
+		exit 1
+	}
+	measure
 fi
 
 python3 - "${committed}" "${scratch}/${group}.json" "${group}" <<'EOF'

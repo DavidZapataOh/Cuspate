@@ -24,30 +24,27 @@ selection_glob() {
 
 # Counts what the listing says will run: test functions, for the reader, and suites, for the
 # comparison below. Functions rather than reported tests, because every invariant function in one
-# contract collapses into one reported test. And abstract suites are left out — measured, the
-# listing includes them although they have no bytecode and never run.
+# contract collapses into one reported test. And abstract suites are left out — the listing includes
+# them although they never run — as their source declares them, never from the build, whose
+# artefact for an abstract base can be missing right after files change.
 count_listing() {
 	# Captured before it is counted, so a listing that failed to compile fails here.
 	listing="$(forge test --list --json --match-path "$1")"
-	printf '%s' "${listing}" | python3 -c '
+	printf '%s' "${listing}" | python3 "${repo}/tools/abstract_suites.py" | python3 -c '
 import json
-import pathlib
 import sys
 
 listing = json.load(sys.stdin)
-functions = suites = 0
-for file, found in listing.items():
-    for suite, names in found.items():
-        artefact = pathlib.Path("out") / pathlib.Path(file).name / f"{suite}.json"
-        # Skipped only when the artefact says so. A missing artefact or field is counted, which
-        # keeps the comparison strict rather than letting it shrink.
-        code = json.loads(artefact.read_text()).get("bytecode", {}).get("object") if artefact.exists() else None
-        if code in ("", "0x"):
-            continue
-        functions += len(names)
-        suites += 1
+functions = sum(len(names) for found in listing.values() for names in found.values())
+suites = sum(len(found) for found in listing.values())
 print(functions, suites)
 '
+}
+
+# Recompiles the whole project, so every artefact is current, then runs the selection again.
+rebuild_and_rerun() {
+	forge build --force > "$2" 2>&1 || return $?
+	forge test --match-path "$1" > "$2" 2>&1
 }
 
 suites_run() {
@@ -73,19 +70,24 @@ run_selection() {
 	# suites the run reports are compared with the suites listed; a shortfall is announced and
 	# retried once, and a second shortfall is a failure, because a selection that checked part of
 	# itself and said nothing is the failure this harness exists to refuse.
+	#
+	# The recompile is the whole project's, then the filtered run again. Measured: a forced run
+	# filtered to some test files deletes the artefacts of every file outside the filter, and a
+	# later build that reports nothing changed leaves them so — a deployment script then read a
+	# bytecode-less artefact.
 	status=0
 	forge test --match-path "${glob}" > "${log}" 2>&1 || status=$?
 	if [ "${status}" -eq 0 ] && [ "$(suites_run "${log}")" -lt "${suites}" ]; then
 		echo "$1: the run collected $(suites_run "${log}") of ${suites} suites listed; recompiling" >&2
 		status=0
-		forge test --force --match-path "${glob}" > "${log}" 2>&1 || status=$?
+		rebuild_and_rerun "${glob}" "${log}" || status=$?
 	elif [ "${status}" -ne 0 ] && grep -q "no bytecode for contract" "${log}"; then
 		# The same cache, failing the other way: a suite is collected while a contract it deploys
 		# still has no current bytecode, and its setup fails although nothing is wrong with the code.
 		# Only that signature is retried; any other failure stands as it is.
 		echo "$1: a deployed contract had no current bytecode; recompiling" >&2
 		status=0
-		forge test --force --match-path "${glob}" > "${log}" 2>&1 || status=$?
+		rebuild_and_rerun "${glob}" "${log}" || status=$?
 	fi
 	cat "${log}"
 	if [ "${status}" -ne 0 ]; then

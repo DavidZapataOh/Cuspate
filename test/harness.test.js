@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -40,35 +48,38 @@ function forge(args) {
 }
 
 /**
- * Whether a listed suite can run. Measured: the listing includes abstract suites, which have no
- * bytecode and are never executed, so counting them makes every comparison against the results
- * fail. A suite whose artefact is missing is counted, which keeps the comparison strict.
+ * Every test function the runner can run, from the listing, which executes nothing. Abstract
+ * suites are listed although they never run; they are dropped as their source declares them, by
+ * the same tool the one command uses, never from the build, whose artefact for an abstract base
+ * can be missing right after files change.
  */
-function deployable(file, suite) {
-	const artefact = path.join(
-		contracts,
-		"out",
-		path.basename(file),
-		`${suite}.json`,
-	);
-	if (!existsSync(artefact)) return true;
-	const code = JSON.parse(readFileSync(artefact, "utf8")).bytecode?.object;
-	if (code === undefined) return true;
-	return code !== "" && code !== "0x";
-}
-
-/** Every test function the runner can run, from the listing, which executes nothing. */
 function listed(glob) {
 	const args = ["test", "--list", "--json"];
 	if (glob) args.push("--match-path", glob);
+	const listing = execFileSync("forge", args, {
+		cwd: contracts,
+		encoding: "utf8",
+		maxBuffer: big,
+	});
 	const found = [];
-	for (const [file, suites] of Object.entries(forge(args))) {
+	for (const [file, suites] of Object.entries(runnable(listing, contracts))) {
 		for (const [suite, names] of Object.entries(suites)) {
-			if (!deployable(file, suite)) continue;
 			for (const name of names) found.push({ file, suite, name });
 		}
 	}
 	return found;
+}
+
+/** A listing without its abstract suites, paths read relative to `cwd`. */
+function runnable(listing, cwd) {
+	return JSON.parse(
+		execFileSync("python3", [path.join(root, "tools", "abstract_suites.py")], {
+			cwd,
+			input: listing,
+			encoding: "utf8",
+			maxBuffer: big,
+		}),
+	);
 }
 
 /**
@@ -93,16 +104,20 @@ function executed(glob) {
 
 function measure(glob) {
 	// Measured, as the selections found: right after files change, a run can collect only some of
-	// the suites the listing sees, or none, and still exit zero; a forced recompile recovers it. So
-	// a run that reports fewer suites than are listed is retried once, forced. The assertions below
-	// stay the check: a second shortfall still fails them.
+	// the suites the listing sees, or none, and still exit zero; a recompile recovers it. So a run
+	// that reports fewer suites than are listed is retried once, after recompiling the whole project
+	// (a forced run filtered to some files deletes every other file's artefacts). The assertions
+	// below stay the check: a second shortfall still fails them.
 	const suites = (tests) =>
 		new Set(tests.map((t) => `${t.file}:${t.suite}`)).size;
 	const expected = suites(listed(glob));
 	const found = run(["test", "--json", "--match-path", glob]);
-	return suites(found) < expected
-		? run(["test", "--force", "--json", "--match-path", glob])
-		: found;
+	if (suites(found) >= expected) return found;
+	execFileSync("forge", ["build", "--force"], {
+		cwd: contracts,
+		stdio: "ignore",
+	});
+	return run(["test", "--json", "--match-path", glob]);
 }
 
 /** One run's results, read from its report even when it fails. */
@@ -248,6 +263,61 @@ test("the kinds the runner reports partition every test function", () => {
 		new Set(covered).size,
 		"a test function is claimed by more than one selection",
 	);
+});
+
+test("no tool forces a filtered run, which deletes every artefact outside the filter", () => {
+	// Measured: forge test --force --match-path <some files> removes the artefacts of every other
+	// file, and a build that then reports nothing changed leaves a deployment script's artefact
+	// without bytecode. Recompiling is always the whole project's.
+	const sources = [
+		...readdirSync(path.join(root, "tools")).map((f) => path.join("tools", f)),
+		...readdirSync(path.join(root, "test")).map((f) => path.join("test", f)),
+	].filter((f) => /\.(sh|js|py)$/.test(f));
+	const forced = /test[^\n]*--force|"test",\s*"--force"|measure --force/; // the pattern itself
+	const offenders = sources.filter((f) =>
+		readFileSync(path.join(root, f), "utf8")
+			.split("\n")
+			.some(
+				(line) =>
+					!line.trim().startsWith("//") &&
+					!line.trim().startsWith("#") &&
+					!line.includes("// the pattern itself") &&
+					forced.test(line),
+			),
+	);
+	assert.deepEqual(offenders, [], "a tool forces a filtered run");
+});
+
+test("an abstract suite is told from its source, with no build anywhere", () => {
+	// The rule never reads an artefact: here there is no build at all, only sources. A base and a
+	// suite whose name extends it, an abstract declaration split across lines, one only mentioned
+	// in comments, and a file that cannot be read, which keeps its suites to stay strict.
+	const dir = mkdtempSync(path.join(tmpdir(), "abstract-"));
+	writeFileSync(
+		path.join(dir, "Base.t.sol"),
+		"abstract contract Base is Test {}\ncontract BaseTest is Base {}\n",
+	);
+	writeFileSync(
+		path.join(dir, "Split.t.sol"),
+		"abstract\n   contract   Split {}\n",
+	);
+	writeFileSync(
+		path.join(dir, "Mentioned.t.sol"),
+		"// abstract contract Mentioned\n/* abstract contract Mentioned */\ncontract Mentioned {}\n",
+	);
+	const listing = {
+		"Base.t.sol": { Base: ["test_a"], BaseTest: ["test_a"] },
+		"Split.t.sol": { Split: ["test_b"] },
+		"Mentioned.t.sol": { Mentioned: ["test_c"] },
+		"Missing.t.sol": { Missing: ["test_d"] },
+	};
+	assert.deepEqual(runnable(JSON.stringify(listing), dir), {
+		"Base.t.sol": { BaseTest: ["test_a"] },
+		"Split.t.sol": {},
+		"Mentioned.t.sol": { Mentioned: ["test_c"] },
+		"Missing.t.sol": { Missing: ["test_d"] },
+	});
+	assert.equal(existsSync(path.join(dir, "out")), false);
 });
 
 test("every test in a kind-named selection reports that kind", () => {

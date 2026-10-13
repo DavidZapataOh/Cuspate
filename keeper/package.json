@@ -1,0 +1,19 @@
+{
+	"name": "cuspate-keeper",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"build": "tsc --noEmit",
+		"test": "vitest run",
+		"start": "node src/main.ts"
+	},
+	"dependencies": {
+		"viem": "2.57.4"
+	},
+	"devDependencies": {
+		"@types/node": "24.10.1",
+		"typescript": "5.9.3",
+		"vitest": "3.2.4"
+	}
+}

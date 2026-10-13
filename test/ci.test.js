@@ -1056,6 +1056,20 @@ test("the indexer is reconciled with a fork of the production chain in its own j
 	);
 });
 
+test("the keeper is proven against a fork of the production chain in its own job, by a script", () => {
+	const block = jobs().keeper ?? "";
+	assert.match(
+		block,
+		/^\s+run: tools\/keeper\.sh\s*$/m,
+		"the keeper job does not run tools/keeper.sh",
+	);
+	assert.match(
+		block,
+		/foundry-rs\/foundry-toolchain@v1/,
+		"the keeper job has no local node to fork with",
+	);
+});
+
 test("exactly one job holds a secret, and it is the forbidden-terms job", () => {
 	// A job cannot enumerate the repository's secrets from inside, so "carries no secret" is only
 	// assertable over the workflow file. Any in-job check is a denylist of names someone already knew.
@@ -1065,6 +1079,7 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 		"fork",
 		"gates",
 		"indexer",
+		"keeper",
 		"repository",
 	]);
 	const holding = Object.entries(blocks)

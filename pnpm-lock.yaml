@@ -216,6 +216,22 @@ importers:
         specifier: 3.2.4
         version: 3.2.4(@types/node@24.10.1)(supports-color@7.2.0)(tsx@4.21.0)
 
+  keeper:
+    dependencies:
+      viem:
+        specifier: 2.57.4
+        version: 2.57.4(typescript@5.9.3)(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@24.10.1)(supports-color@7.2.0)(tsx@4.21.0)
+
   web:
     devDependencies:
       '@types/node':

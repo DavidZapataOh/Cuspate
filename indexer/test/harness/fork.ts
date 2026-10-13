@@ -107,6 +107,13 @@ function freePort(): Promise<number> {
 	});
 }
 
+/**
+ * How long one request to a fork may take. A fork reads the production chain's state lazily from the
+ * archive endpoint, so a single transaction can wait on many remote reads; the library's default of
+ * ten seconds is not enough on a shared runner.
+ */
+export const FORK_REQUEST_TIMEOUT_MS = 120_000;
+
 /** A running fork and clients for it. */
 export type Fork = Awaited<ReturnType<typeof startFork>>;
 
@@ -130,7 +137,7 @@ export async function startFork() {
 	const account = privateKeyToAccount(DEPLOYER_KEY);
 	const client = createTestClient({
 		mode: "anvil",
-		transport: http(url),
+		transport: http(url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
 		account,
 	})
 		.extend(publicActions)
@@ -159,7 +166,7 @@ export async function startFork() {
 			await client.setBalance({ address, value: 10n ** 22n });
 			return createWalletClient({
 				account: address,
-				transport: http(url),
+				transport: http(url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
 			}).extend(publicActions);
 		},
 		/** Gives `holder` `amount` of a real token. */
@@ -231,5 +238,7 @@ export async function deployHook(
 
 /** A read-only client for the fork, without the test actions. */
 export function reader(fork: Fork) {
-	return createPublicClient({ transport: http(fork.url) });
+	return createPublicClient({
+		transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+	});
 }

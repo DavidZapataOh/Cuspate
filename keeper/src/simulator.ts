@@ -30,6 +30,12 @@ function freePort(): Promise<number> {
 	});
 }
 
+/**
+ * How long one request to the fork may take. The fork reads the chain's state lazily from `upstream`,
+ * so a single call can wait on many remote reads; the library's default of ten seconds is not enough.
+ */
+const REQUEST_TIMEOUT_MS = 120_000;
+
 /** A local fork of `upstream`, reset to its head on demand. */
 export type Simulator = Awaited<ReturnType<typeof startSimulator>>;
 
@@ -41,7 +47,10 @@ export async function startSimulator(upstream: string) {
 		{ stdio: "ignore" },
 	);
 	const url = `http://127.0.0.1:${port}`;
-	const client = createTestClient({ mode: "anvil", transport: http(url) })
+	const client = createTestClient({
+		mode: "anvil",
+		transport: http(url, { timeout: REQUEST_TIMEOUT_MS }),
+	})
 		.extend(publicActions)
 		.extend(walletActions);
 	for (let attempt = 0; ; attempt++) {

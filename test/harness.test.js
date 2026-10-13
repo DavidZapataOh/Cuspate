@@ -518,3 +518,46 @@ test("every invariant property asserts something", () => {
 	}
 	assert.deepEqual(offending, []);
 });
+
+// A fork fetches the production chain's state lazily, so one call can wait on many reads from the
+// archive endpoint. The library's default of ten seconds failed a setup transaction in continuous
+// integration; every client of a local fork states the longer bound instead of inheriting it.
+const FORK_CLIENTS = ["indexer/test", "keeper/test", "keeper/src/simulator.ts"];
+const FORK_TIMEOUT_FLOOR_MS = 60_000;
+
+function sources(entry) {
+	const full = path.join(root, entry);
+	if (statSync(full).isFile()) return [full];
+	return readdirSync(full, { recursive: true })
+		.map((name) => path.join(full, name))
+		.filter((name) => name.endsWith(".ts"));
+}
+
+test("every client of a local fork states a bound for the archive's latency", () => {
+	const bare = [];
+	for (const file of FORK_CLIENTS.flatMap(sources)) {
+		for (const call of readFileSync(file, "utf8").matchAll(
+			/\bhttp\(([^()]*)\)/g,
+		)) {
+			if (!call[1].includes(","))
+				bare.push(`${path.relative(root, file)}: ${call[0]}`);
+		}
+	}
+	assert.deepEqual(bare, []);
+});
+
+test("the bound for a fork's requests is at or above the floor recorded here", () => {
+	for (const [file, name] of [
+		["indexer/test/harness/fork.ts", "FORK_REQUEST_TIMEOUT_MS"],
+		["keeper/src/simulator.ts", "REQUEST_TIMEOUT_MS"],
+	]) {
+		const match = readFileSync(path.join(root, file), "utf8").match(
+			new RegExp(`const ${name} = ([0-9_]+);`),
+		);
+		assert.ok(match, `${file} declares ${name}`);
+		assert.ok(
+			Number(match[1].replaceAll("_", "")) >= FORK_TIMEOUT_FLOOR_MS,
+			`${file}: ${name}`,
+		);
+	}
+});

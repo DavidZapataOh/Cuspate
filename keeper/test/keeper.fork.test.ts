@@ -33,6 +33,7 @@ import {
 import {
 	artifact,
 	deploy,
+	FORK_REQUEST_TIMEOUT_MS,
 	type Fork,
 	startFork,
 	thirdParty,
@@ -325,7 +326,9 @@ function keeper(
 ) {
 	return new Keeper({
 		client: client(),
-		wallet: createWalletClient({ transport: http(fork.url) }),
+		wallet: createWalletClient({
+			transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+		}),
 		owner,
 		safe,
 		multiSend: thirdParty("safeMultiSendCallOnly"),
@@ -475,7 +478,9 @@ describe("the keeper", () => {
 		if ("kind" in prepared) throw new Error("nothing was prepared");
 		const before = await safeNonce();
 		// The batch went out, and the process stopped before it recorded so.
-		const wallet = createWalletClient({ transport: http(fork.url) });
+		const wallet = createWalletClient({
+			transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+		});
 		await fork.client.waitForTransactionReceipt({
 			hash: await wallet.sendTransaction({
 				account: owner,
@@ -502,7 +507,9 @@ describe("the keeper", () => {
 		expect((await second.finish(b)).kind).toBe("superseded");
 		expect(await safeNonce()).toBe(before + 1n);
 		// Even sent anyway, the second signature cannot execute: the nonce it signed is spent.
-		const wallet = createWalletClient({ transport: http(fork.url) });
+		const wallet = createWalletClient({
+			transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+		});
 		const hash = await wallet.sendTransaction({
 			account: owner,
 			to: safe,
@@ -521,7 +528,9 @@ describe("the keeper", () => {
 		const store = new Store(mkdtempSync(path.join(tmpdir(), "keeper-")));
 		const prepared = await keeper(store).prepare();
 		if ("kind" in prepared) throw new Error("nothing was prepared");
-		const wallet = createWalletClient({ transport: http(fork.url) });
+		const wallet = createWalletClient({
+			transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+		});
 		await fork.client.waitForTransactionReceipt({
 			hash: await wallet.sendTransaction({
 				account: owner,
@@ -581,7 +590,9 @@ describe("the keeper's follow-ups, against the resolver", () => {
 	const take = (eventId: Hex) =>
 		takeFollowUps(
 			client(),
-			createWalletClient({ transport: http(fork.url) }),
+			createWalletClient({
+				transport: http(fork.url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+			}),
 			owner,
 			protocol.resolver.address,
 			eventId,

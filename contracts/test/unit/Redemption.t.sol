@@ -59,7 +59,14 @@ contract RedemptionTest is Test {
         factory = new MarketFactory();
         underlying = IERC20(address(new TestStock()));
         dollar = new TestCollateral();
-        bytes32 id = factory.createMarket(underlying, IERC20(address(dollar)), EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying,
+            IERC20(address(dollar)),
+            EVENT,
+            resolver,
+            type(uint256).max,
+            type(uint256).max
+        );
         (, vault) = factory.markets(id);
         dollar.mint(holder, AMOUNT);
         vm.startPrank(holder);
@@ -74,8 +81,18 @@ contract RedemptionTest is Test {
         bytes32 condition = keccak256(abi.encode(resolver, EVENT));
         assertEq(factory.condition(resolver, EVENT), condition);
         assertEq(
-            factory.marketId(underlying, IERC20(address(dollar)), condition),
-            keccak256(abi.encode(underlying, IERC20(address(dollar)), condition))
+            factory.marketId(
+                underlying, IERC20(address(dollar)), condition, type(uint256).max, type(uint256).max
+            ),
+            keccak256(
+                abi.encode(
+                    underlying,
+                    IERC20(address(dollar)),
+                    condition,
+                    type(uint256).max,
+                    type(uint256).max
+                )
+            )
         );
         assertEq(vault.CONDITION(), condition);
     }
@@ -123,8 +140,14 @@ contract RedemptionTest is Test {
     /// @notice Every market over one condition reads its one outcome.
     function test_marketsOverOneConditionReadOneOutcome() public {
         TestCollateral otherDollar = new TestCollateral();
-        bytes32 second =
-            factory.createMarket(underlying, IERC20(address(otherDollar)), EVENT, resolver);
+        bytes32 second = factory.createMarket(
+            underlying,
+            IERC20(address(otherDollar)),
+            EVENT,
+            resolver,
+            type(uint256).max,
+            type(uint256).max
+        );
         (, PositionVault secondVault) = factory.markets(second);
         assertEq(secondVault.CONDITION(), vault.CONDITION());
         vm.prank(resolver);
@@ -135,9 +158,15 @@ contract RedemptionTest is Test {
     /// @notice The same event with another resolver is another market, untouched by this one's report.
     function test_aDifferentResolverIsADifferentMarket() public {
         bytes32 mine = factory.marketId(
-            underlying, IERC20(address(dollar)), factory.condition(resolver, EVENT)
+            underlying,
+            IERC20(address(dollar)),
+            factory.condition(resolver, EVENT),
+            type(uint256).max,
+            type(uint256).max
         );
-        bytes32 theirs = factory.createMarket(underlying, IERC20(address(dollar)), EVENT, other);
+        bytes32 theirs = factory.createMarket(
+            underlying, IERC20(address(dollar)), EVENT, other, type(uint256).max, type(uint256).max
+        );
         assertTrue(mine != theirs);
         vm.prank(resolver);
         factory.reportOutcome(EVENT, Outcome.Yes);
@@ -237,8 +266,14 @@ contract RedemptionTest is Test {
     ///         the check comes after the collateral has arrived, before anything is minted.
     function test_RevertWhen_outcomeIsReportedDuringTheSplitsPull() public {
         ReportingCollateral hooked = new ReportingCollateral();
-        bytes32 id =
-            factory.createMarket(underlying, IERC20(address(hooked)), EVENT, address(hooked));
+        bytes32 id = factory.createMarket(
+            underlying,
+            IERC20(address(hooked)),
+            EVENT,
+            address(hooked),
+            type(uint256).max,
+            type(uint256).max
+        );
         (, PositionVault hookedVault) = factory.markets(id);
         hooked.mint(holder, AMOUNT);
         hooked.arm(factory, EVENT);
@@ -252,7 +287,14 @@ contract RedemptionTest is Test {
     /// @notice A market nobody can resolve is refused.
     function test_RevertWhen_resolverIsZero() public {
         vm.expectRevert(MarketFactory.ZeroResolver.selector);
-        factory.createMarket(underlying, IERC20(address(dollar)), keccak256("other"), address(0));
+        factory.createMarket(
+            underlying,
+            IERC20(address(dollar)),
+            keccak256("other"),
+            address(0),
+            type(uint256).max,
+            type(uint256).max
+        );
     }
 
     /// @notice Reports an outcome for this market's condition.

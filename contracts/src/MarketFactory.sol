@@ -29,6 +29,9 @@ contract MarketFactory is IOutcomes {
     /// @notice Thrown when a market is created with no resolver, so that nothing could ever resolve it.
     error ZeroResolver();
 
+    /// @notice Thrown when a market is created with a cap of zero, which nobody could enter.
+    error ZeroCap();
+
     /// @notice Emitted when a condition's outcome is reported.
     /// @param condition The condition.
     /// @param resolver Who reported it, which is the resolver the condition names.
@@ -49,6 +52,8 @@ contract MarketFactory is IOutcomes {
     /// @param resolver Who reports the event's outcome for this market.
     /// @param underlyingVault The vault over the underlying.
     /// @param dollarVault The vault over the dollar.
+    /// @param underlyingCap The most underlying the market holds outstanding.
+    /// @param dollarCap The most dollar the market holds outstanding.
     event MarketCreated(
         bytes32 indexed marketId,
         IERC20 indexed underlying,
@@ -56,7 +61,9 @@ contract MarketFactory is IOutcomes {
         bytes32 eventId,
         address resolver,
         PositionVault underlyingVault,
-        PositionVault dollarVault
+        PositionVault dollarVault,
+        uint256 underlyingCap,
+        uint256 dollarCap
     );
 
     /// @notice The two vaults of one market.
@@ -84,13 +91,17 @@ contract MarketFactory is IOutcomes {
     /// @param underlying The underlying it splits.
     /// @param dollar The dollar it splits.
     /// @param condition_ The condition it is conditioned on.
+    /// @param underlyingCap The most underlying it holds outstanding.
+    /// @param dollarCap The most dollar it holds outstanding.
     /// @return The market's id.
-    function marketId(IERC20 underlying, IERC20 dollar, bytes32 condition_)
-        public
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(underlying, dollar, condition_));
+    function marketId(
+        IERC20 underlying,
+        IERC20 dollar,
+        bytes32 condition_,
+        uint256 underlyingCap,
+        uint256 dollarCap
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(underlying, dollar, condition_, underlyingCap, dollarCap));
     }
 
     /// @inheritdoc IOutcomes
@@ -123,32 +134,52 @@ contract MarketFactory is IOutcomes {
     /// @param eventId The event it is conditioned on.
     /// @param resolver Who reports the event's outcome for this market. It is part of the market's
     ///        id, so a market's resolver is never chosen by whoever happens to create it first.
+    /// @param underlyingCap The most underlying the market holds outstanding at once. Part of the id
+    ///        too, for the same reason; raising it means creating another market.
+    /// @param dollarCap The most dollar the market holds outstanding at once; likewise.
     /// @return id The new market's id.
     /// @custom:access anyone
-    function createMarket(IERC20 underlying, IERC20 dollar, bytes32 eventId, address resolver)
-        external
-        returns (bytes32 id)
-    {
+    function createMarket(
+        IERC20 underlying,
+        IERC20 dollar,
+        bytes32 eventId,
+        address resolver,
+        uint256 underlyingCap,
+        uint256 dollarCap
+    ) external returns (bytes32 id) {
         if (underlying == dollar) {
             revert SameCollateral(dollar);
         }
         if (resolver == address(0)) {
             revert ZeroResolver();
         }
+        if (underlyingCap == 0 || dollarCap == 0) {
+            revert ZeroCap();
+        }
         bytes32 marketCondition = condition(resolver, eventId);
-        id = marketId(underlying, dollar, marketCondition);
+        id = marketId(underlying, dollar, marketCondition, underlyingCap, dollarCap);
         if (address(markets[id].underlyingVault) != address(0)) {
             revert MarketExists(id);
         }
 
         // A vault's creation code depends only on these inputs, so both addresses are known before
         // anything exists, and the market is recorded and announced before any call is made.
-        bytes memory underlyingCode = _vaultCode(underlying, id, marketCondition);
-        bytes memory dollarCode = _vaultCode(dollar, id, marketCondition);
+        bytes memory underlyingCode = _vaultCode(underlying, id, marketCondition, underlyingCap);
+        bytes memory dollarCode = _vaultCode(dollar, id, marketCondition, dollarCap);
         PositionVault underlyingVault = PositionVault(_created(id, keccak256(underlyingCode)));
         PositionVault dollarVault = PositionVault(_created(id, keccak256(dollarCode)));
         markets[id] = Market(underlyingVault, dollarVault);
-        emit MarketCreated(id, underlying, dollar, eventId, resolver, underlyingVault, dollarVault);
+        emit MarketCreated(
+            id,
+            underlying,
+            dollar,
+            eventId,
+            resolver,
+            underlyingVault,
+            dollarVault,
+            underlyingCap,
+            dollarCap
+        );
         Create2.deploy(0, id, underlyingCode);
         Create2.deploy(0, id, dollarCode);
     }
@@ -158,15 +189,16 @@ contract MarketFactory is IOutcomes {
     /// @param collateral The collateral.
     /// @param id The market's id, which is also the salt the vault is created under.
     /// @param marketCondition The condition the market is conditioned on.
+    /// @param cap The vault's cap.
     /// @return The vault's creation code, with its constructor arguments.
-    function _vaultCode(IERC20 collateral, bytes32 id, bytes32 marketCondition)
+    function _vaultCode(IERC20 collateral, bytes32 id, bytes32 marketCondition, uint256 cap)
         private
         view
         returns (bytes memory)
     {
         return bytes.concat(
             type(PositionVault).creationCode,
-            abi.encode(collateral, id, IOutcomes(address(this)), marketCondition)
+            abi.encode(collateral, id, IOutcomes(address(this)), marketCondition, cap)
         );
     }
 

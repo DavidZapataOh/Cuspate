@@ -29,7 +29,12 @@ contract AccessTest is Test {
         factory = new MarketFactory();
         dollar = new TestCollateral();
         bytes32 id = factory.createMarket(
-            IERC20(address(new TestStock())), IERC20(address(dollar)), EVENT, resolver
+            IERC20(address(new TestStock())),
+            IERC20(address(dollar)),
+            EVENT,
+            resolver,
+            type(uint256).max,
+            type(uint256).max
         );
         (, vault) = factory.markets(id);
         dollar.mint(holder, AMOUNT);

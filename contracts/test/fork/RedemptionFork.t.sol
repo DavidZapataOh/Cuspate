@@ -56,7 +56,9 @@ contract RedemptionForkTest is Test {
     /// @dev The balances are fabricated with the storage cheatcode; nothing here reads the supply.
     /// @param outcome The outcome to report.
     function _resolveAndRedeem(Outcome outcome) private {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         PositionVault[2] memory vaults = [underlyingVault, dollarVault];
         uint256[2] memory amounts = [uint256(1e17), uint256(100e6)];

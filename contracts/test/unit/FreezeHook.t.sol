@@ -34,6 +34,9 @@ abstract contract FreezeHookSetup is Test {
     address internal constant HOOK =
         address(uint160(0x4444 << 144) | Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG);
 
+    /// @notice A cap that never binds, for markets whose tests are about something else.
+    uint256 internal constant MAX_CAP = type(uint256).max;
+
     /// @notice When the event's figure may first be public, relative to the start of the test.
     uint64 internal constant LEAD = 1 days;
 
@@ -72,7 +75,9 @@ abstract contract FreezeHookSetup is Test {
         dollar = IERC20(address(new TestCollateral()));
         announcesAt = uint64(vm.getBlockTimestamp()) + LEAD;
         eventId = _seal(sealer, announcesAt);
-        marketId = factory.createMarket(underlying, dollar, eventId, address(resolver));
+        marketId = factory.createMarket(
+            underlying, dollar, eventId, address(resolver), type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(marketId);
         (yesKey, noKey) = ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(HOOK));
         probabilityKey = ConditionalPools.probabilityKeyOf(dollarVault, IHooks(HOOK));
@@ -191,25 +196,37 @@ contract FreezeHookTest is FreezeHookSetup {
             marketId, eventId, announcesAt, yesKey.toId(), noKey.toId(), probabilityKey.toId()
         );
         vm.prank(makeAddr("anyone"));
-        assertEq(hook.register(underlying, dollar, eventId), marketId);
+        assertEq(hook.register(marketId, eventId), marketId);
         PoolKey[3] memory keys = _keys();
         for (uint256 index = 0; index < 3; index++) {
             assertEq(hook.freezesAt(keys[index].toId()), announcesAt);
         }
     }
 
-    /// @notice A market that does not exist with the canonical resolver is refused.
+    /// @notice A market that does not exist is refused; so is one whose condition is not the
+    ///         canonical resolver's for the event given, whether the resolver or the event differs.
     function test_RevertWhen_theMarketDoesNotExist() public {
         bytes32 otherEvent = _seal(sealer, announcesAt + 1);
-        bytes32 missing =
-            factory.marketId(underlying, dollar, factory.condition(address(resolver), otherEvent));
+        bytes32 missing = factory.marketId(
+            underlying, dollar, factory.condition(address(resolver), otherEvent), MAX_CAP, MAX_CAP
+        );
         vm.expectRevert(abi.encodeWithSelector(FreezeHook.NotAMarket.selector, missing));
-        hook.register(underlying, dollar, otherEvent);
+        hook.register(missing, otherEvent);
 
         // The same event with another resolver is another market, which this hook does not serve.
-        factory.createMarket(underlying, dollar, otherEvent, makeAddr("another resolver"));
-        vm.expectRevert(abi.encodeWithSelector(FreezeHook.NotAMarket.selector, missing));
-        hook.register(underlying, dollar, otherEvent);
+        bytes32 other = factory.createMarket(
+            underlying, dollar, otherEvent, makeAddr("another resolver"), MAX_CAP, MAX_CAP
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(FreezeHook.NotThisMarketsEvent.selector, other, otherEvent)
+        );
+        hook.register(other, otherEvent);
+
+        // The canonical market, named with another event than its own.
+        vm.expectRevert(
+            abi.encodeWithSelector(FreezeHook.NotThisMarketsEvent.selector, marketId, otherEvent)
+        );
+        hook.register(marketId, otherEvent);
     }
 
     /// @notice An event sealed by anyone but the resolver's sealer, or by nobody, never resolves, and
@@ -217,18 +234,20 @@ contract FreezeHookTest is FreezeHookSetup {
     function test_RevertWhen_theEventIsNotSealedByTheSealer() public {
         address stranger = makeAddr("stranger");
         bytes32 foreign = _seal(stranger, announcesAt);
-        factory.createMarket(underlying, dollar, foreign, address(resolver));
+        bytes32 foreignMarket =
+            factory.createMarket(underlying, dollar, foreign, address(resolver), MAX_CAP, MAX_CAP);
         vm.expectRevert(
             abi.encodeWithSelector(FreezeHook.NotSealedByTheSealer.selector, foreign, stranger)
         );
-        hook.register(underlying, dollar, foreign);
+        hook.register(foreignMarket, foreign);
 
         bytes32 unsealed = keccak256("never sealed");
-        factory.createMarket(underlying, dollar, unsealed, address(resolver));
+        bytes32 unsealedMarket =
+            factory.createMarket(underlying, dollar, unsealed, address(resolver), MAX_CAP, MAX_CAP);
         vm.expectRevert(
             abi.encodeWithSelector(FreezeHook.NotSealedByTheSealer.selector, unsealed, address(0))
         );
-        hook.register(underlying, dollar, unsealed);
+        hook.register(unsealedMarket, unsealed);
     }
 
     /// @notice A market whose announcement has come is refused: its pools would be born frozen.
@@ -237,18 +256,18 @@ contract FreezeHookTest is FreezeHookSetup {
         vm.expectRevert(
             abi.encodeWithSelector(FreezeHook.AnnouncementPassed.selector, eventId, announcesAt)
         );
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
     }
 
     /// @notice A second registration writes nothing, so a front-run cannot break a launch and nobody
     ///         can undo a freeze the guardian brought forward.
     function test_aSecondRegistrationChangesNothing() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         vm.warp(announcesAt - 100);
         vm.prank(guardian);
         hook.freezeNow(marketId);
         vm.recordLogs();
-        assertEq(hook.register(underlying, dollar, eventId), marketId);
+        assertEq(hook.register(marketId, eventId), marketId);
         assertEq(vm.getRecordedLogs().length, 0);
         assertEq(hook.freezesAt(yesKey.toId()), announcesAt - 100);
     }
@@ -265,7 +284,7 @@ contract FreezeHookTest is FreezeHookSetup {
         );
         manager.initialize(yesKey, uint160(1 << 96));
 
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         PoolKey[3] memory keys = _keys();
         for (uint256 index = 0; index < 3; index++) {
             manager.initialize(keys[index], uint160(1 << 96));
@@ -292,7 +311,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice A registered pool nobody opened before its instant can no longer be opened.
     function test_RevertWhen_aPoolIsInitialisedAfterItsFreeze() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         vm.warp(announcesAt);
         vm.expectRevert(_frozen(IHooks.beforeInitialize.selector, yesKey, announcesAt));
         manager.initialize(yesKey, uint160(1 << 96));
@@ -301,7 +320,7 @@ contract FreezeHookTest is FreezeHookSetup {
     /// @notice Swaps pass one second before the instant and are refused from it on, in every pool and
     ///         both directions, and still a week later.
     function test_swapsStopAtTheInstantAndNeverResume() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         PoolKey[3] memory keys = _keys();
         for (uint256 index = 0; index < 3; index++) {
             manager.initialize(keys[index], uint160(1 << 96));
@@ -323,7 +342,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice Before the instant the hook changes nothing about a swap: no delta, no fee override.
     function test_anOpenSwapIsUntouched() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         IPoolManager.SwapParams memory params =
             IPoolManager.SwapParams(true, -1, TickMath.MIN_SQRT_PRICE + 1);
         vm.prank(address(manager));
@@ -341,7 +360,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice The callbacks answer only the pool manager.
     function test_RevertWhen_aCallbackCallerIsNotThePoolManager() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         vm.expectRevert(abi.encodeWithSelector(FreezeHook.NotPoolManager.selector, address(this)));
         hook.beforeInitialize(address(this), yesKey, uint160(1 << 96));
         IPoolManager.SwapParams memory params =
@@ -352,7 +371,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice The guardian brings all three instants forward to now, and swaps stop at once.
     function test_theGuardianFreezesAMarketNow() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         manager.initialize(yesKey, uint160(1 << 96));
         uint64 now_ = announcesAt - 3600;
         vm.warp(now_);
@@ -370,7 +389,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice A freeze already reached is never moved, earlier or later, and nothing is announced.
     function test_theGuardianNeverMovesAPassedFreeze() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         vm.warp(announcesAt + 10);
         vm.recordLogs();
         vm.prank(guardian);
@@ -381,7 +400,7 @@ contract FreezeHookTest is FreezeHookSetup {
 
     /// @notice Only the guardian may bring a freeze forward.
     function test_RevertWhen_freezeNowCallerIsNotTheGuardian() public {
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         vm.expectRevert(abi.encodeWithSelector(FreezeHook.NotTheGuardian.selector, address(this)));
         hook.freezeNow(marketId);
     }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
@@ -65,9 +64,14 @@ contract FreezeHook {
     /// @param caller Who called.
     error NotTheGuardian(address caller);
 
-    /// @notice Thrown when no market with the canonical resolver exists for the arguments given.
-    /// @param marketId The id they give.
+    /// @notice Thrown when no market exists with the id given.
+    /// @param marketId The id.
     error NotAMarket(bytes32 marketId);
+
+    /// @notice Thrown when a market's condition is not the canonical resolver's for the event given.
+    /// @param marketId The market.
+    /// @param eventId The event given.
+    error NotThisMarketsEvent(bytes32 marketId, bytes32 eventId);
 
     /// @notice Thrown when an event is not sealed by the resolver's sealer: it can never resolve.
     /// @param eventId The event.
@@ -157,21 +161,19 @@ contract FreezeHook {
     /// @notice Registers a market's three pools, to freeze at its event's sealed instant. A market
     ///         already registered is left exactly as it is, so a registration sent first by someone
     ///         else breaks nothing and undoes nothing.
-    /// @param underlying The market's underlying.
-    /// @param dollar The market's dollar.
-    /// @param eventId The event it is conditioned on.
-    /// @return marketId The market.
+    /// @param marketId The market.
+    /// @param eventId The event its condition names, with the canonical resolver.
+    /// @return The market.
     /// @custom:access anyone
-    function register(IERC20 underlying, IERC20 dollar, bytes32 eventId)
-        external
-        returns (bytes32 marketId)
-    {
-        marketId = FACTORY.marketId(
-            underlying, dollar, FACTORY.condition(address(RESOLVER), eventId)
-        );
+    function register(bytes32 marketId, bytes32 eventId) external returns (bytes32) {
         (PositionVault underlyingVault, PositionVault dollarVault) = FACTORY.markets(marketId);
         if (address(underlyingVault) == address(0)) {
             revert NotAMarket(marketId);
+        }
+        // The condition binds both the resolver and the event, so a market of another resolver, or
+        // of another event, is refused here, however its id was formed.
+        if (underlyingVault.CONDITION() != FACTORY.condition(address(RESOLVER), eventId)) {
+            revert NotThisMarketsEvent(marketId, eventId);
         }
         (PoolId yesPool, PoolId noPool, PoolId probabilityPool) =
             _poolsOf(underlyingVault, dollarVault);
@@ -192,6 +194,7 @@ contract FreezeHook {
         freezesAt[noPool] = announcesAt;
         freezesAt[probabilityPool] = announcesAt;
         emit MarketRegistered(marketId, eventId, announcesAt, yesPool, noPool, probabilityPool);
+        return marketId;
     }
 
     /// @notice Brings a registered market's freeze forward to now. A freeze already reached is left

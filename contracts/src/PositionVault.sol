@@ -42,6 +42,12 @@ contract PositionVault {
     /// @param collateral The collateral that could not be read.
     error UnreadableMetadata(IERC20 collateral);
 
+    /// @notice Thrown when a split would take the collateral outstanding past the cap.
+    /// @param cap The cap.
+    /// @param outstanding The collateral outstanding before the split.
+    /// @param amount The split asked for.
+    error CapExceeded(uint256 cap, uint256 outstanding, uint256 amount);
+
     /// @notice Thrown when a split is attempted after the outcome is reported.
     error MarketResolved();
 
@@ -77,6 +83,10 @@ contract PositionVault {
     /// @notice The condition this vault's legs pay out on: a resolver and an event.
     bytes32 public immutable CONDITION;
 
+    /// @notice The most collateral this vault holds outstanding at once, in the collateral's units.
+    ///         Fixed when the market is created and part of its identity.
+    uint256 public immutable CAP;
+
     /// @notice The leg that pays if the outcome resolves true. This vault is its only minter.
     PositionToken public immutable YES;
 
@@ -91,13 +101,21 @@ contract PositionVault {
     /// @param marketId The market this vault belongs to.
     /// @param outcomes Where this vault reads its outcome.
     /// @param condition The condition its legs pay out on.
-    constructor(IERC20 collateral, bytes32 marketId, IOutcomes outcomes, bytes32 condition) {
+    /// @param cap The most collateral it holds outstanding at once.
+    constructor(
+        IERC20 collateral,
+        bytes32 marketId,
+        IOutcomes outcomes,
+        bytes32 condition,
+        uint256 cap
+    ) {
         (uint8 collateralDecimals, string memory symbol) = _metadata(collateral);
         string memory tag = Strings.toHexString(uint256(marketId) >> 224, 4);
         COLLATERAL = collateral;
         MARKET_ID = marketId;
         OUTCOMES = outcomes;
         CONDITION = condition;
+        CAP = cap;
         YES = new PositionToken(
             string.concat(symbol, " YES ", tag),
             string.concat(symbol, "-YES"),
@@ -150,6 +168,14 @@ contract PositionVault {
         // see the outcome reported between the check and the mint.
         if (OUTCOMES.outcomeOf(CONDITION) != Outcome.Unresolved) {
             revert MarketResolved();
+        }
+        // Before resolution every unit outstanding is one of each leg, so the yes leg's supply is
+        // the collateral outstanding; the balance is not used, since anyone could raise it by a
+        // donation and block every split. Checked after the outcome, so a late split is refused as
+        // resolved; a split re-entered during the pull is already refused by the movement check.
+        uint256 outstanding = YES.totalSupply();
+        if (amount > CAP - outstanding) {
+            revert CapExceeded(CAP, outstanding, amount);
         }
         YES.mint(msg.sender, amount);
         NO.mint(msg.sender, amount);

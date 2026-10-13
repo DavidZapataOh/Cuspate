@@ -61,8 +61,11 @@ abstract contract GasCases is Test {
         (IERC20 underlying, IERC20 dollar) = _collaterals();
         factory = new MarketFactory();
         registry = new ThresholdRegistry();
-        (underlyingVault, dollarVault) =
-            factory.markets(factory.createMarket(underlying, dollar, EVENT, resolver));
+        (underlyingVault, dollarVault) = factory.markets(
+            factory.createMarket(
+                underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+            )
+        );
     }
 
     /// @notice Creating a market: two vaults and four legs, at the collaterals' symbol lengths.
@@ -74,7 +77,14 @@ abstract contract GasCases is Test {
             " and ",
             IERC20Metadata(address(dollar)).symbol()
         );
-        factory.createMarket(underlying, dollar, keccak256("another event"), resolver);
+        factory.createMarket(
+            underlying,
+            dollar,
+            keccak256("another event"),
+            resolver,
+            type(uint256).max,
+            type(uint256).max
+        );
         _record("MarketFactory.createMarket over ", symbols);
     }
 
@@ -315,13 +325,15 @@ abstract contract GasCases is Test {
         FreezeHook hook = FreezeHook(hookAddress);
         bytes32 eventId =
             registry.seal(_sealable(uint64(vm.getBlockTimestamp() + 1 days), "frozen"));
-        bytes32 marketId = factory.createMarket(underlying, dollar, eventId, address(resolver_));
+        bytes32 marketId = factory.createMarket(
+            underlying, dollar, eventId, address(resolver_), type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault_, PositionVault dollarVault_) = factory.markets(marketId);
         (PoolKey memory yes,) =
             ConditionalPools.keysOf(underlyingVault_, dollarVault_, IHooks(hookAddress));
         assertEq(hook.freezesAt(yes.toId()), 0);
 
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         _record("FreezeHook.register a market's three pools", "");
 
         vm.warp(vm.getBlockTimestamp() + 1 hours);
@@ -449,9 +461,14 @@ abstract contract GasCases is Test {
         bytes32 eventId =
             registry.seal(_sealable(uint64(vm.getBlockTimestamp() + 1 days), "routed"));
         marketId = factory.createMarket(
-            underlyingVault.COLLATERAL(), dollarVault.COLLATERAL(), eventId, address(resolver_)
+            underlyingVault.COLLATERAL(),
+            dollarVault.COLLATERAL(),
+            eventId,
+            address(resolver_),
+            type(uint256).max,
+            type(uint256).max
         );
-        hook.register(underlyingVault.COLLATERAL(), dollarVault.COLLATERAL(), eventId);
+        hook.register(marketId, eventId);
         (shares, dollars) = factory.markets(marketId);
         PoolModifyLiquidityTest seeder = new PoolModifyLiquidityTest(manager);
         _fund(shares, address(this), 100 * 10 ** Metadata(address(shares.COLLATERAL())).decimals());

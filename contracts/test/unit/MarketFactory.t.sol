@@ -69,7 +69,9 @@ contract MarketFactoryTest is Test {
 
     /// @notice Each collateral gets a vault holding it, and each vault mints its own two legs.
     function test_createMarketDeploysAVaultForEachCollateral() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         assertEq(address(underlyingVault.COLLATERAL()), address(underlying));
         assertEq(address(dollarVault.COLLATERAL()), address(dollar));
@@ -79,7 +81,9 @@ contract MarketFactoryTest is Test {
 
     /// @notice The registry holds both vaults under the market's id.
     function test_createMarketRecordsTheMarket() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         assertTrue(address(underlyingVault) != address(0));
         assertTrue(address(dollarVault) != address(0));
@@ -90,7 +94,9 @@ contract MarketFactoryTest is Test {
     ///         read back from the log itself.
     function test_createMarketEmitsMarketCreated() public {
         vm.recordLogs();
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -119,18 +125,24 @@ contract MarketFactoryTest is Test {
         assertEq(loggedDollarVault, address(dollarVault));
     }
 
-    /// @notice A market's id is the hash of its collaterals and its condition, which is the hash of
-    ///         its resolver and its event.
+    /// @notice A market's id is the hash of its collaterals, its condition (the hash of its resolver
+    ///         and its event) and its two caps, in that order: swapping the caps is another market.
     function test_marketIdIsAHashOfItsInputs() public view {
         assertEq(
-            factory.marketId(underlying, dollar, factory.condition(resolver, EVENT)),
-            keccak256(abi.encode(underlying, dollar, keccak256(abi.encode(resolver, EVENT))))
+            factory.marketId(underlying, dollar, factory.condition(resolver, EVENT), 1, 2),
+            keccak256(abi.encode(underlying, dollar, keccak256(abi.encode(resolver, EVENT)), 1, 2))
+        );
+        assertNotEq(
+            factory.marketId(underlying, dollar, factory.condition(resolver, EVENT), 1, 2),
+            factory.marketId(underlying, dollar, factory.condition(resolver, EVENT), 2, 1)
         );
     }
 
     /// @notice Leg names are derived from the collateral, the outcome and the start of the id.
     function test_legNamesAreDerivedFromTheCollateralAndTheMarket() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
         string memory prefix = vm.toString(abi.encodePacked(bytes4(id)));
         assertEq(underlyingVault.YES().symbol(), "TSTK-YES");
@@ -142,28 +154,32 @@ contract MarketFactoryTest is Test {
 
     /// @notice A second market under the same id is refused, naming the market.
     function test_RevertWhen_marketAlreadyExists() public {
-        bytes32 id = factory.createMarket(underlying, dollar, EVENT, resolver);
+        bytes32 id = factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
         vm.expectRevert(abi.encodeWithSelector(MarketFactory.MarketExists.selector, id));
-        factory.createMarket(underlying, dollar, EVENT, resolver);
+        factory.createMarket(
+            underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+        );
     }
 
     /// @notice A market whose two collaterals are one token is refused.
     function test_RevertWhen_bothCollateralsAreTheSameToken() public {
         vm.expectRevert(abi.encodeWithSelector(MarketFactory.SameCollateral.selector, dollar));
-        factory.createMarket(dollar, dollar, EVENT, resolver);
+        factory.createMarket(dollar, dollar, EVENT, resolver, type(uint256).max, type(uint256).max);
     }
 
     /// @notice A collateral whose symbol is not a string is refused by name, not by a bare revert.
     function test_RevertWhen_collateralSymbolIsNotAString() public {
         IERC20 odd = IERC20(address(new BytesSymbolToken()));
         vm.expectRevert(abi.encodeWithSelector(PositionVault.UnreadableMetadata.selector, odd));
-        factory.createMarket(odd, dollar, EVENT, resolver);
+        factory.createMarket(odd, dollar, EVENT, resolver, type(uint256).max, type(uint256).max);
     }
 
     /// @notice A collateral with no symbol at all is refused the same way.
     function test_RevertWhen_collateralHasNoSymbol() public {
         IERC20 odd = IERC20(address(new NoSymbolToken()));
         vm.expectRevert(abi.encodeWithSelector(PositionVault.UnreadableMetadata.selector, odd));
-        factory.createMarket(odd, dollar, EVENT, resolver);
+        factory.createMarket(odd, dollar, EVENT, resolver, type(uint256).max, type(uint256).max);
     }
 }

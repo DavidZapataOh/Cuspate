@@ -59,7 +59,8 @@ contract PositionVaultForkTest is Test {
             collateral,
             keccak256("a market"),
             IOutcomes(address(new TestOutcomes())),
-            keccak256("a condition")
+            keccak256("a condition"),
+            type(uint256).max
         );
         assertEq(vault.YES().decimals(), expectedDecimals);
         deal(address(collateral), holder, amount);

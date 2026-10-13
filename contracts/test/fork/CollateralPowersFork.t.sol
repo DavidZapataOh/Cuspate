@@ -126,8 +126,11 @@ contract CollateralPowersForkTest is Test {
         assertEq(block.number, pinned, "not at the pinned block");
 
         factory = new MarketFactory();
-        (underlyingVault, dollarVault) =
-            factory.markets(factory.createMarket(underlying, dollar, EVENT, resolver));
+        (underlyingVault, dollarVault) = factory.markets(
+            factory.createMarket(
+                underlying, dollar, EVENT, resolver, type(uint256).max, type(uint256).max
+            )
+        );
         _fund(underlyingVault, underlyingAmount);
         _fund(dollarVault, dollarAmount);
     }

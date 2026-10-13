@@ -857,6 +857,99 @@ test("tripwire: every entry point a user or a pool calls has a gas budget and a 
 	t.diagnostic(`${entryPoints.length} entry points, each budgeted and limited`);
 });
 
+/**
+ * The external functions in contracts/src that reach a swap, read from the source: each function's
+ * body is found by its braces, a function reaches a swap if its body calls the pool manager's swap
+ * or unlock or calls, by name, a function in the same file that does, and the external or public
+ * ones among them are the entry points. A callback only the pool manager calls is reached inside
+ * another entry point and is left out by its access tag.
+ */
+function swappingEntryPoints() {
+	const found = [];
+	const sourceDir = path.join(contracts, "src");
+	for (const file of readdirSync(sourceDir).filter((f) => f.endsWith(".sol"))) {
+		const source = read(path.join(sourceDir, file));
+		const header =
+			/((?:[ \t]*\/\/\/[^\n]*\n)*)[ \t]*function\s+(\w+)\s*\(([\s\S]*?)\)([^{;]*)\{/g;
+		const functions = [];
+		for (const match of source.matchAll(header)) {
+			let depth = 1;
+			let end = match.index + match[0].length;
+			while (depth > 0 && end < source.length) {
+				if (source[end] === "{") depth++;
+				if (source[end] === "}") depth--;
+				end++;
+			}
+			const body = source
+				.slice(match.index + match[0].length, end)
+				.replace(/\/\/[^\n]*/g, "");
+			functions.push({
+				name: match[2],
+				doc: match[1],
+				external: /\b(external|public)\b/.test(match[4]),
+				body,
+			});
+		}
+		const reaches = new Set(
+			functions
+				.filter((fn) => /POOL_MANAGER\.(swap|unlock)\s*\(/.test(fn.body))
+				.map((fn) => fn.name),
+		);
+		let grew = true;
+		while (grew) {
+			grew = false;
+			for (const fn of functions) {
+				if (reaches.has(fn.name)) continue;
+				if (
+					[...reaches].some((name) =>
+						new RegExp(`\\b${name}\\s*\\(`).test(fn.body),
+					)
+				) {
+					reaches.add(fn.name);
+					grew = true;
+				}
+			}
+		}
+		for (const fn of functions) {
+			if (!fn.external || !reaches.has(fn.name)) continue;
+			if (/@custom:access pool manager/.test(fn.doc)) continue;
+			found.push({ file, name: fn.name });
+		}
+	}
+	return found;
+}
+
+test("tripwire: every function that reaches a swap refuses to run without a floor or past its deadline", (t) => {
+	// What "no unbounded-slippage path" means here: every external function in contracts/src that
+	// leads to a swap refuses a zero floor and a passed deadline, each shown by a unit test named
+	// for it. The size of the floor is the user's, from a quote; a floor of one passes.
+	const unitTests = Object.values(
+		JSON.parse(
+			execFileSync(
+				"forge",
+				["test", "--list", "--json", "--match-path", UNIT_GLOB],
+				{ cwd: contracts, encoding: "utf8", maxBuffer: big },
+			),
+		),
+	).flatMap((suites) => Object.values(suites).flat());
+	const entryPoints = swappingEntryPoints();
+	assert.ok(
+		entryPoints.length > 0,
+		"no function in contracts/src reaches a swap",
+	);
+	for (const { file, name } of entryPoints) {
+		for (const refusal of ["HasNoFloor", "IsPastItsDeadline"]) {
+			assert.ok(
+				unitTests.includes(`test_RevertWhen_${name}${refusal}`),
+				`${file}: ${name} reaches a swap and no unit test test_RevertWhen_${name}${refusal} shows the refusal`,
+			);
+		}
+	}
+	t.diagnostic(
+		`${entryPoints.length} functions reaching a swap inspected (counted by the source)`,
+	);
+});
+
 test("the tripwires are reported by name before any gate runs", () => {
 	const { output } = gate("tripwires");
 	for (const tripwire of [
@@ -865,6 +958,7 @@ test("the tripwires are reported by name before any gate runs", () => {
 		"has a gas baseline entry",
 		"says who may call it",
 		"has a gas budget and a limit",
+		"refuses to run without a floor or past its deadline",
 	]) {
 		assert.match(output, new RegExp(tripwire), output);
 	}

@@ -35,8 +35,12 @@ contract MarketFactoryFuzzTest is Test {
         if (eventA == eventB) {
             eventB = bytes32(uint256(eventA) ^ 1);
         }
-        bytes32 idA = factory.createMarket(underlying, dollar, eventA, resolver);
-        bytes32 idB = factory.createMarket(underlying, dollar, eventB, resolver);
+        bytes32 idA = factory.createMarket(
+            underlying, dollar, eventA, resolver, type(uint256).max, type(uint256).max
+        );
+        bytes32 idB = factory.createMarket(
+            underlying, dollar, eventB, resolver, type(uint256).max, type(uint256).max
+        );
         assertTrue(idA != idB, "two events share a market");
 
         address[] memory created = new address[](12);
@@ -78,8 +82,12 @@ contract MarketFactoryFuzzTest is Test {
         if (eventA == eventB) {
             eventB = bytes32(uint256(eventA) ^ 1);
         }
-        bytes32 operated = factory.createMarket(underlying, dollar, eventA, resolver);
-        bytes32 watched = factory.createMarket(underlying, dollar, eventB, resolver);
+        bytes32 operated = factory.createMarket(
+            underlying, dollar, eventA, resolver, type(uint256).max, type(uint256).max
+        );
+        bytes32 watched = factory.createMarket(
+            underlying, dollar, eventB, resolver, type(uint256).max, type(uint256).max
+        );
         _operate(watched, 7e6);
         uint256[] memory before = _state(watched);
 

@@ -91,6 +91,9 @@ contract PositionRouterForkTest is Test {
     IERC20 internal underlying;
     IERC20 internal dollar;
     PositionRouter internal router;
+    MarketFactory internal factory;
+    ThresholdRegistry internal registry;
+    OptimisticResolver internal resolver;
     BatchAccount internal account;
 
     bytes32 internal marketId;
@@ -121,9 +124,9 @@ contract PositionRouterForkTest is Test {
             "this block, re-pin it; the assertion itself is not what failed"
         );
 
-        MarketFactory factory = new MarketFactory();
-        ThresholdRegistry registry = new ThresholdRegistry();
-        OptimisticResolver resolver = new OptimisticResolver(
+        factory = new MarketFactory();
+        registry = new ThresholdRegistry();
+        resolver = new OptimisticResolver(
             factory, registry, sealer, makeAddr("arbiter"), dollar, 1, 1, 1, 1, 1
         );
         deployCodeTo(
@@ -140,8 +143,10 @@ contract PositionRouterForkTest is Test {
                 terms: "e"
             })
         );
-        marketId = factory.createMarket(underlying, dollar, eventId, address(resolver));
-        FreezeHook(HOOK).register(underlying, dollar, eventId);
+        marketId = factory.createMarket(
+            underlying, dollar, eventId, address(resolver), type(uint256).max, type(uint256).max
+        );
+        FreezeHook(HOOK).register(marketId, eventId);
         (underlyingVault, dollarVault) = factory.markets(marketId);
         (yesKey, noKey) = ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(HOOK));
         probabilityKey = ConditionalPools.probabilityKeyOf(dollarVault, IHooks(HOOK));
@@ -294,6 +299,52 @@ contract PositionRouterForkTest is Test {
         account.execute(calls);
         assertEq(underlyingVault.YES().balanceOf(address(account)), shares);
         assertEq(dollarVault.NO().balanceOf(address(account)), DOLLARS);
+    }
+
+    /// @notice A market capped at the dollars its pool was seeded with plus 500 dollars of room: an
+    ///         entry of exactly the room passes through the router, and one more unit is refused with
+    ///         the vault's own error, carried out of the router, before anything moves.
+    function testFork_aCappedMarketRefusesPastItsRoom() public {
+        uint256 seeded = 200_000e6;
+        uint256 room = 500e6;
+        uint256 cap = seeded + room;
+        vm.prank(sealer);
+        bytes32 cappedEvent = registry.seal(
+            ThresholdRegistry.Threshold({
+                value: 1,
+                decimals: 0,
+                announcesAt: announcesAt,
+                deadline: announcesAt + 1 days,
+                terms: "capped"
+            })
+        );
+        bytes32 capped = factory.createMarket(
+            underlying, dollar, cappedEvent, address(resolver), type(uint256).max, cap
+        );
+        FreezeHook(HOOK).register(capped, cappedEvent);
+        // The seeding helper splits into the fixture's vaults; point them at the capped market.
+        (underlyingVault, dollarVault) = factory.markets(capped);
+        (PoolKey memory cappedYes,) =
+            ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(HOOK));
+        _seed(
+            cappedYes,
+            ConditionalPools.sqrtPriceX96(
+                cappedYes, IERC20Metadata(address(underlyingVault.YES())), 1040, 0
+            ),
+            1e16
+        );
+        assertEq(dollarVault.YES().totalSupply(), seeded);
+
+        address buyer = makeAddr("capped buyer");
+        deal(address(dollar), buyer, room + 1);
+        vm.startPrank(buyer);
+        dollar.approve(address(router), room + 1);
+        router.enter(capped, true, room, 1, buyer, vm.getBlockTimestamp());
+        assertEq(dollarVault.YES().totalSupply(), cap);
+        vm.expectRevert(abi.encodeWithSelector(PositionVault.CapExceeded.selector, cap, cap, 1));
+        router.enter(capped, true, 1, 1, buyer, vm.getBlockTimestamp());
+        vm.stopPrank();
+        assertEq(dollar.balanceOf(buyer), 1, "the refused unit moved");
     }
 
     /// @notice One swap's fee, from its pool's state: with liquidity constant over the move, the

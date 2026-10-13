@@ -81,8 +81,11 @@ contract ResolverForkTest is Test {
                 terms: "earnings per share, diluted, as first published"
             })
         );
-        (underlyingVault, dollarVault) =
-            factory.markets(factory.createMarket(underlying, dollar, eventId, address(resolver)));
+        (underlyingVault, dollarVault) = factory.markets(
+            factory.createMarket(
+                underlying, dollar, eventId, address(resolver), type(uint256).max, type(uint256).max
+            )
+        );
         _split(underlyingVault, 1e17);
         _split(dollarVault, 100e6);
 

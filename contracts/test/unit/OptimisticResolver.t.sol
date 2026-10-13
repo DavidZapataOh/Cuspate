@@ -441,7 +441,12 @@ contract OptimisticResolverTest is Test {
     /// @notice A market over the event redeems at the outcome settlement reports.
     function test_aMarketRedeemsAtTheSettledOutcome() public {
         bytes32 id = factory.createMarket(
-            IERC20(address(new TestStock())), IERC20(address(dollar)), eventId, address(resolver)
+            IERC20(address(new TestStock())),
+            IERC20(address(dollar)),
+            eventId,
+            address(resolver),
+            type(uint256).max,
+            type(uint256).max
         );
         (, PositionVault vault) = factory.markets(id);
         dollar.mint(holder, 100e6);

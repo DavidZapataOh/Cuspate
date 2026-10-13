@@ -106,7 +106,12 @@ contract TimeoutsTest is Test {
     ///         expiry, not at it; a market over it then redeems half and half.
     function test_anEventNobodyResolvesExpiresInvalid() public {
         bytes32 id = factory.createMarket(
-            IERC20(address(new TestStock())), IERC20(address(dollar)), eventId, address(resolver)
+            IERC20(address(new TestStock())),
+            IERC20(address(dollar)),
+            eventId,
+            address(resolver),
+            type(uint256).max,
+            type(uint256).max
         );
         (, PositionVault vault) = factory.markets(id);
         dollar.mint(anyone, 100e6);

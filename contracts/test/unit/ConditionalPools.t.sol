@@ -103,7 +103,9 @@ contract ConditionalPoolsTest is Test {
                 IERC20(address(new TestStock())),
                 IERC20(address(new TestCollateral())),
                 keccak256("event"),
-                address(1)
+                address(1),
+                type(uint256).max,
+                type(uint256).max
             )
         );
         caller = new ConditionalPoolsCaller();
@@ -132,7 +134,9 @@ contract ConditionalPoolsTest is Test {
                 underlyingVault.COLLATERAL(),
                 dollarVault.COLLATERAL(),
                 keccak256("another"),
-                address(1)
+                address(1),
+                type(uint256).max,
+                type(uint256).max
             )
         );
         (PoolKey memory a, PoolKey memory b) =

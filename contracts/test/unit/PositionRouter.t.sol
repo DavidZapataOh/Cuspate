@@ -46,7 +46,7 @@ abstract contract PositionRouterSetup is FreezeHookSetup {
     function setUp() public virtual override {
         super.setUp();
         (underlyingVault, dollarVault) = factory.markets(marketId);
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         liquidityRouter = new PoolModifyLiquidityTest(manager);
         _split(address(this), 100e18, 200_000e6);
         address[4] memory legs = [
@@ -364,7 +364,12 @@ contract PositionRouterTest is PositionRouterSetup {
         router.enter(nowhere, true, 1e6, 1, user, deadline);
         vm.stopPrank();
         bytes32 unregistered = factory.createMarket(
-            underlying, dollar, _seal(sealer, announcesAt + 1), address(resolver)
+            underlying,
+            dollar,
+            _seal(sealer, announcesAt + 1),
+            address(resolver),
+            type(uint256).max,
+            type(uint256).max
         );
         vm.expectRevert(abi.encodeWithSelector(PositionRouter.NotAMarket.selector, unregistered));
         vm.prank(user);
@@ -499,7 +504,12 @@ contract PositionRouterTest is PositionRouterSetup {
         vm.stopPrank();
         // A market that exists but whose pools were never registered with the hook.
         order.marketId = factory.createMarket(
-            underlying, dollar, _seal(sealer, announcesAt + 1), address(resolver)
+            underlying,
+            dollar,
+            _seal(sealer, announcesAt + 1),
+            address(resolver),
+            type(uint256).max,
+            type(uint256).max
         );
         vm.expectRevert(abi.encodeWithSelector(PositionRouter.NotAMarket.selector, order.marketId));
         vm.prank(user);
@@ -610,6 +620,65 @@ contract PositionRouterTest is PositionRouterSetup {
     /// @param amount How much.
     function _handSwapKept(PoolKey memory key, address input, uint256 amount) internal {
         _handSwap(key, input, amount);
+    }
+
+    /// @notice An entry without a floor is refused before any funds move.
+    function test_RevertWhen_enterHasNoFloor() public {
+        vm.expectRevert(PositionRouter.NoFloor.selector);
+        vm.prank(user);
+        router.enter(marketId, true, 1e6, 0, user, vm.getBlockTimestamp());
+    }
+
+    /// @notice An entry after its deadline is refused before any funds move.
+    function test_RevertWhen_enterIsPastItsDeadline() public {
+        uint256 deadline = vm.getBlockTimestamp() - 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.Expired.selector, deadline));
+        vm.prank(user);
+        router.enter(marketId, true, 1e6, 1, user, deadline);
+    }
+
+    /// @notice An exit without a floor on its sale is refused before any funds move.
+    function test_RevertWhen_exitHasNoFloor() public {
+        PositionRouter.ExitOrder memory order = _unfundedExit();
+        order.minOut = 0;
+        vm.expectRevert(PositionRouter.NoFloor.selector);
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice An exit after its deadline is refused before any funds move.
+    function test_RevertWhen_exitIsPastItsDeadline() public {
+        PositionRouter.ExitOrder memory order = _unfundedExit();
+        order.deadline -= 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.Expired.selector, order.deadline));
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice An exit that levels without a floor on the level is refused before any funds move.
+    function test_RevertWhen_exitLevelHasNoFloor() public {
+        PositionRouter.ExitOrder memory order = _unfundedExit();
+        order.level = 1;
+        vm.expectRevert(abi.encodeWithSelector(PositionRouter.LevelFloorMismatch.selector, 1, 0));
+        vm.prank(user);
+        router.exit(order);
+    }
+
+    /// @notice A well-formed exit order for a user who holds and has approved nothing.
+    /// @return order The order.
+    function _unfundedExit() internal view returns (PositionRouter.ExitOrder memory order) {
+        order = PositionRouter.ExitOrder({
+            marketId: marketId,
+            yes: true,
+            shares: 1e15,
+            kept: 1e6,
+            minOut: 1,
+            levelSellsWorldDollar: false,
+            level: 0,
+            minLevelOut: 0,
+            recipient: user,
+            deadline: vm.getBlockTimestamp()
+        });
     }
 
     /// @notice The callback answers only the pool manager.

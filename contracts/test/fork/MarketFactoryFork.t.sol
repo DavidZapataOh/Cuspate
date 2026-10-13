@@ -45,7 +45,14 @@ contract MarketFactoryForkTest is Test {
     /// @notice A market over both real collaterals names its legs after them and splits and merges
     ///         in both vaults.
     function testFork_aMarketOverBothRealCollateralsSplitsAndMerges() public {
-        bytes32 id = factory.createMarket(underlying, dollar, keccak256("an event"), resolver);
+        bytes32 id = factory.createMarket(
+            underlying,
+            dollar,
+            keccak256("an event"),
+            resolver,
+            type(uint256).max,
+            type(uint256).max
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = factory.markets(id);
 
         assertEq(underlyingVault.YES().symbol(), "aMU-YES");

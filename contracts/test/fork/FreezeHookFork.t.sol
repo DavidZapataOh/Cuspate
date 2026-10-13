@@ -375,9 +375,16 @@ contract FreezeHookForkTest is Test {
                 value: 1, decimals: 0, announcesAt: at, deadline: at + 1 days, terms: terms
             })
         );
-        id = factory.createMarket(underlying, dollar, eventId, address(hook.RESOLVER()));
+        id = factory.createMarket(
+            underlying,
+            dollar,
+            eventId,
+            address(hook.RESOLVER()),
+            type(uint256).max,
+            type(uint256).max
+        );
         vm.prank(stranger);
-        assertEq(hook.register(underlying, dollar, eventId), id);
+        assertEq(hook.register(id, eventId), id);
         (underlyingVault_, dollarVault_) = factory.markets(id);
     }
 

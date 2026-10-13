@@ -22,7 +22,8 @@ contract PositionVaultFuzzTest is Test {
             IERC20(address(collateral)),
             keccak256("a market"),
             IOutcomes(address(new TestOutcomes())),
-            keccak256("a condition")
+            keccak256("a condition"),
+            type(uint256).max
         );
         vm.prank(holder);
         collateral.approve(address(vault), type(uint256).max);

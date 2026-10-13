@@ -52,6 +52,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     ///         property reads every vault after every call.
     uint256 public constant MAX_MARKETS = 4;
 
+    /// @notice The largest split one call asks for.
+    uint256 internal constant MAX_SPLIT = 1e30;
+
     /// @notice The factory under test.
     MarketFactory public immutable FACTORY;
 
@@ -114,6 +117,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice How many calls changed state.
     uint256 public stateChangingCalls;
+
+    /// @notice Splits refused for passing a vault's cap, each with exactly the error owed.
+    uint256 public capRefusals;
     /// @notice How many conditions were reported.
     uint256 public reports;
     /// @notice How many times the report action was called, whether or not it reported.
@@ -203,19 +209,37 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         IERC20 dollar = collaterals[second];
         uint256 index = conditionSeed % 4;
         bytes32 condition = conditionAt(index);
-        bytes32 id = keccak256(abi.encode(underlying, dollar, condition));
+        // Caps from the seed, small ones included so that the cap binds within a run's splits. A
+        // run's first market is always capped, so every run meets a cap, by construction rather
+        // than by the seed's luck.
+        uint256[3] memory caps = [uint256(1e20), 1e27, type(uint256).max];
+        uint256 choices = marketIds.length == 0 ? 2 : 3;
+        uint256 underlyingCap = caps[(pairSeed >> 64) % choices];
+        uint256 dollarCap = caps[(pairSeed >> 96) % choices];
+        bytes32 id = keccak256(abi.encode(underlying, dollar, condition, underlyingCap, dollarCap));
         if (marketIds.length >= MAX_MARKETS || address(recorded[id][0]) != address(0)) {
             splitPosition(pairSeed, conditionSeed, conditionSeed);
             return;
         }
-        returnedId[id] =
-            FACTORY.createMarket(underlying, dollar, events[(index / 2) % 2], resolvers[index % 2]);
+        returnedId[id] = FACTORY.createMarket(
+            underlying,
+            dollar,
+            events[(index / 2) % 2],
+            resolvers[index % 2],
+            underlyingCap,
+            dollarCap
+        );
         (PositionVault underlyingVault, PositionVault dollarVault) = FACTORY.markets(id);
         recorded[id] = [underlyingVault, dollarVault];
         marketIds.push(id);
         _record(underlyingVault, underlying, condition, id);
         _record(dollarVault, dollar, condition, id);
         stateChangingCalls++;
+        // A capped vault that is not born resolved is tried at once past its cap. A run's first
+        // market cannot be born resolved: only conditions with legs outstanding are reported.
+        if (dollarCap < type(uint256).max && !resolved(dollarVault)) {
+            _attemptOverCap(dollarVault, actors[0], dollarCap + 1);
+        }
     }
 
     /// @notice Splits for an actor into an unresolved vault. On a resolved vault it either attempts
@@ -226,11 +250,15 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function splitPosition(uint256 vaultSeed, uint256 actorSeed, uint256 amount) public {
         PositionVault vault = _vault(vaultSeed);
         address actor = actors[actorSeed % 3];
-        amount = _bound(amount, 1, 1e30);
         if (!resolved(vault)) {
-            _split(vault, actor, amount);
+            uint256 room = vault.CAP() - vault.YES().totalSupply();
+            if (room <= MAX_SPLIT && (room == 0 || (vaultSeed >> 129) % 4 == 0)) {
+                _attemptOverCap(vault, actor, room + _bound(amount, 1, MAX_SPLIT));
+            } else {
+                _split(vault, actor, _bound(amount, 1, room < MAX_SPLIT ? room : MAX_SPLIT));
+            }
         } else if ((vaultSeed >> 128) % 2 == 1) {
-            _attemptLateSplit(vault, actor, amount);
+            _attemptLateSplit(vault, actor, _bound(amount, 1, MAX_SPLIT));
         } else {
             redeemPositions(vaultSeed, actorSeed, amount);
         }
@@ -491,6 +519,36 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         );
     }
 
+    /// @notice Attempts a split past a vault's cap and requires exactly the refusal the vault owes:
+    ///         the cap, what is outstanding, and the amount. An accepted one would be a broken cap.
+    /// @param vault The unresolved vault.
+    /// @param actor The actor.
+    /// @param amount More than the room left.
+    function _attemptOverCap(PositionVault vault, address actor, uint256 amount) internal {
+        IERC20 collateral = created[vault].collateral;
+        uint256 outstanding = vault.YES().totalSupply();
+        CampaignCollateral(address(collateral)).mint(actor, amount);
+        vm.prank(actor);
+        collateral.approve(address(vault), amount);
+        vm.prank(actor);
+        (bool accepted, bytes memory reason) =
+            address(vault).call(abi.encodeCall(PositionVault.splitPosition, (amount)));
+        require(!accepted, "a split past the cap was accepted");
+        require(
+            keccak256(reason)
+                == keccak256(
+                    abi.encodeWithSelector(
+                        PositionVault.CapExceeded.selector, vault.CAP(), outstanding, amount
+                    )
+                ),
+            "a split past the cap was refused for the wrong reason"
+        );
+        // The minted collateral stays with the actor, outside every vault.
+        vm.prank(actor);
+        collateral.approve(address(vault), 0);
+        capRefusals++;
+    }
+
     /// @notice Splits into the first unresolved vault from a seed, if there is one.
     /// @param vaultSeed Where to start looking.
     /// @param actor The actor.
@@ -498,8 +556,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function _splitIntoAnyUnresolved(uint256 vaultSeed, address actor, uint256 amount) internal {
         for (uint256 i = 0; i < vaults.length; i++) {
             PositionVault vault = vaults[(vaultSeed % vaults.length + i) % vaults.length];
-            if (!resolved(vault)) {
-                _split(vault, actor, _bound(amount, 1, 1e30));
+            uint256 room = vault.CAP() - vault.YES().totalSupply();
+            if (!resolved(vault) && room > 0) {
+                _split(vault, actor, _bound(amount, 1, room < MAX_SPLIT ? room : MAX_SPLIT));
                 return;
             }
         }
@@ -549,6 +608,7 @@ contract ProtocolInvariantsTest is Test {
             _exactDust(state, reading);
             _equalLegsBeforeResolution(state, reading);
             _noMintAfterResolution(state, reading);
+            _withinCap(state, reading);
         }
         for (uint256 index = 0; index < 4; index++) {
             _outcomeIsFinal(handler.conditionAt(index));
@@ -574,6 +634,19 @@ contract ProtocolInvariantsTest is Test {
         assertGt(handler.stateChangingCalls(), 0, "the campaign changed no state");
         assertGe(handler.marketCount(), 2, "the campaign never left its first market");
         assertGt(handler.reports(), 0, "the campaign never resolved anything");
+        assertGt(handler.capRefusals(), 0, "the campaign never met a cap");
+    }
+
+    /// @notice A vault's legs never outnumber its cap: the cap is checked before every mint, and
+    ///         nothing else mints.
+    /// @param state The vault's record.
+    /// @param reading Its legs' supplies.
+    function _withinCap(ProtocolHandler.VaultState memory state, Reading memory reading)
+        internal
+        view
+    {
+        assertLe(reading.yes, state.vault.CAP(), "cap: the yes leg outnumbers the cap");
+        assertLe(reading.no, state.vault.CAP(), "cap: the no leg outnumbers the cap");
     }
 
     /// @notice Solvency: a vault's collateral covers what its legs can claim under the outcome

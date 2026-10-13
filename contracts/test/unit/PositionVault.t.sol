@@ -132,7 +132,8 @@ contract PositionVaultTest is Test {
             IERC20(address(collateral)),
             keccak256("a market"),
             IOutcomes(address(new TestOutcomes())),
-            keccak256("a condition")
+            keccak256("a condition"),
+            type(uint256).max
         );
         collateral.mint(holder, AMOUNT);
         vm.prank(holder);
@@ -300,7 +301,8 @@ contract PositionVaultTest is Test {
             IERC20(address(token)),
             keccak256("a market"),
             IOutcomes(address(new TestOutcomes())),
-            keccak256("a condition")
+            keccak256("a condition"),
+            type(uint256).max
         );
         token.mint(holder, AMOUNT);
         vm.prank(holder);

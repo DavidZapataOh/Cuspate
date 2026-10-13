@@ -190,7 +190,9 @@ contract ConditionalPoolsForkTest is Test {
                 IERC20(AddressBook.thirdParty("collateral", 0)),
                 IERC20(AddressBook.thirdParty("dollar", 0)),
                 EVENT,
-                makeAddr("resolver")
+                makeAddr("resolver"),
+                type(uint256).max,
+                type(uint256).max
             )
         );
         (yesKey, noKey) = ConditionalPools.keysOf(underlyingVault, dollarVault, IHooks(address(0)));
@@ -298,7 +300,10 @@ contract ConditionalPoolsForkTest is Test {
 
     /// @notice The literals in these tests are for the order the legs sort in on this fork: the
     ///         underlying's leg second in both conditional pools, the yes-dollar second in the
-    ///         probability pool. A redeployment that changed it fails here, by name.
+    ///         probability pool. The legs' addresses follow from each vault's address, which follows
+    ///         from the market's id and from the vault's own bytecode, so a change to the caps given
+    ///         here or to PositionVault itself can reorder them; this fails then, by name, and the
+    ///         literals are derived again off chain for the new order.
     function _assertThisForksOrders() internal view {
         assertFalse(
             _isUnderlyingLeg(Currency.unwrap(yesKey.currency0)), "the yes pool's order changed"

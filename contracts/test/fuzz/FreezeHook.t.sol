@@ -16,7 +16,7 @@ contract FreezeHookFuzzTest is FreezeHookSetup {
     /// @notice The registered market, its three pools opened.
     function setUp() public override {
         super.setUp();
-        hook.register(underlying, dollar, eventId);
+        hook.register(marketId, eventId);
         PoolKey[3] memory keys = _keys();
         for (uint256 index = 0; index < 3; index++) {
             manager.initialize(keys[index], uint160(1 << 96));

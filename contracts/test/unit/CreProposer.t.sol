@@ -147,6 +147,18 @@ contract CreProposerTest is Test {
         assertEq(resolver.proposalOf(eventId).figure, -131);
     }
 
+    /// @notice A new version of the workflow, which has a new id, is the same workflow: the receiver
+    ///         trusts its owner and name, so a redeploy needs no new receiver.
+    function test_onReport_acceptsANewVersionOfTheWorkflow() public {
+        bytes memory metadata = abi.encodePacked(
+            keccak256("the workflow, redeployed"), NAME, workflowOwner, bytes2(0x0001)
+        );
+        bytes memory report = _report(3342);
+        vm.prank(forwarder);
+        receiver.onReport(metadata, report);
+        assertEq(resolver.proposalOf(eventId).proposer, address(receiver));
+    }
+
     /// @notice A report not delivered by the forwarder is refused.
     function test_RevertWhen_onReportCallerIsNotTheForwarder() public {
         bytes memory metadata = _metadata(workflowOwner, NAME);

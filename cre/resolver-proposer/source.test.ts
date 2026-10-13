@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractFigure, type Period } from "./source";
+import { extractFigure, type Period, toText } from "./source";
 
 // Bun's own file and hashing APIs: the SDK types Node's modules as unusable, since a workflow compiled
 // to WebAssembly has none of them, and these tests run on Bun.
@@ -174,6 +174,49 @@ describe("extractFigure", () => {
 			value: 3342n,
 			decimals: 2,
 		});
+	});
+
+	test("every figure it reads occurs verbatim in the document, whatever the figure", () => {
+		// Any figure written into both places the release states it is read back exactly, and any
+		// figure read is text the document carries, never one computed or rounded.
+		let seed = 20261013;
+		const next = () => {
+			seed = (seed * 1103515245 + 12345) % 2 ** 31;
+			return seed;
+		};
+		for (let run = 0; run < 200; run++) {
+			const cents = next() % 1_000_000;
+			const text = `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+			const document = rewrite(
+				rewrite(
+					q4Release,
+					highlight("38\\.40", "33\\.42"),
+					`Non-GAAP net income of $38.40 billion, or $${text} per diluted share`,
+				),
+				reconciled("33\\.42"),
+				`$1${text}`,
+			);
+			const figure = extractFigure(document, q4, 2);
+			expect(figure).toEqual({ text, value: BigInt(cents), decimals: 2 });
+			expect(toText(document)).toContain(text);
+		}
+	});
+
+	test("a corrupted document yields an abstention or a figure it carries, never another", () => {
+		let seed = 7;
+		const next = () => {
+			seed = (seed * 1103515245 + 12345) % 2 ** 31;
+			return seed;
+		};
+		const digits = [...q4Release.matchAll(/\d/g)].map((match) => match.index);
+		for (let run = 0; run < 200; run++) {
+			const at = digits[next() % digits.length];
+			const corrupted =
+				q4Release.slice(0, at) + String(next() % 10) + q4Release.slice(at + 1);
+			const figure = extractFigure(corrupted, q4, 2);
+			if (!("abstain" in figure))
+				expect(toText(corrupted)).toContain(figure.text);
+		}
 	});
 
 	test("returns the identical result on every run", () => {

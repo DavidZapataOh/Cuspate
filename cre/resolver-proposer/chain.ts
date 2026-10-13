@@ -133,13 +133,17 @@ export type EventView = {
  * is already open, it waits for the arbiter, or the open round follows this workflow's own disputed
  * proposal.
  */
-export type ChainAbstainReason =
-	| "not-sealed"
-	| "terms-mismatch"
-	| "too-early"
-	| "proposed"
-	| "arbitration"
-	| "own-disputed";
+export const CHAIN_ABSTAIN_REASONS = [
+	"not-sealed",
+	"terms-mismatch",
+	"too-early",
+	"proposed",
+	"arbitration",
+	"own-disputed",
+] as const;
+
+/** One of `CHAIN_ABSTAIN_REASONS`. */
+export type ChainAbstainReason = (typeof CHAIN_ABSTAIN_REASONS)[number];
 
 /**
  * The date EDGAR filings for an event can carry at the earliest: the UTC date the day before the

@@ -23,11 +23,15 @@ export type Figure = { text: string; value: bigint; decimals: number };
  * figure, the statements of it disagree or are unconfirmed, or the figure carries more decimals than
  * the threshold and could only be compared after rounding, which the terms do not allow.
  */
-export type AbstainReason =
-	| "period-not-found"
-	| "figure-not-found"
-	| "ambiguous"
-	| "precision";
+export const ABSTAIN_REASONS = [
+	"period-not-found",
+	"figure-not-found",
+	"ambiguous",
+	"precision",
+] as const;
+
+/** One of `ABSTAIN_REASONS`. */
+export type AbstainReason = (typeof ABSTAIN_REASONS)[number];
 
 /** No figure, and why. */
 export type Abstain = { abstain: AbstainReason };

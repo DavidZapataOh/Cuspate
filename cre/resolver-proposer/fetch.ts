@@ -28,19 +28,19 @@ export type FigureRequest = {
 };
 
 /**
- * A figure, or why there is none: `not-filed` before the release is filed, `exhibit-not-found` when
- * its filing names no single press release, `unavailable` when a source does not answer with the
- * document, and otherwise why the release could not be read.
+ * Why fetching read nothing: `not-filed` before the release is filed, `exhibit-not-found` when its
+ * filing names no single press release, `unavailable` when a source does not answer with the document.
  */
+export const FETCH_ABSTAIN_REASONS = [
+	"not-filed",
+	"exhibit-not-found",
+	"unavailable",
+] as const;
+
+/** A figure, or why there is none: a reason of fetching's own, or why the release could not be read. */
 export type Outcome =
 	| Figure
-	| {
-			abstain:
-				| AbstainReason
-				| "not-filed"
-				| "exhibit-not-found"
-				| "unavailable";
-	  };
+	| { abstain: AbstainReason | (typeof FETCH_ABSTAIN_REASONS)[number] };
 
 /**
  * The most results filings one run reads: a feed, then an index and a release for each, stays well
@@ -82,14 +82,23 @@ function fetchOne(
 	sendRequester: HTTPSendRequester,
 	request: FigureRequest,
 ): string {
+	// A request the capability itself fails, a response over its size limit or a timeout, is a
+	// source that did not answer with the document, like any other status.
 	const get = (url: string): string | null => {
-		const response = sendRequester
-			.sendRequest({
-				url,
-				method: "GET",
-				headers: { "User-Agent": request.userAgent },
-			})
-			.result();
+		let response: ReturnType<
+			ReturnType<HTTPSendRequester["sendRequest"]>["result"]
+		>;
+		try {
+			response = sendRequester
+				.sendRequest({
+					url,
+					method: "GET",
+					headers: { "User-Agent": request.userAgent },
+				})
+				.result();
+		} catch {
+			return null;
+		}
 		return response.statusCode === 200
 			? new TextDecoder().decode(response.body)
 			: null;

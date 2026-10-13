@@ -154,6 +154,21 @@ describe("readFigure", () => {
 		});
 	});
 
+	test("abstains when the request itself fails: a response over the size limit, a timeout", () => {
+		for (const url of Object.keys(edgar).filter(
+			(url) => !url.includes("000013"),
+		)) {
+			HttpActionsMock.testInstance().sendRequest = (input) => {
+				if (input.url === url)
+					throw new Error("response exceeds the maximum size");
+				return { statusCode: 200, body: edgar[input.url].toString("base64") };
+			};
+			expect(readFigure(newTestRuntime(), q4)).toEqual({
+				abstain: "unavailable",
+			});
+		}
+	});
+
 	test("abstains, reading nothing, when any source answers with anything but the document", () => {
 		for (const url of Object.keys(edgar).filter(
 			(url) => !url.includes("000013"),

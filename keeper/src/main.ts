@@ -1,6 +1,6 @@
 /**
- * The keeper as a service: one market, one step every interval, its follow-ups after each step, one
- * line of JSON per step. Run with `node src/main.ts`; its settings are in `config.ts`.
+ * The keeper as a service: one market, one step every interval, then its follow-ups and its watchers,
+ * one line of JSON per step and per alert. Run with `node src/main.ts`; its settings are in `config.ts`.
  */
 import { createPublicClient, createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -8,6 +8,7 @@ import { configFromEnv } from "./config.ts";
 import { takeFollowUps } from "./followups.ts";
 import { Keeper } from "./keeper.ts";
 import { readMarket } from "./market.ts";
+import { graceFor, logAlerts, watch } from "./monitor.ts";
 import { startSimulator } from "./simulator.ts";
 import { Store } from "./store.ts";
 
@@ -19,6 +20,7 @@ const client = createPublicClient({ transport: http(config.rpcUrl) });
 const wallet = createWalletClient({ transport: http(config.rpcUrl) });
 const owner = privateKeyToAccount(config.key);
 const simulator = await startSimulator(config.rpcUrl);
+const market = await readMarket(client, config.deployment, config.marketId);
 const keeper = new Keeper({
 	client,
 	wallet,
@@ -26,7 +28,7 @@ const keeper = new Keeper({
 	safe: config.safe,
 	multiSend: config.multiSend,
 	deployment: config.deployment,
-	market: await readMarket(client, config.deployment, config.marketId),
+	market,
 	simulator,
 	store,
 	clip: config.clip,
@@ -56,6 +58,15 @@ while (running) {
 			JSON.stringify(
 				{ at: new Date().toISOString(), step, followUps },
 				replacer,
+			),
+		);
+		logAlerts(
+			await watch(
+				client,
+				{ ...config.deployment, resolver: config.resolver },
+				market,
+				config.eventId,
+				graceFor(config.intervalSeconds),
 			),
 		);
 	} catch (error) {

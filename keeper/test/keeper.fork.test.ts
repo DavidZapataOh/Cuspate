@@ -15,6 +15,7 @@ import {
 	http,
 	maxUint256,
 	type PublicClient,
+	parseAbi,
 	parseEventLogs,
 	zeroAddress,
 	zeroHash,
@@ -65,8 +66,13 @@ import {
 	readMarket,
 	readQuote,
 } from "../src/market.ts";
+import { watch } from "../src/monitor.ts";
 import { type Simulator, startSimulator } from "../src/simulator.ts";
 import { Store } from "../src/store.ts";
+
+const ERC20_TRANSFER = parseAbi([
+	"function transfer(address to, uint256 amount) returns (bool)",
+]);
 
 const HOLDER: Address = "0x00000000000000000000000000000000000b0002";
 const WHALE: Address = "0x00000000000000000000000000000000000b0003";
@@ -79,6 +85,7 @@ let market: Market;
 let safe: Address;
 let simulator: Simulator;
 let snapshot: Hex;
+let eventId: Hex;
 
 const client = () => fork.client as unknown as PublicClient;
 
@@ -203,6 +210,7 @@ beforeAll(async () => {
 		seal.eventId,
 	]);
 	market = await readMarket(client(), deployment, made.marketId);
+	eventId = seal.eventId;
 
 	// Seed the three pools coherent with the feed: 1,100 and 1,023.4625 dollars a share, probability 0.6.
 	await fork.deal(underlying, HOLDER, 30n * 10n ** 18n);
@@ -624,5 +632,42 @@ describe("the keeper's follow-ups, against the resolver", () => {
 		await fork.warp(240n);
 		expect(await take(eventId)).toEqual(["expire"]);
 		expect(await take(eventId)).toEqual([]);
+	});
+});
+
+describe("the monitor", () => {
+	const alerts = () =>
+		watch(
+			client(),
+			{ ...deployment, resolver: protocol.resolver.address },
+			market,
+			eventId,
+			150n,
+			"latest",
+		);
+
+	test("is quiet on a healthy market", async () => {
+		expect(await alerts()).toEqual([]);
+	});
+
+	test("a vault short by a single unit raises a critical solvency alert on the next poll", async () => {
+		// The breach is a real transfer out of the vault, as only a fault in the vault could make it.
+		const vault = await fork.as(market.underlyingVault);
+		await fork.client.waitForTransactionReceipt({
+			hash: await vault.writeContract({
+				address: market.underlying,
+				abi: ERC20_TRANSFER,
+				functionName: "transfer",
+				args: [WHALE, 1n],
+				chain: null,
+			}),
+		});
+		const raised = await alerts();
+		expect(raised).toHaveLength(1);
+		expect(raised[0]).toMatchObject({
+			severity: "critical",
+			watcher: "solvency",
+			subject: market.underlyingVault,
+		});
 	});
 });

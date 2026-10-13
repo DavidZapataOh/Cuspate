@@ -141,10 +141,11 @@ export async function readImplied(
 	return impliedPrice(p, yes, no);
 }
 
-/** The feed's latest round for the underlying. */
+/** The feed's latest round for the underlying, at a block if given. */
 export async function readQuote(
 	client: PublicClient,
 	deployment: Deployment,
+	blockNumber?: bigint,
 ): Promise<Quote> {
 	const [price, bid, ask, , publishedAt, , session] = await client.readContract(
 		{
@@ -152,6 +153,7 @@ export async function readQuote(
 			abi: ORACLE,
 			functionName: "latestPrice",
 			args: [MU],
+			blockNumber,
 		},
 	);
 	return { price, bid, ask, publishedAt, session };

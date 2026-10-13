@@ -61,11 +61,12 @@ const RESOLVER = parseAbi([
 	"function expire(bytes32 eventId)",
 ]);
 
-/** Reads an event's view from the resolver. */
+/** Reads an event's view from the resolver, at a block if given. */
 export async function readEvent(
 	client: PublicClient,
 	resolver: Address,
 	eventId: Hex,
+	blockNumber?: bigint,
 ): Promise<EventView> {
 	const read = <T>(
 		functionName:
@@ -81,6 +82,7 @@ export async function readEvent(
 			abi: RESOLVER,
 			functionName,
 			args,
+			blockNumber,
 		} as never) as Promise<T>;
 	const state = await read<{
 		round: number;

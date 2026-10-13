@@ -356,8 +356,16 @@ test("the gate script, the workflow and the red fixtures name the same gates", (
 		"a gate with no fixture proving it can fail, or a fixture for a gate that does not exist",
 	);
 	const commands = new Set(declared("COMMANDS"));
-	const stepped = runLines(jobs().gates ?? "")
-		.map((line) => line.match(/^tools\/ci\.sh ([a-z-]+)$/)?.[1])
+	// The repository suite runs in the repository job, one shard per matrix entry; every other gate
+	// runs in the gates job.
+	const stepped = [jobs().gates ?? "", jobs().repository ?? ""]
+		.flatMap(runLines)
+		.map(
+			(line) =>
+				line.match(
+					/^tools\/ci\.sh ([a-z-]+)(?: \$\{\{ matrix\.shard \}\})?$/,
+				)?.[1],
+		)
 		.filter((name) => name && !commands.has(name))
 		.sort();
 	assert.deepEqual(
@@ -367,11 +375,42 @@ test("the gate script, the workflow and the red fixtures name the same gates", (
 	);
 });
 
+test("the repository suite's shards are the script's, name existing files, and do not overlap", () => {
+	// The clones shard is every file the named shards do not name, so no file can be left out; what
+	// can go wrong is a named file that does not exist, a file named twice, or a matrix that runs
+	// other shards than the script declares.
+	const shards = declared("SHARDS");
+	assert.deepEqual(shards, ["pipeline", "clones", "toolchain"]);
+	const matrix = (jobs().repository ?? "").match(/shard:\s*\[([^\]]*)\]/)?.[1];
+	assert.ok(matrix, "the repository job has no shard matrix");
+	assert.deepEqual(
+		matrix.split(",").map((s) => s.trim()),
+		shards,
+		"the workflow's shards are not the script's",
+	);
+	const named = [...declared("SHARD_PIPELINE"), ...declared("SHARD_TOOLCHAIN")];
+	assert.equal(
+		new Set(named).size,
+		named.length,
+		"a test file is named in two shards",
+	);
+	for (const file of named) {
+		assert.ok(
+			existsSync(path.join(root, file)),
+			`${file} is named in a shard and does not exist`,
+		);
+	}
+	assert.deepEqual(declared("SHARD_PIPELINE"), ["test/ci.test.js"]);
+});
+
 test("every step that runs anything is a script, except the one dependency install", () => {
 	const lines = Object.values(jobs()).flatMap(runLines);
 	assert.ok(lines.length > 0, "the workflow runs nothing");
-	const notScripts = lines.filter((line) => !line.startsWith("tools/"));
-	assert.deepEqual(notScripts, ["pnpm install --frozen-lockfile"]);
+	// The install, once in each job that runs the repository's node tooling, is the only exception.
+	const notScripts = new Set(
+		lines.filter((line) => !line.startsWith("tools/")),
+	);
+	assert.deepEqual([...notScripts], ["pnpm install --frozen-lockfile"]);
 });
 
 test("the toolchain the workflow installs is the one the repository pins", () => {
@@ -974,6 +1013,7 @@ test("exactly one job holds a secret, and it is the forbidden-terms job", () => 
 		"forbidden-terms",
 		"fork",
 		"gates",
+		"repository",
 	]);
 	const holding = Object.entries(blocks)
 		.filter(([, block]) => /\$\{\{\s*secrets\./.test(block))

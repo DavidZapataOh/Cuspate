@@ -20,6 +20,14 @@ unset NODE_TEST_CONTEXT
 # steps and with the fixtures that prove each gate can go red.
 GATES=(clean-clone repository-suite build format lint documentation licences selections size gas coverage)
 
+# The repository suite's shards, so the pipeline can run it in parallel jobs. The pipeline's own
+# reconciliation is a shard alone and runs last; the toolchain shard is named; every other test file
+# is the clones shard, so a new file always lands in exactly one. The pipeline's matrix must be
+# exactly this list.
+SHARDS=(pipeline clones toolchain)
+SHARD_PIPELINE=(test/ci.test.js)
+SHARD_TOOLCHAIN=(test/toolchain.test.js test/harness.test.js)
+
 # Commands that are not gates: a report, and the one job that holds a secret.
 COMMANDS=(tripwires forbidden-terms)
 
@@ -61,15 +69,33 @@ gate_clean_clone() {
 }
 
 gate_repository_suite() {
-	local log files=()
+	local shard="${1:-}" log files=() file
 	log="$(mktemp)"
+	case "${shard}" in
+	"" | clones | toolchain) ;;
+	pipeline) ;;
+	*)
+		echo "unknown shard: ${shard} (expected one of: ${SHARDS[*]})" >&2
+		exit 2
+		;;
+	esac
 	while IFS= read -r file; do
-		files+=("${file}")
-	done < <(find test -name '*.test.js' -not -path test/ci.test.js | sort)
+		if [[ " ${SHARD_PIPELINE[*]} " == *" ${file} "* ]]; then
+			continue
+		fi
+		local named=false
+		[[ " ${SHARD_TOOLCHAIN[*]} " == *" ${file} "* ]] && named=true
+		if [ -z "${shard}" ] || { [ "${shard}" = toolchain ] && "${named}"; } \
+			|| { [ "${shard}" = clones ] && ! "${named}"; }; then
+			files+=("${file}")
+		fi
+	done < <(find test -name '*.test.js' | sort)
+	if [ "${#files[@]}" -gt 0 ]; then
+		node --test --test-concurrency=1 "${files[@]}" 2>&1 | tee "${log}"
+	fi
 	# This pipeline's own reconciliation runs last and alone, so a failure in it cannot be masked
 	# by the suite it is reconciling.
-	node --test --test-concurrency=1 "${files[@]}" 2>&1 | tee "${log}"
-	if [ -f test/ci.test.js ]; then
+	if { [ -z "${shard}" ] || [ "${shard}" = pipeline ]; } && [ -f test/ci.test.js ]; then
 		node --test test/ci.test.js 2>&1 | tee -a "${log}"
 	fi
 	# Matched by shape rather than by the runner's leading symbol, which is outside ASCII.
@@ -306,7 +332,7 @@ command_forbidden_terms() {
 run_one() {
 	case "$1" in
 	clean-clone) gate_clean_clone ;;
-	repository-suite) gate_repository_suite ;;
+	repository-suite) gate_repository_suite "${2:-}" ;;
 	build) gate_build ;;
 	format) gate_format ;;
 	lint) gate_lint ;;
@@ -325,12 +351,12 @@ run_one() {
 	esac
 }
 
-if [ "$#" -gt 1 ]; then
-	echo "usage: tools/ci.sh [gate]" >&2
+if [ "$#" -gt 2 ] || { [ "$#" -eq 2 ] && [ "$1" != repository-suite ]; }; then
+	echo "usage: tools/ci.sh [gate] | tools/ci.sh repository-suite [shard]" >&2
 	exit 2
 fi
-if [ "$#" -eq 1 ]; then
-	run_one "$1"
+if [ "$#" -ge 1 ]; then
+	run_one "$@"
 	exit 0
 fi
 

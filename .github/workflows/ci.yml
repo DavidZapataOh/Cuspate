@@ -38,8 +38,6 @@ jobs:
         run: tools/ci.sh tripwires
       - name: clean-clone
         run: tools/ci.sh clean-clone
-      - name: repository-suite
-        run: tools/ci.sh repository-suite
       - name: build
         run: tools/ci.sh build
       - name: format
@@ -58,6 +56,32 @@ jobs:
         run: tools/ci.sh gas
       - name: coverage
         run: tools/ci.sh coverage
+
+  # The repository suite, in the shards the gate script declares, in parallel: run as one step it
+  # was most of the gates job's time. Each shard is the same command a laptop runs.
+  repository:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [pipeline, clones, toolchain]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@v6
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: install
+        run: pnpm install --frozen-lockfile
+      - name: repository-suite
+        run: tools/ci.sh repository-suite ${{ matrix.shard }}
 
   fork:
     runs-on: ubuntu-24.04-arm

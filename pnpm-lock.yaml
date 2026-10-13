@@ -184,6 +184,9 @@ importers:
       '@chainlink/cre-sdk':
         specifier: 1.23.0
         version: 1.23.0(supports-color@7.2.0)(typescript@5.9.3)
+      viem:
+        specifier: 2.57.4
+        version: 2.57.4(typescript@5.9.3)(zod@3.25.76)
       zod:
         specifier: 3.25.76
         version: 3.25.76

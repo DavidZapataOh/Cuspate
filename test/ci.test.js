@@ -821,6 +821,9 @@ function stateChangingFunctions() {
 		file.startsWith("src/"),
 	)) {
 		for (const artifact of artifacts(source)) {
+			// Only what can be deployed has callers: an interface, or an abstract contract, has no
+			// code of its own, and what it declares is inspected in the contract that implements it.
+			if (artifact.bytecode.object === "0x") continue;
 			const mutability = new Map(
 				artifact.abi
 					.filter((entry) => entry.type === "function")
@@ -851,6 +854,22 @@ function stateChangingFunctions() {
 	);
 	return found;
 }
+
+test("the state-changing functions inspected are the deployable contracts', not an interface's declarations", () => {
+	// An interface has no code anyone can call; the contract that implements it is inspected, with
+	// everything it inherits.
+	const inspected = stateChangingFunctions().map(
+		(fn) => `${fn.contract}.${fn.signature}`,
+	);
+	assert.ok(
+		inspected.includes("CreProposer.onReport(bytes,bytes)"),
+		"the implementation was not inspected",
+	);
+	assert.ok(
+		!inspected.includes("IReceiver.onReport(bytes,bytes)"),
+		"an interface declaration was inspected",
+	);
+});
 
 test("tripwire: every state-changing function in contracts/src says who may call it, and every restricted one has a negative test", (t) => {
 	const unitTests = Object.values(

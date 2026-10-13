@@ -1,4 +1,7 @@
 {
+  "CreProposer.onReport a figure, the resolver's first bond": "274200",
+  "CreProposer.recover the balance kept for bonds": "94705",
+  "CreProposer.sweep a settled bond, to a treasury holding nothing": "151267",
   "FreezeHook.freezeNow a market's three pools": "102327",
   "FreezeHook.register a market's three pools": "176165",
   "MarketFactory.createMarket over aMU and USDC": "3838427",

@@ -1,3 +1,11 @@
 {
-	"schedule": "0 */10 * * * *"
+	"schedule": "0 */10 * * * *",
+	"chainSelectorName": "monad-mainnet",
+	"resolver": "0x0000000000000000000000000000000000000000",
+	"receiver": "0x0000000000000000000000000000000000000000",
+	"eventId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+	"terms": "",
+	"cik": "723125",
+	"userAgent": "Cuspate research@cuspate.invalid",
+	"period": { "quarter": 1, "fiscalYear": 2027 }
 }

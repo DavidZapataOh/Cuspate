@@ -4,6 +4,12 @@
     "collateral": [
       "0xc54ce75193a68602bC01FfD2B112DA3948EB14a7"
     ],
+    "creForwarder": [
+      "0x76c9cf548b4179F8901cda1f8623568b58215E62"
+    ],
+    "creSimulationForwarder": [
+      "0x9eF6468C5f37b976E57d52054c693269479A784d"
+    ],
     "dollar": [
       "0x754704Bc059F8C67012fEd69BC8A327a5aafb603"
     ],

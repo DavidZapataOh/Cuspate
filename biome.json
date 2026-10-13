@@ -11,7 +11,8 @@
 			"!contracts/broadcast",
 			"!contracts/deployments",
 			"!contracts/snapshots",
-			"!cre/.build"
+			"!cre/.build",
+			"!cre/**/fixtures"
 		]
 	},
 	"formatter": {

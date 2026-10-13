@@ -10,6 +10,7 @@ import {PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {ConditionalPools} from "../../src/ConditionalPools.sol";
+import {CreProposer} from "../../src/CreProposer.sol";
 import {FreezeHook} from "../../src/FreezeHook.sol";
 import {PositionRouter} from "../../src/PositionRouter.sol";
 import {
@@ -163,6 +164,53 @@ abstract contract GasCases is Test {
         vm.prank(proposer);
         resolver_.withdraw();
         _record("OptimisticResolver.withdraw two bonds, to a proposer with nothing", "");
+    }
+
+    /// @notice The CRE receiver: a report delivered by its forwarder, proposing with the resolver's
+    ///         first bond; its settled bond swept to a treasury holding nothing; and the treasury
+    ///         recovering the balance kept for bonds. This contract is the forwarder, so each call is
+    ///         the receiver's own cost, without a forwarder's.
+    function test_creProposer() public {
+        IERC20 bondToken = dollarVault.COLLATERAL();
+        uint256 bond = 10 ** IERC20Metadata(address(bondToken)).decimals();
+        OptimisticResolver resolver_ = new OptimisticResolver(
+            factory,
+            registry,
+            address(this),
+            address(this),
+            bondToken,
+            bond,
+            bond / 5,
+            2 hours,
+            7 days,
+            7 days
+        );
+        address owner = makeAddr("workflow owner");
+        address treasury = makeAddr("treasury");
+        CreProposer receiver =
+            new CreProposer(address(this), resolver_, owner, "a1b2c3d4e5", treasury);
+        deal(address(bondToken), address(receiver), 2 * bond);
+        uint64 announcesAt = uint64(vm.getBlockTimestamp() + 1 days);
+        bytes32 figureEvent = registry.seal(_sealable(announcesAt, "a reported figure"));
+        bytes memory metadata = abi.encodePacked(
+            keccak256("a workflow id"), bytes10("a1b2c3d4e5"), owner, bytes2(0x0001)
+        );
+        bytes memory report = abi.encode(figureEvent, int256(3342), uint8(2));
+
+        vm.warp(announcesAt);
+        assertEq(bondToken.balanceOf(address(resolver_)), 0);
+        receiver.onReport(metadata, report);
+        _record("CreProposer.onReport a figure, the resolver's first bond", "");
+
+        vm.warp(vm.getBlockTimestamp() + 2 hours);
+        resolver_.settle(figureEvent);
+        assertEq(bondToken.balanceOf(treasury), 0);
+        receiver.sweep();
+        _record("CreProposer.sweep a settled bond, to a treasury holding nothing", "");
+
+        vm.prank(treasury);
+        receiver.recover(bondToken, bond);
+        _record("CreProposer.recover the balance kept for bonds", "");
     }
 
     /// @notice A ruling's reason at its maximum length, so the measured rulings are the costliest.

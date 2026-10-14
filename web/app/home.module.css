@@ -65,7 +65,7 @@
 	margin: 0;
 	padding: 0;
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
 	gap: var(--space-4);
 }
 
@@ -136,4 +136,22 @@
 	.search {
 		width: 100%;
 	}
+}
+
+/* Grid items may shrink below their content's widest word, so nothing pushes the page sideways. */
+.page > *,
+.featured > * {
+	min-width: 0;
+}
+
+@media (max-width: 640px) {
+	.page {
+		padding-inline: var(--space-4);
+	}
+}
+
+.back {
+	color: #f2e9dc;
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }

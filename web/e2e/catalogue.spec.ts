@@ -206,7 +206,9 @@ test("the balance adds the two worlds into the price the pools imply, beside the
 }) => {
 	const scale = page.locator('[data-primitive="balance-scale"]').first();
 	await expect(scale).toContainText("The pools imply $100.00.");
-	await expect(scale).toContainText("Tesla trades at $99.80.");
+	await expect(scale).toContainText(
+		"Tesla trades at $99.80 on the price feed.",
+	);
 	await expect(scale).not.toContainText("real price");
 });
 
@@ -249,7 +251,12 @@ test("an error says what happened with an icon and words, never colour alone", a
 });
 
 test("the catalogue looks as it did", async ({ page }) => {
-	// The countdowns count real time, so they are masked; everything else must match.
+	// The countdowns count real time, so they are masked; everything else must match. They are
+	// written once the page runs in the browser, so the picture waits for them.
+	for (const countdown of await page
+		.locator('[data-primitive="countdown"]')
+		.all())
+		await expect(countdown).not.toBeEmpty();
 	await expect(page).toHaveScreenshot("catalogue.png", {
 		fullPage: true,
 		mask: [page.locator('[data-primitive="countdown"]')],

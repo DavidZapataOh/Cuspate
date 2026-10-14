@@ -57,3 +57,9 @@
 	clip-path: inset(50%);
 	white-space: nowrap;
 }
+
+.empty {
+	margin-top: var(--space-2);
+	color: var(--text-muted);
+	font-size: 14px;
+}

@@ -97,3 +97,8 @@
 		padding: var(--space-5) var(--space-4) 0;
 	}
 }
+
+/* Grid items may shrink below their content's widest word, so nothing pushes the page sideways. */
+.page > * {
+	min-width: 0;
+}

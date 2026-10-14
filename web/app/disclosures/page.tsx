@@ -78,12 +78,11 @@ export default async function DisclosuresPage() {
 						There is no product fee. Each purchase pays the pools&apos; fee,
 						shown in the ticket before you sign.
 					</li>
-					{read.synthetic ? (
-						<li>
-							Prices, chances and amounts shown on the market pages are sample
-							data until the markets open.
-						</li>
-					) : null}
+					<li>
+						Prices, chances, amounts and the stock price on the market pages are
+						read from the test network&apos;s pools, vaults and price feed when
+						each page loads.
+					</li>
 				</ul>
 			</section>
 
@@ -171,8 +170,9 @@ export default async function DisclosuresPage() {
 					by posting a bond. A challenge goes to the arbiter, who has{" "}
 					{duration(settlement.arbiterTimeoutSeconds)} to rule. If nothing can
 					be settled within {duration(settlement.expirySeconds)} after the
-					deadline, the market resolves invalid and every holder gets their
-					share back.
+					deadline, the market resolves invalid and every holder gets half of
+					what they hold in each world: half the shares and half the dollars
+					kept beside them.
 				</p>
 			</section>
 

@@ -6,6 +6,7 @@
 import { type Address, formatUnits } from "viem";
 import { formatShares, formatUsd } from "../lib/format.ts";
 import { buttonWords, panLabels } from "../lib/naming.ts";
+import { MIN_SHARES } from "../lib/ticket.ts";
 import { type Problem, problemText } from "./problems.ts";
 
 /** Where a purchase has got to. */
@@ -40,6 +41,8 @@ export type TicketInput = {
 	nowMs: number;
 	announcesAt: string;
 	phase: Phase;
+	/** The smallest amount, in cents, that buys a share amount the ticket can show. */
+	minimumCents?: bigint;
 };
 
 /** The state a ticket is in. */
@@ -132,11 +135,16 @@ export function ticketView(input: TicketInput): TicketView {
 		const state =
 			problem.kind === "closed"
 				? "closed"
-				: problem.kind === "full"
+				: problem.kind === "full" || problem.kind === "depth"
 					? "full"
 					: "failed";
 		return view(state, problemText(problem));
 	}
+	if (input.quote.shares < MIN_SHARES)
+		return view(
+			"empty",
+			`Enter at least ${formatUsd(input.minimumCents ?? 1n)}: a smaller amount buys less than 0.0001 share.`,
+		);
 	if (!input.account)
 		return view("connect", outcomes(input, input.quote.shares), {
 			label: "Sign in to buy",

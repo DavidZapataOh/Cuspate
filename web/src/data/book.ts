@@ -3,7 +3,7 @@
  * market writes it there under "<event>/<condition>", with the ids and tokens a purchase needs.
  */
 import { type Address, getAddress, type Hex, isAddress, isHex } from "viem";
-import type { MarketBinding, ReadLayer } from "./model.ts";
+import type { MarketBinding } from "./model.ts";
 
 type Recorded = {
 	marketId?: unknown;
@@ -43,28 +43,4 @@ export function marketsOf(book: {
 		});
 	}
 	return markets;
-}
-
-/** A read layer whose conditions carry their market wherever the record lists one. */
-export function withMarkets(
-	layer: ReadLayer,
-	markets: Map<string, MarketBinding>,
-): ReadLayer {
-	const bind = <E extends { eventKey: string; conditions: { key: string }[] }>(
-		event: E,
-	): E => ({
-		...event,
-		conditions: event.conditions.map((c) => {
-			const market = markets.get(`${event.eventKey}/${c.key}`);
-			return market ? { ...c, market } : c;
-		}),
-	});
-	return {
-		...layer,
-		events: async (now) => (await layer.events(now)).map(bind),
-		event: async (key, now) => {
-			const event = await layer.event(key, now);
-			return event && bind(event);
-		},
-	};
 }

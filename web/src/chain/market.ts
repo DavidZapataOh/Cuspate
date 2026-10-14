@@ -12,6 +12,7 @@ import {
 	http,
 	type PublicClient,
 	parseAbi,
+	parseAbiItem,
 } from "viem";
 import type { MarketBinding } from "../data/model.ts";
 import type { Call } from "../ticket/order.ts";
@@ -27,6 +28,10 @@ const abi = {
 		"function balanceOf(address) view returns (uint256)",
 		"function allowance(address owner, address spender) view returns (uint256)",
 		"function totalSupply() view returns (uint256)",
+	]),
+	faucet: parseAbi([
+		"function lastDrip(address) view returns (uint256)",
+		"function COOLDOWN() view returns (uint256)",
 	]),
 	vault: parseAbi([
 		"function CAP() view returns (uint256)",
@@ -51,6 +56,25 @@ export function revertData(error: unknown): Hex | undefined {
 	return typeof data === "string" ? (data as Hex) : undefined;
 }
 
+/**
+ * The largest amount, in the dollar's units and to a whole dollar, that a quote accepts: a binary
+ * search between nothing and `upTo` over whether each amount is quoted.
+ */
+export async function largestQuoted(
+	quotes: (dollars: bigint) => Promise<boolean>,
+	upTo: bigint,
+	unit = 1_000_000n,
+): Promise<bigint> {
+	let low = 0n;
+	let high = upTo / unit;
+	while (low < high) {
+		const mid = (low + high + 1n) / 2n;
+		if (await quotes(mid * unit)) low = mid;
+		else high = mid - 1n;
+	}
+	return low * unit;
+}
+
 /** How many shares an amount of dollars buys in one world now, or why it cannot. */
 export async function quoteShares(
 	client: PublicClient,
@@ -70,7 +94,37 @@ export async function quoteShares(
 		});
 		return { shares: result[0] };
 	} catch (error) {
-		return { problem: problemOf(revertData(error)) };
+		const problem = problemOf(revertData(error));
+		if (problem.kind !== "depth" || problem.maxCents !== undefined)
+			return { problem };
+		// The pool cannot take it all: find how much it takes now, so the ticket can say so.
+		const most = await largestQuoted(
+			async (amount) =>
+				"shares" in (await quoteOnce(client, key, zeroForOne, amount)),
+			dollars,
+		);
+		return { problem: { kind: "depth", maxCents: most / 10_000n } };
+	}
+}
+
+async function quoteOnce(
+	client: PublicClient,
+	key: ReturnType<typeof worldPool>["key"],
+	zeroForOne: boolean,
+	dollars: bigint,
+): Promise<{ shares: bigint } | { failed: true }> {
+	try {
+		const { result } = await client.simulateContract({
+			address: contracts.quoter,
+			abi: abi.quoter,
+			functionName: "quoteExactInputSingle",
+			args: [
+				{ poolKey: key, zeroForOne, exactAmount: dollars, hookData: "0x" },
+			],
+		});
+		return { shares: result[0] };
+	} catch {
+		return { failed: true };
 	}
 }
 
@@ -139,4 +193,59 @@ export async function checkPurchase(
 	} catch (error) {
 		return problemOf(revertData(error));
 	}
+}
+
+const ENTERED = parseAbiItem(
+	"event Entered(bytes32 indexed marketId, address indexed payer, address indexed recipient, bool yes, uint256 dollars, uint256 shares)",
+);
+
+/** The widest block range the network's endpoint serves logs for in one request. */
+const LOG_RANGE = 100n;
+
+/**
+ * The shares a purchase actually bought, from the router's own record of it: the last entry into a
+ * market for a recipient logged since a block. Nothing if none is found.
+ */
+export async function receivedShares(
+	client: PublicClient,
+	marketId: Hex,
+	recipient: Address,
+	fromBlock: bigint,
+): Promise<bigint | undefined> {
+	const latest = await client.getBlockNumber();
+	let found: bigint | undefined;
+	for (let a = fromBlock; a <= latest; a += LOG_RANGE) {
+		const b = a + LOG_RANGE - 1n;
+		const logs = await client.getLogs({
+			address: contracts.router,
+			event: ENTERED,
+			args: { marketId, recipient },
+			fromBlock: a,
+			toBlock: b > latest ? latest : b,
+		});
+		const last = logs.at(-1);
+		if (last?.args.shares !== undefined) found = last.args.shares;
+	}
+	return found;
+}
+
+/** When an address may next take test dollars, in seconds; 0 when it may now or never took any. */
+export async function nextDripAt(
+	client: PublicClient,
+	owner: Address,
+): Promise<number> {
+	const [last, cooldown] = await Promise.all([
+		client.readContract({
+			address: contracts.dollar,
+			abi: abi.faucet,
+			functionName: "lastDrip",
+			args: [owner],
+		}),
+		client.readContract({
+			address: contracts.dollar,
+			abi: abi.faucet,
+			functionName: "COOLDOWN",
+		}),
+	]);
+	return last === 0n ? 0 : Number(last + cooldown);
 }

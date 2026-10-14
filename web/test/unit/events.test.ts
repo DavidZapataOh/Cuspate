@@ -3,7 +3,11 @@ import { test } from "node:test";
 import { filterEvents, pickFeatured } from "../../src/lib/events.ts";
 
 type E = Parameters<typeof pickFeatured>[0][number];
-const base = { sector: "tech", conditions: [] } as unknown as E;
+const base = {
+	sector: "tech",
+	conditions: [],
+	period: { quarter: 3, fiscalYear: 2026 },
+} as unknown as E;
 function event(
 	key: string,
 	announcesAt: string,
@@ -80,4 +84,12 @@ test("filters narrow the open events and search matches company or ticker", () =
 	// The company's name is the shared profile's: "Microsoft" for MSFT.
 	assert.deepEqual(keys(filterEvents(events, "All", "micro", now)), ["msft"]);
 	assert.deepEqual(keys(filterEvents(events, "All", "AAPL", now)), ["aapl"]);
+	// Every card names its figure, so a search for it keeps every open event.
+	assert.equal(
+		filterEvents(events, "All", "EPS", now).length,
+		filterEvents(events, "All", "", now).length,
+	);
+	assert.deepEqual(keys(filterEvents(events, "All", "apple eps", now)), [
+		"aapl",
+	]);
 });

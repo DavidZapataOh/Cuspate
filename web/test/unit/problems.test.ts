@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { encodeErrorResult, parseAbi } from "viem";
+import { encodeErrorResult, parseAbi, UserRejectedRequestError } from "viem";
 import { BANNED } from "../../src/lib/banned.ts";
 import { problemOf, problemText } from "../../src/ticket/problems.ts";
 
@@ -12,6 +12,8 @@ const errors = parseAbi([
 	"error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
 	"error WrappedError(address target, bytes4 selector, bytes reason, bytes details)",
 	"error UnexpectedRevertBytes(bytes revertData)",
+	"error NotEnoughLiquidity(bytes32 poolId)",
+	"error PartialFill(uint256 consumed, uint256 amountIn)",
 ]);
 const holder = "0x2222222222222222222222222222222222222222";
 const instant = 1_792_612_800n; // 2026-10-21T20:00:00Z
@@ -100,4 +102,49 @@ test("no problem's words use the vocabulary the product avoids", () => {
 		for (const word of BANNED)
 			assert.doesNotMatch(text, new RegExp(`\\b${word}\\b`, "i"));
 	}
+});
+
+test("a pool that cannot take the whole amount says how much it takes, rounded down", () => {
+	const partial = encodeErrorResult({
+		abi: errors,
+		errorName: "PartialFill",
+		args: [10_812_345_678n, 20_000_000_000n],
+	});
+	assert.deepEqual(problemOf(partial), { kind: "depth", maxCents: 1_081_234n });
+	assert.equal(
+		problemText(problemOf(partial)),
+		"At most $10,812.34 can be bought right now.",
+	);
+	const quoted = encodeErrorResult({
+		abi: errors,
+		errorName: "UnexpectedRevertBytes",
+		args: [
+			encodeErrorResult({
+				abi: errors,
+				errorName: "NotEnoughLiquidity",
+				args: [`0x${"11".repeat(32)}`],
+			}),
+		],
+	});
+	assert.deepEqual(problemOf(quoted), { kind: "depth" });
+});
+
+test("a declined signature is named as the buyer's own choice", () => {
+	const declined = new UserRejectedRequestError(new Error("User rejected"));
+	assert.deepEqual(problemOf(undefined, declined), { kind: "cancelled" });
+	assert.equal(
+		problemText({ kind: "cancelled" }),
+		"You cancelled the signature.",
+	);
+	assert.deepEqual(problemOf(undefined, { code: 4001 }), { kind: "cancelled" });
+	assert.deepEqual(problemOf(undefined, new Error("other")), {
+		kind: "failed",
+	});
+});
+
+test("a purchase that met a moved price says nothing was charged", () => {
+	assert.equal(
+		problemText({ kind: "moved" }),
+		"The price moved before your purchase landed; nothing was charged.",
+	);
 });

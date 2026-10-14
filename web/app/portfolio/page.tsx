@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getAddress, isAddress } from "viem";
+import { type Address, getAddress, isAddress } from "viem";
 import { rpcUrl } from "../../src/chain/endpoint.ts";
 import { chainClient } from "../../src/chain/market.ts";
+import { indexerUrl } from "../../src/data/indexer.ts";
 import { readLayer } from "../../src/data/read.ts";
 import { conditionTitle } from "../../src/lib/naming.ts";
 import { positionsOf } from "../../src/portfolio/chain.ts";
+import { indexedPositionsOf } from "../../src/portfolio/indexed.ts";
 import { listedMarkets } from "../../src/portfolio/listed.ts";
 import { holdsAny, type Position } from "../../src/portfolio/position.ts";
 import { Notice } from "../../src/ui/Notice.tsx";
@@ -30,6 +32,20 @@ async function titleOf(position: Position, now: number): Promise<string> {
 		: position.conditionKey;
 }
 
+/** An address's positions: from the indexer where it is set and answers, else from the chain. */
+async function heldBy(owner: Address): Promise<Position[]> {
+	if (indexerUrl()) {
+		try {
+			return await indexedPositionsOf(owner, listedMarkets());
+		} catch (error) {
+			console.error(
+				`the indexer did not answer; reading positions from the chain: ${(error as Error).message}`,
+			);
+		}
+	}
+	return positionsOf(chainClient(rpcUrl()), owner, listedMarkets());
+}
+
 export default async function PortfolioPage({ searchParams }: Props) {
 	const { address } = await searchParams;
 	const raw = typeof address === "string" ? address : undefined;
@@ -38,9 +54,7 @@ export default async function PortfolioPage({ searchParams }: Props) {
 	let failed = false;
 	if (owner) {
 		try {
-			positions = (
-				await positionsOf(chainClient(rpcUrl()), owner, listedMarkets())
-			).filter((p) => holdsAny(p.holdings));
+			positions = (await heldBy(owner)).filter((p) => holdsAny(p.holdings));
 		} catch {
 			failed = true;
 		}

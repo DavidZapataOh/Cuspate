@@ -27,6 +27,7 @@ export default defineConfig({
 			NEXT_TELEMETRY_DISABLED: "1",
 			MONAD_TESTNET_RPC_URL: process.env.MONAD_TESTNET_RPC_URL ?? "",
 			CUSPATE_DEPLOYMENT_RECORD: process.env.CUSPATE_DEPLOYMENT_RECORD ?? "",
+			INDEXER_GRAPHQL_URL: process.env.INDEXER_GRAPHQL_URL ?? "",
 		},
 	},
 });

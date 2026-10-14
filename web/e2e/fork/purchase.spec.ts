@@ -6,16 +6,23 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { createPublicClient, getAddress, http, parseAbi } from "viem";
 import { contracts } from "../../src/chain/record.ts";
+import { pickFeatured } from "../../src/lib/events.ts";
+import { buttonWords, panLabels } from "../../src/lib/naming.ts";
+import { read } from "../chain.ts";
 import { bannedWordsOn } from "../words.ts";
 import { injectTestWallet, TEST_WALLET_NAME } from "./wallet.ts";
 
 const rpcUrl = process.env.MONAD_TESTNET_RPC_URL ?? "";
-const record = JSON.parse(
-	await import("node:fs").then((fs) =>
-		fs.readFileSync(process.env.CUSPATE_DEPLOYMENT_RECORD ?? "", "utf8"),
-	),
-);
-const market = record.markets["meta-q3-2026/above-6-39"];
+// The condition bought is the homepage's featured one, read from the fork as the server reads it:
+// which event leads depends on the money in, which trading moves.
+const now = Date.now();
+const featured = pickFeatured(await read.events(now), now);
+const condition = featured?.conditions.find((c) => c.primary);
+if (!featured || !condition?.market)
+	throw new Error("no featured condition with a market on the fork");
+const market = condition.market;
+const [holds, fails] = panLabels(featured, condition);
+const buyLabel = buttonWords(featured, condition, true).buy;
 const client = createPublicClient({ transport: http(rpcUrl) });
 const balanceOf = parseAbi([
 	"function balanceOf(address) view returns (uint256)",
@@ -57,13 +64,13 @@ async function buy(page: Page, ticket: Locator, amount: string) {
 	const kept = await held(market.legs.dollarNo, BUYER);
 	await ticket.getByRole("textbox", { name: "Amount" }).fill(amount);
 	const status = ticket.locator("[aria-live]");
-	await expect(status).toContainText(`If it's above $6.39: `);
+	await expect(status).toContainText(`${holds}: `);
 	await expect(status).toContainText(
-		` META shares. If not: $${amount}.00 back.`,
+		` ${featured.issuer} shares. ${fails}: $${amount}.00 back.`,
 	);
 	expect(await bannedWordsOn(page)).toEqual([]);
-	await ticket.getByRole("button", { name: "Buy if above $6.39" }).click();
-	await expect(status).toContainText("Bought. If it's above $6.39: ", {
+	await ticket.getByRole("button", { name: buyLabel }).click();
+	await expect(status).toContainText(`Bought. ${holds}: `, {
 		timeout: 60_000,
 	});
 	expect(await bannedWordsOn(page)).toEqual([]);
@@ -92,7 +99,7 @@ test("a wallet with test dollars buys from the event page's ticket", async ({
 	page,
 }) => {
 	await injectTestWallet(page, rpcUrl, BUYER);
-	await page.goto("/events/meta-q3-2026");
+	await page.goto(`/events/${featured.eventKey}`);
 	const ticket = page.locator("aside [data-primitive='ticket']");
 	await expect(ticket).toHaveAttribute("data-hydrated", "true");
 	await signIn(page);
@@ -115,11 +122,9 @@ test("a wallet without test dollars is told how many it needs, gets some from th
 	);
 	expect(await bannedWordsOn(page)).toEqual([]);
 	await ticket.getByRole("button", { name: "Get test dollars" }).click();
-	await expect(status).toContainText("If it's above $6.39: ", {
+	await expect(status).toContainText(`${holds}: `, {
 		timeout: 60_000,
 	});
 	expect(await held(contracts.dollar, empty)).toBe(1_000n * 10n ** 6n);
-	await expect(
-		ticket.getByRole("button", { name: "Buy if above $6.39" }),
-	).toBeEnabled();
+	await expect(ticket.getByRole("button", { name: buyLabel })).toBeEnabled();
 });

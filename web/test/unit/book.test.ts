@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { marketsOf, withMarkets } from "../../src/data/book.ts";
-import { fixtures } from "../../src/data/fixtures.ts";
+import { marketsOf } from "../../src/data/book.ts";
 
-const now = Date.parse("2026-10-14T12:00:00Z");
 const a = (n: number) => `0x${n.toString(16).padStart(40, "0")}`;
 const record = {
 	eventKey: "meta-q3-2026",
@@ -51,22 +49,4 @@ test("a market recorded without its id or its tokens is refused, not half-used",
 		() => marketsOf({ markets: { "meta-q3-2026/above-6-39": noLegs } }),
 		/meta-q3-2026\/above-6-39/,
 	);
-});
-
-test("a condition with a market recorded carries it; the others carry none", async () => {
-	const layer = withMarkets(
-		fixtures,
-		marketsOf({ markets: { "meta-q3-2026/above-6-39": record } }),
-	);
-	const meta = await layer.event("meta-q3-2026", now);
-	const bound = meta?.conditions.filter((c) => c.market);
-	assert.equal(bound?.length, 1);
-	assert.equal(bound?.[0]?.key, "above-6-39");
-	assert.equal(bound?.[0]?.market?.marketId, record.marketId);
-	const events = await layer.events(now);
-	assert.equal(
-		events.flatMap((e) => e.conditions).filter((c) => c.market).length,
-		1,
-	);
-	assert.equal(layer.synthetic, true);
 });

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { privyGateway, statusOf } from "../../src/server/privy.ts";
+import {
+	privyGateway,
+	privyTallies,
+	statusOf,
+	tallyIn,
+	withTally,
+} from "../../src/server/privy.ts";
 import {
 	type SponsorGateway,
 	sessionAccount,
@@ -11,9 +17,11 @@ import { expiryOf } from "../../src/wallet/email.ts";
 const wallet = "0x00000000000000000000000000000000000000Aa";
 const gateway: SponsorGateway = {
 	userOf: async (token) =>
-		token === "good" ? { walletId: "w1", address: wallet } : undefined,
+		token === "good"
+			? { userId: "u1", walletId: "w1", address: wallet }
+			: undefined,
 	execute: async () => ({ transactionId: "t1" }),
-	status: async () => "pending",
+	status: async () => ({ status: "pending", walletId: "w1" }),
 };
 const asking = (token?: string) =>
 	new Request("http://localhost/api/session", {
@@ -32,6 +40,32 @@ test("a session names the wallet the verified user holds, and nothing for anyone
 test("without the app's id and secret the gateway refuses everything", () => {
 	assert.equal(privyGateway({}), unavailable);
 	assert.equal(privyGateway({ NEXT_PUBLIC_PRIVY_APP_ID: "app" }), unavailable);
+	assert.equal(privyTallies({}), undefined);
+});
+
+test("a tally lives in the provider's metadata beside whatever else is kept there", () => {
+	const kept = { theme: "dark" };
+	const user = withTally(
+		kept,
+		{ user: "u1" },
+		{ period: "2026-10-13", count: 3 },
+	);
+	assert.deepEqual(user, {
+		theme: "dark",
+		sponsoredDay: "2026-10-13",
+		sponsoredInDay: 3,
+	});
+	assert.deepEqual(tallyIn(user, { user: "u1" }), {
+		period: "2026-10-13",
+		count: 3,
+	});
+	const global = withTally({}, "global", { period: "2026-10", count: 9 });
+	assert.deepEqual(tallyIn(global, "global"), { period: "2026-10", count: 9 });
+	assert.equal(tallyIn(kept, { user: "u1" }), undefined);
+	assert.equal(
+		tallyIn({ sponsoredDay: "x", sponsoredInDay: "3" }, { user: "u1" }),
+		undefined,
+	);
 });
 
 test("the provider's transaction states read as pending, confirmed or failed", () => {

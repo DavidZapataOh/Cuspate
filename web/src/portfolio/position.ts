@@ -53,19 +53,37 @@ export type Position = {
 	outcome: Outcome;
 };
 
-/** Which world a position is in: the world whose share of the stock it holds more of. */
+/** Below these a leg is dust: less than 0.0001 share, or less than a cent of dollars. */
+export const DUST_SHARES = 10n ** 14n;
+export const DUST_DOLLARS = 10_000n;
+
+/**
+ * Which world a position is in: the world whose share of the stock it holds more of. A position can
+ * hold both (`sidesOf` lists each); this names the larger, for a single label.
+ */
 export function worldOf(h: Holdings): boolean {
 	return h.underlyingYes >= h.underlyingNo;
 }
 
-/** Whether an address holds anything in a market. */
+/** One world a position holds: its share of the stock and the other world's dollar kept beside it. */
+export type Side = { yes: boolean; shares: bigint; kept: bigint };
+
+/**
+ * Every world a position holds more than dust in: buying the yes world leaves its share and the no
+ * world's dollar, buying the no world the reverse, and a holder who bought both holds both.
+ */
+export function sidesOf(h: Holdings): Side[] {
+	const sides: Side[] = [];
+	if (h.underlyingYes >= DUST_SHARES || h.dollarNo >= DUST_DOLLARS)
+		sides.push({ yes: true, shares: h.underlyingYes, kept: h.dollarNo });
+	if (h.underlyingNo >= DUST_SHARES || h.dollarYes >= DUST_DOLLARS)
+		sides.push({ yes: false, shares: h.underlyingNo, kept: h.dollarYes });
+	return sides;
+}
+
+/** Whether an address holds more than dust in a market. */
 export function holdsAny(h: Holdings): boolean {
-	return (
-		h.underlyingYes > 0n ||
-		h.underlyingNo > 0n ||
-		h.dollarYes > 0n ||
-		h.dollarNo > 0n
-	);
+	return sidesOf(h).length > 0;
 }
 
 /** The phase of a position at a moment, in seconds. */
@@ -139,34 +157,25 @@ export const UNDO_SLIPPAGE_BPS = 100n;
 export const UNDO_DEADLINE_SECONDS = 600n;
 
 /**
- * The calls that undo a position before the freeze: approve the router for the share and the other
- * world's dollar, then exit. The share is sold for its world's dollar, which merges with the kept
- * dollar into plain dollars; whatever does not pair comes back as that world's dollar.
- * @throws when the position holds no share, the quote is nothing, or trading has closed.
+ * The calls that undo a position before the freeze, one exit for each world it holds a share in:
+ * approve the router for the share and the other world's dollar, then exit. The share is sold for its
+ * world's dollar, which merges with the kept dollar into plain dollars; whatever does not pair comes
+ * back as that world's dollar. A world whose share has no quote (dust a pool will not buy) is left.
+ * @throws when no world can be undone or trading has closed.
  */
 export function undoCalls(order: {
 	router: Address;
 	position: Position;
 	recipient: Address;
-	/** What the shares sell for now, in the world's dollar. */
-	quotedOut: bigint;
+	/** What each world's shares sell for now, in that world's dollar. */
+	quotes: { yes?: bigint; no?: bigint };
 	nowSeconds: bigint;
 }): Call[] {
 	const { position, router, recipient } = order;
-	const yes = worldOf(position.holdings);
-	const shares = yes
-		? position.holdings.underlyingYes
-		: position.holdings.underlyingNo;
-	const kept = yes ? position.holdings.dollarNo : position.holdings.dollarYes;
-	if (shares === 0n) throw new Error("no share to sell");
-	if (order.quotedOut <= 0n) throw new Error("a quote of nothing has no floor");
 	const freezesAt = BigInt(position.freezesAt);
 	if (order.nowSeconds >= freezesAt) throw new Error("trading has closed");
 	const latest = order.nowSeconds + UNDO_DEADLINE_SECONDS;
 	const deadline = latest < freezesAt ? latest : freezesAt;
-	const floor = (order.quotedOut * (10_000n - UNDO_SLIPPAGE_BPS)) / 10_000n;
-	const share = yes ? position.legs.underlyingYes : position.legs.underlyingNo;
-	const keptToken = yes ? position.legs.dollarNo : position.legs.dollarYes;
 	const approve = (token: Address, amount: bigint): Call => ({
 		to: token,
 		data: encodeFunctionData({
@@ -176,38 +185,59 @@ export function undoCalls(order: {
 		}),
 		value: 0n,
 	});
-	const calls = [approve(share, shares)];
-	if (kept > 0n) calls.push(approve(keptToken, kept));
-	calls.push({
-		to: router,
-		data: encodeFunctionData({
-			abi,
-			functionName: "exit",
-			args: [
-				{
-					marketId: position.marketId,
-					yes,
-					shares,
-					kept,
-					minOut: floor > 0n ? floor : 1n,
-					levelSellsWorldDollar: false,
-					level: 0n,
-					minLevelOut: 0n,
-					recipient,
-					deadline,
-				},
-			],
-		}),
-		value: 0n,
-	});
+	const calls: Call[] = [];
+	for (const side of sidesOf(position.holdings)) {
+		const quoted = side.yes ? order.quotes.yes : order.quotes.no;
+		if (side.shares === 0n || quoted === undefined || quoted <= 0n) continue;
+		const floor = (quoted * (10_000n - UNDO_SLIPPAGE_BPS)) / 10_000n;
+		const share = side.yes
+			? position.legs.underlyingYes
+			: position.legs.underlyingNo;
+		const keptToken = side.yes
+			? position.legs.dollarNo
+			: position.legs.dollarYes;
+		calls.push(approve(share, side.shares));
+		if (side.kept > 0n) calls.push(approve(keptToken, side.kept));
+		calls.push({
+			to: router,
+			data: encodeFunctionData({
+				abi,
+				functionName: "exit",
+				args: [
+					{
+						marketId: position.marketId,
+						yes: side.yes,
+						shares: side.shares,
+						kept: side.kept,
+						minOut: floor > 0n ? floor : 1n,
+						levelSellsWorldDollar: false,
+						level: 0n,
+						minLevelOut: 0n,
+						recipient,
+						deadline,
+					},
+				],
+			}),
+			value: 0n,
+		});
+	}
+	if (calls.length === 0) throw new Error("nothing to undo");
 	return calls;
 }
 
-/** What an undo returns, in the dollar's units: the smaller of the two dollar legs it ends with. */
-export function undoDollars(position: Position, quotedOut: bigint): bigint {
-	const yes = worldOf(position.holdings);
-	const kept = yes ? position.holdings.dollarNo : position.holdings.dollarYes;
-	return quotedOut < kept ? quotedOut : kept;
+/**
+ * What an undo returns, in the dollar's units: for each world undone, the smaller of the two dollar
+ * legs its exit ends with.
+ */
+export function undoDollars(
+	position: Position,
+	quotes: { yes?: bigint; no?: bigint },
+): bigint {
+	return sidesOf(position.holdings).reduce((sum, side) => {
+		const quoted = side.yes ? quotes.yes : quotes.no;
+		if (quoted === undefined) return sum;
+		return sum + (quoted < side.kept ? quoted : side.kept);
+	}, 0n);
 }
 
 /** An amount in a token's units at most four decimals, without trailing zeros: "0.0418". */

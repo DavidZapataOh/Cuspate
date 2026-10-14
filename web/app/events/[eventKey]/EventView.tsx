@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type {
-	ChancePoint,
+	ChanceHistory,
 	MarketEvent,
 	Settlement,
 } from "../../../src/data/model.ts";
@@ -22,14 +22,32 @@ export function EventView({
 	event,
 	histories,
 	settlement,
+	initial,
 }: {
 	event: MarketEvent;
-	histories: Record<string, ChancePoint[]>;
+	histories: Record<string, ChanceHistory>;
 	settlement: Settlement;
+	/** The condition and world the link names, if any: "?c=above-0-43&side=no". */
+	initial?: { condition?: string; side?: string };
 }) {
 	const primary =
 		event.conditions.find((c) => c.primary) ?? event.conditions[0];
-	const [selectedKey, setSelectedKey] = useState(primary?.key);
+	const [selectedKey, setSelectedKey] = useState(
+		event.conditions.some((c) => c.key === initial?.condition)
+			? initial?.condition
+			: primary?.key,
+	);
+	const [yes, setYes] = useState(initial?.side !== "no");
+	// The choice is kept in the address, so a reload or a shared link opens the same ticket.
+	const choose = (key: string, side: boolean) => {
+		setSelectedKey(key);
+		setYes(side);
+		window.history.replaceState(
+			null,
+			"",
+			`?c=${encodeURIComponent(key)}&side=${side ? "yes" : "no"}`,
+		);
+	};
 	const selected =
 		event.conditions.find((c) => c.key === selectedKey) ?? primary;
 	if (!selected) return null;
@@ -46,8 +64,9 @@ export function EventView({
 							Chance: {title}
 						</h2>
 						<LineChart
-							points={histories[selected.key] ?? []}
-							label={`Chance over the last two weeks that ${title.toLowerCase()}`}
+							points={histories[selected.key]?.points ?? []}
+							tradesKnown={histories[selected.key]?.tradesKnown ?? false}
+							label={`Chance since the market opened that ${title.toLowerCase()}`}
 						/>
 					</Card>
 					<Card as="section" aria-labelledby="conditions-title">
@@ -71,16 +90,17 @@ export function EventView({
 											<>
 												<Button
 													variant="secondary"
-													aria-pressed={c.key === selected.key}
+													aria-pressed={c.key === selected.key && yes}
 													aria-label={`${words.yesShort}: ${name}`}
-													onClick={() => setSelectedKey(c.key)}
+													onClick={() => choose(c.key, true)}
 												>
 													{words.yesShort}
 												</Button>
 												<Button
 													variant="secondary"
+													aria-pressed={c.key === selected.key && !yes}
 													aria-label={`${words.noShort}: ${name}`}
-													onClick={() => setSelectedKey(c.key)}
+													onClick={() => choose(c.key, false)}
 												>
 													{words.noShort}
 												</Button>
@@ -97,7 +117,13 @@ export function EventView({
 						<h2 id="ticket-title" className={styles.cardTitle}>
 							Your ticket: {title}
 						</h2>
-						<Trade event={event} condition={selected} layout="compact" />
+						<Trade
+							event={event}
+							condition={selected}
+							layout="compact"
+							side={yes}
+							onSideChange={(side) => choose(selected.key, side)}
+						/>
 					</Card>
 				</aside>
 			</div>

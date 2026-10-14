@@ -11,7 +11,7 @@ export default function FundPage() {
 				<h1 className={styles.headline}>Add dollars</h1>
 				<p className={styles.explain}>
 					Send USDC or USDT from another chain. It arrives as USDC on Monad, at
-					your address, usually in under a minute.
+					your address; the quote says how long it takes.
 				</p>
 			</header>
 			<FundView />

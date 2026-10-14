@@ -29,7 +29,7 @@
 
 .inputs {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
 	gap: var(--space-5);
 	align-items: start;
 }
@@ -38,6 +38,7 @@
 	display: grid;
 	gap: var(--space-2);
 	grid-column: 1 / -1;
+	min-width: 0;
 }
 
 .field label {
@@ -45,6 +46,7 @@
 }
 
 .field select {
+	min-width: 0;
 	font: inherit;
 	color: var(--text);
 	background: var(--surface);
@@ -137,4 +139,9 @@
 		padding: var(--space-1) 0;
 		width: auto;
 	}
+}
+
+/* Grid items may shrink below their content's widest word, so nothing pushes the page sideways. */
+.page > * {
+	min-width: 0;
 }

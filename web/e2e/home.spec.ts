@@ -1,9 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { fixtures } from "../src/data/fixtures.ts";
 import { filterEvents, pickFeatured } from "../src/lib/events.ts";
+import { formatChance, formatUsd } from "../src/lib/format.ts";
 import { about } from "../src/lib/issuer.ts";
 import { headline } from "../src/lib/naming.ts";
+import { read } from "./chain.ts";
 import {
 	bannedWordsOn,
 	sidewaysOverflowOn,
@@ -15,50 +16,74 @@ test.beforeEach(async ({ page }) => {
 	await page.evaluate(() => document.fonts.ready);
 });
 
-test("the next event to freeze is featured, with its balance and ticket", async ({
+/** The text as a visitor reads it, with the figures' thin spaces and line breaks taken out. */
+const plain = (text: string) => text.replace(/\s+/g, "");
+
+test("the next event to freeze is featured, with the balance its pools imply and the feed's price", async ({
 	page,
 }) => {
 	const now = Date.now();
-	const featured = pickFeatured(await fixtures.events(now), now);
-	if (!featured) throw new Error("no open event");
+	const featured = pickFeatured(await read.events(now), now);
+	if (!featured) throw new Error("no open event on chain");
 	const primary = featured.conditions.find((c) => c.primary);
 	if (!primary) throw new Error("no primary condition");
 	await expect(page.getByRole("heading", { level: 1 })).toHaveText(
 		headline(featured, primary),
 	);
-	await expect(
-		page.locator('[data-primitive="balance-scale"]').first(),
-	).toBeVisible();
+	const scale = page.locator('[data-primitive="balance-scale"]').first();
+	await expect(scale).toBeVisible();
 	await expect(page.locator('[data-primitive="ticket"]').first()).toBeVisible();
-	await expect(
-		page.locator('[data-primitive="balance-scale"]').first(),
-	).toContainText("The pools imply");
+	const caption = plain((await scale.locator("figcaption").innerText()) ?? "");
+	expect(caption).toContain(
+		plain(
+			`${formatUsd(primary.beatPriceCents)} + ${formatUsd(primary.dontPriceCents)}`,
+		),
+	);
+	expect(caption).toContain(
+		plain(`The pools imply ${formatUsd(primary.impliedCents)}.`),
+	);
+	expect(caption).toContain(plain(formatUsd(featured.spotCents)));
 });
 
-test("every open event has a card, in the order they freeze", async ({
+test("every open event has a card, in the order they freeze, with its chance and money in", async ({
 	page,
 }) => {
 	const now = Date.now();
-	const open = filterEvents(await fixtures.events(now), "All", "", now);
+	const open = filterEvents(await read.events(now), "All", "", now);
+	expect(open.length).toBeGreaterThan(0);
 	await expect(page.locator("li[data-event]")).toHaveCount(open.length);
 	const keys = await page
 		.locator("li[data-event]")
 		.evaluateAll((els) => els.map((el) => el.getAttribute("data-event")));
 	expect(keys).toEqual(open.map((e) => e.eventKey));
+	for (const event of open) {
+		const card = plain(
+			await page.locator(`li[data-event="${event.eventKey}"]`).innerText(),
+		);
+		const primary = event.conditions.find((c) => c.primary);
+		if (primary) expect(card).toContain(plain(formatChance(primary.chance)));
+		expect(card).toContain(
+			plain(`${formatUsd(event.moneyIn)} test dollars in`),
+		);
+	}
 });
 
 test("a chip and a search narrow the open markets", async ({ page }) => {
 	const now = Date.now();
-	const events = await fixtures.events(now);
+	const events = await read.events(now);
 	await page.getByRole("button", { name: "Tech" }).click();
 	await expect(page.locator("li[data-event]")).toHaveCount(
 		filterEvents(events, "Tech", "", now).length,
 	);
 	await page.getByRole("button", { name: "All" }).click();
-	await page.getByRole("searchbox", { name: "Search markets" }).fill("micro");
-	await expect(page.locator("li[data-event]")).toHaveCount(
-		filterEvents(events, "All", "micro", now).length,
-	);
+	const first = events[0];
+	if (first) {
+		const name = about(first).company;
+		await page.getByRole("searchbox", { name: "Search markets" }).fill(name);
+		await expect(page.locator("li[data-event]")).toHaveCount(
+			filterEvents(events, "All", name, now).length,
+		);
+	}
 	await page
 		.getByRole("searchbox", { name: "Search markets" })
 		.fill("nothing like this");
@@ -68,7 +93,7 @@ test("a chip and a search narrow the open markets", async ({ page }) => {
 test("no company that publishes only GAAP EPS is said to beat expectations", async ({
 	page,
 }) => {
-	for (const event of await fixtures.events(Date.now())) {
+	for (const event of await read.events(Date.now())) {
 		if (about(event).figureKind !== "gaap-diluted-eps") continue;
 		const card = page.locator(`li[data-event="${event.eventKey}"]`);
 		if ((await card.count()) === 0) continue;
@@ -82,6 +107,7 @@ test("the page says it runs on a test network, and shows none of the words kept 
 	await expect(
 		page.getByText(/Test network: test dollars and test shares/),
 	).toBeVisible();
+	await expect(page.locator("body")).not.toContainText(/sample data/i);
 	expect(await bannedWordsOn(page)).toEqual([]);
 });
 
@@ -106,9 +132,11 @@ test("every amount keeps its separators narrow, on the cards and in the balance'
 test("the homepage fits a phone without scrolling sideways", async ({
 	page,
 }) => {
-	await page.setViewportSize({ width: 390, height: 844 });
-	await page.goto("/");
-	expect(await sidewaysOverflowOn(page)).toBe(0);
+	for (const width of [390, 320]) {
+		await page.setViewportSize({ width, height: 844 });
+		await page.goto("/");
+		expect(await sidewaysOverflowOn(page), `at ${width}px`).toBe(0);
+	}
 });
 
 test("the footer rule lines up with the page's content", async ({ page }) => {

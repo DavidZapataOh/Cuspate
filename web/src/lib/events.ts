@@ -1,10 +1,25 @@
-import { issuer } from "cuspate-shared";
+import { issuer, periodLabel } from "cuspate-shared";
 import type { MarketEvent } from "../data/model.ts";
 
 type Listed = Pick<
 	MarketEvent,
-	"eventKey" | "issuer" | "announcesAt" | "moneyIn" | "sector"
+	"eventKey" | "issuer" | "announcesAt" | "moneyIn" | "sector" | "period"
 >;
+
+/** What a search reads of an event: its company, ticker and quarter, and the figure it settles on. */
+function searchable(event: Listed): string {
+	const profile = issuer(event.issuer);
+	return [
+		profile.shortName,
+		profile.name,
+		event.issuer,
+		periodLabel(profile, event.period),
+		"earnings eps",
+		profile.figureKind === "non-gaap-diluted-eps" ? "adjusted" : "gaap",
+	]
+		.join(" ")
+		.toLowerCase();
+}
 
 const DAY = 86_400_000;
 
@@ -46,10 +61,7 @@ export function filterEvents<T extends Listed>(
 		if (filter === "This week" && until > 7 * DAY) return false;
 		if (filter === "Tech" && event.sector !== "tech") return false;
 		if (filter === "Ending soon" && until > 21 * DAY) return false;
-		return (
-			words === "" ||
-			issuer(event.issuer).shortName.toLowerCase().includes(words) ||
-			event.issuer.toLowerCase().includes(words)
-		);
+		const text = searchable(event);
+		return words === "" || words.split(/\s+/).every((w) => text.includes(w));
 	});
 }

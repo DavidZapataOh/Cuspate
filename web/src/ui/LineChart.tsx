@@ -12,16 +12,28 @@ const day = new Intl.DateTimeFormat("en-US", {
 	month: "short",
 	day: "numeric",
 });
+const moment = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	month: "short",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
+const TWO_DAYS = 2 * 86_400_000;
 
 /**
  * A condition's chance over time: one cream line on a quiet grid, the last point marked. The same
- * points are in a table for anyone who does not read the picture.
+ * points are in a table for anyone who does not read the picture. While nobody has traded, the line
+ * runs flat from where the market opened to now, and the chart says so.
  */
 export function LineChart({
 	points,
 	label,
+	tradesKnown,
 }: {
 	points: ChancePoint[];
+	/** Whether the trades between the opening and now are known; without them only both ends are. */
+	tradesKnown: boolean;
 	label: string;
 }) {
 	const first = points[0]?.at ?? 0;
@@ -39,7 +51,9 @@ export function LineChart({
 		.join("");
 	const end = points.at(-1);
 	const ticks = [0, 0.5, 1].map((f) => first + f * span);
-	const rows = points.filter((_, i) => i % 24 === 0 || i === points.length - 1);
+	const label_ = span < TWO_DAYS ? moment : day;
+	const traded = points.some((p) => p.source === "trade");
+	const rows = points;
 	return (
 		<figure data-primitive="line-chart" className={styles.chart}>
 			<svg
@@ -75,7 +89,7 @@ export function LineChart({
 						className={styles.axis}
 						textAnchor={t === first ? "start" : t === last ? "end" : "middle"}
 					>
-						{day.format(new Date(t))}
+						{label_.format(new Date(t))}
 					</text>
 				))}
 				<path d={path} className={styles.line} />
@@ -88,19 +102,36 @@ export function LineChart({
 					/>
 				) : null}
 			</svg>
+			{!tradesKnown ? (
+				<figcaption className={styles.empty}>
+					The trade history is unavailable right now: this shows where the
+					chance opened and where it stands.
+				</figcaption>
+			) : traded ? null : (
+				<figcaption className={styles.empty}>
+					No trades yet: the chance is where the market opened.
+				</figcaption>
+			)}
 			<div className={styles.table}>
 				<table>
 					<caption>{label}</caption>
 					<thead>
 						<tr>
-							<th scope="col">Day</th>
+							<th scope="col">When</th>
 							<th scope="col">Chance</th>
 						</tr>
 					</thead>
 					<tbody>
 						{rows.map((p) => (
 							<tr key={p.at}>
-								<td>{day.format(new Date(p.at))}</td>
+								<td>
+									{moment.format(new Date(p.at))} ET
+									{p.source === "opened"
+										? " (opened)"
+										: p.source === "now"
+											? " (now)"
+											: ""}
+								</td>
 								<td>{formatChance(p.chance)}</td>
 							</tr>
 						))}

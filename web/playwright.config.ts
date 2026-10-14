@@ -1,9 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // The three engines Playwright ships are the supported browsers. Each runs against the production
-// build, served by the framework's own server, never against a development server. These tests are
-// offline: the server reads a record with no market open and a network endpoint nothing answers, so
-// every ticket previews; buying is proven against a fork by e2e/fork/run.ts.
+// build, served by the framework's own server, never against a development server. The server reads
+// the committed deployment record's markets from the test network (and from the indexer where
+// INDEXER_GRAPHQL_URL is set); each spec reads the same sources itself and expects what they hold.
+// Buying is proven against a fork by e2e/fork/run.ts.
 const port = 3107;
 
 export default defineConfig({
@@ -11,6 +12,10 @@ export default defineConfig({
 	// The purchase tests need a fork of the network and run from e2e/fork/run.ts.
 	testIgnore: "fork/**",
 	fullyParallel: true,
+	// The public endpoint limits its rate; every worker reads it too.
+	workers: 2,
+	// The first read of the chain after the server starts can wait out the endpoint's rate limit.
+	timeout: 60_000,
 	forbidOnly: true,
 	retries: 0,
 	reporter: [["list"]],
@@ -30,8 +35,7 @@ export default defineConfig({
 		reuseExistingServer: false,
 		env: {
 			NEXT_TELEMETRY_DISABLED: "1",
-			CUSPATE_DEPLOYMENT_RECORD: "e2e/no-markets.json",
-			MONAD_TESTNET_RPC_URL: "http://127.0.0.1:9",
+			CUSPATE_CATALOGUE: "1",
 		},
 	},
 });

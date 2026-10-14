@@ -54,9 +54,6 @@ export default async function ComparePage() {
 						The price of a share if the condition is met comes from the
 						market&apos;s pools, read when this page loads, less the pools&apos;
 						fee.
-						{read.synthetic
-							? " Until the markets open these are sample prices."
-							: null}
 					</li>
 					<li>
 						We do not show exchange option prices. Bring a call option&apos;s

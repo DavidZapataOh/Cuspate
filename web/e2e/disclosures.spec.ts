@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { formatChance } from "../src/lib/format.ts";
 import { keys } from "../src/lib/keys.ts";
+import { read } from "./chain.ts";
 import { bannedWordsOn, sidewaysOverflowOn } from "./words.ts";
 
 test.beforeEach(async ({ page }) => {
@@ -21,7 +23,20 @@ test("the disclosures say what this is and who holds the keys", async ({
 			new RegExp(k.address),
 		);
 	}
-	await expect(page.locator("tr[data-condition]").first()).toBeVisible();
+	const now = Date.now();
+	const open = (await read.events(now)).filter(
+		(e) => Date.parse(e.announcesAt) > now,
+	);
+	const conditions = open.flatMap((e) => e.conditions);
+	await expect(page.locator("tr[data-condition]")).toHaveCount(
+		conditions.length,
+	);
+	for (const c of conditions) {
+		const row = page.locator("tr[data-condition]", {
+			hasText: c.sealTx?.slice(0, 6) ?? "",
+		});
+		await expect(row.first()).toContainText(formatChance(c.chance));
+	}
 });
 
 test("the disclosures pass the reading checks", async ({ page }) => {

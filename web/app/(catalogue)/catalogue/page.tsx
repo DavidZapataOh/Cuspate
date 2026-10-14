@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Amount } from "../../../src/ui/Amount.tsx";
 import { AmountInput } from "../../../src/ui/AmountInput.tsx";
 import { BalanceScale } from "../../../src/ui/BalanceScale.tsx";
@@ -44,20 +45,29 @@ const SAMPLE_CONDITION = {
 	impliedCents: 9_978n,
 	feeBps: 30n,
 	sealedAt: "2026-10-14T09:00:00Z",
+	resolution: {
+		rounds: [],
+		pendingArbitration: false,
+		outcome: "unresolved" as const,
+	},
 };
 const SAMPLE_EVENT = {
 	issuer: "TSLA",
 	announcesAt: "2026-10-21T20:00:00Z",
 	spotCents: 9_980n,
+	spotPublishedAt: "",
 };
 const SAMPLE_HISTORY = Array.from({ length: 14 * 24 }, (_, i) => ({
 	at: Date.UTC(2026, 9, 1) + i * 3_600_000,
 	chance: 0.41 + 0.08 * Math.sin(i / 30) * Math.cos(i / 11),
+	source: "trade" as const,
 }));
 
 // The design system, every primitive in every state. Reached by its address only; no page links
-// here. All figures are samples.
+// here, and it answers only where CUSPATE_CATALOGUE is set: its figures are illustrations of the
+// components, never market data, so a deployed interface does not serve it.
 export default function Catalogue() {
+	if (process.env.CUSPATE_CATALOGUE !== "1") notFound();
 	const soon = new Date(
 		Date.now() + ((8 * 24 + 4) * 60 + 12) * 60_000 + 30_000,
 	).toISOString();
@@ -293,6 +303,7 @@ export default function Catalogue() {
 				<Card>
 					<LineChart
 						points={SAMPLE_HISTORY}
+						tradesKnown
 						label="Sample chance over two weeks"
 					/>
 				</Card>

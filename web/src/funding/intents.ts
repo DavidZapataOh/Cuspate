@@ -77,12 +77,14 @@ export const SOURCES: readonly Source[] = [
 	},
 ];
 
+/** The source a deposit names by its id, or nothing for an id the page does not offer. */
 export function sourceById(id: string): Source | undefined {
 	return SOURCES.find((s) => s.id === id);
 }
 
-/** The smallest and largest deposit offered, in whole dollars. */
+/** The smallest deposit offered, in whole dollars. */
 export const MIN_DOLLARS = 1;
+/** The largest deposit offered, in whole dollars. */
 export const MAX_DOLLARS = 50_000;
 
 /** How much slippage a quote tolerates, in basis points. */
@@ -124,6 +126,7 @@ export function toBaseUnits(
 
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
+/** Whether a value is an EVM address: 0x and forty hex digits, in any case. */
 export function isEvmAddress(value: unknown): value is string {
 	return typeof value === "string" && EVM_ADDRESS.test(value);
 }
@@ -216,6 +219,7 @@ const PHASES: Record<string, Phase> = {
 	FAILED: "failed",
 };
 
+/** What the page says in each phase of a deposit. */
 export const PHASE_TEXT: Record<Phase, string> = {
 	waiting: "Waiting for your deposit.",
 	seen: "Deposit seen. Waiting for it to confirm.",

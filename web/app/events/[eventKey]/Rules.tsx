@@ -24,6 +24,68 @@ function short(address: string): string {
 	return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+const moment = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	month: "short",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
+
+const OUTCOME_WORDS = {
+	unresolved: "Not settled yet.",
+	yes: "Settled: the condition was met.",
+	no: "Settled: the condition was not met.",
+	invalid:
+		"Settled invalid: every holder gets half of what they hold in each world: half the shares and half the dollars kept beside them.",
+} as const;
+
+/** Where the event's resolution stands: each proposed figure, its challenge window, the outcome. */
+function Resolution({
+	condition,
+	settlement,
+}: {
+	condition: Condition;
+	settlement: Settlement;
+}) {
+	const { rounds, pendingArbitration, outcome } = condition.resolution;
+	return (
+		<div data-resolution>
+			<h3>Resolution</h3>
+			{rounds.length === 0 ? (
+				<p>No figure has been proposed yet. {OUTCOME_WORDS[outcome]}</p>
+			) : (
+				<>
+					<ol>
+						{rounds.map((r) => {
+							const closes = (r.proposedAt + settlement.livenessSeconds) * 1000;
+							return (
+								<li key={r.round}>
+									{r.invalid
+										? "Proposed invalid"
+										: `Proposed figure ${formatThreshold({ threshold: r.figure, decimals: r.decimals, primary: false })}`}{" "}
+									by <span className="mono">{short(r.proposer)}</span> on{" "}
+									{moment.format(new Date(r.proposedAt * 1000))} ET.{" "}
+									{r.disputer
+										? `Challenged by ${short(r.disputer)}${r.ruled ? "; the arbiter ruled" : ""}.`
+										: r.settled
+											? "Not challenged; settled."
+											: `Open to challenge until ${moment.format(new Date(closes))} ET.`}
+									{r.reason ? ` ${r.reason}` : ""}
+								</li>
+							);
+						})}
+					</ol>
+					<p>
+						{pendingArbitration ? "Waiting for the arbiter. " : ""}
+						{OUTCOME_WORDS[outcome]}
+					</p>
+				</>
+			)}
+		</div>
+	);
+}
+
 /** How a condition is settled, said plainly, every figure from the data. */
 export function Rules({
 	event,
@@ -78,8 +140,10 @@ export function Rules({
 			<p>
 				If the figure cannot be settled within{" "}
 				{duration(settlement.expirySeconds)} after the deadline, the market
-				resolves invalid and every holder gets their share back.
+				resolves invalid and every holder gets half of what they hold in each
+				world: half the shares and half the dollars kept beside them.
 			</p>
+			<Resolution condition={condition} settlement={settlement} />
 			<h3>What could go wrong</h3>
 			<p>
 				On the {settlement.network}, the shares are test tokens minted by our

@@ -7,11 +7,14 @@ import { useConfig, useConnection, usePublicClient } from "wagmi";
 import {
 	checkPurchase,
 	fundsOf,
+	nextDripAt,
 	quoteShares,
+	receivedShares,
 	roomCents,
 } from "../chain/market.ts";
 import { contracts, TESTNET } from "../chain/record.ts";
 import type { Condition, MarketEvent } from "../data/model.ts";
+import { minimumCents } from "../lib/ticket.ts";
 import { useEmailSession } from "../wallet/EmailSession.tsx";
 import {
 	type Executor,
@@ -101,6 +104,18 @@ export function useTicket({
 			),
 	});
 
+	const dripAt = useQuery({
+		queryKey: ["drip", address],
+		enabled: ready && Boolean(address),
+		refetchInterval: REFRESH_MS,
+		queryFn: () =>
+			nextDripAt(
+				client as NonNullable<typeof client>,
+				address as NonNullable<typeof address>,
+			),
+	});
+	const [dripProblem, setDripProblem] = useState<string | undefined>();
+
 	const input: TicketInput = {
 		live: Boolean(market),
 		amountCents,
@@ -113,11 +128,14 @@ export function useTicket({
 		nowMs: Date.now(),
 		announcesAt: event.announcesAt,
 		phase,
+		minimumCents: minimumCents(
+			yes ? condition.yesWorldPriceCents : condition.noWorldPriceCents,
+		),
 	};
 
 	const refresh = () =>
 		Promise.all(
-			["quote", "funds", "room"].map((key) =>
+			["quote", "funds", "room", "drip"].map((key) =>
 				queries.invalidateQueries({ queryKey: [key] }),
 			),
 		);
@@ -156,17 +174,26 @@ export function useTicket({
 				return;
 			}
 			setPhase({ kind: "signing" });
+			const sentFrom = await client.getBlockNumber();
 			const executor = executorFor(address);
 			const submitted = await executor.send(calls);
 			setPhase({ kind: "pending" });
 			const settled = await executor.settle(submitted);
-			setPhase(
-				settled.status === "confirmed"
-					? { kind: "done", shares }
-					: { kind: "failed", problem: { kind: "failed" } },
-			);
-		} catch {
-			setPhase({ kind: "failed", problem: problemOf(undefined) });
+			if (settled.status !== "confirmed") {
+				// Checked before signing, so a purchase that fails on chain met a price that moved.
+				setPhase({ kind: "failed", problem: { kind: "moved" } });
+				return;
+			}
+			// What the router logged it bought, not what the quote said it would.
+			const bought = await receivedShares(
+				client,
+				market.marketId,
+				address,
+				sentFrom,
+			).catch(() => undefined);
+			setPhase({ kind: "done", shares: bought ?? shares });
+		} catch (error) {
+			setPhase({ kind: "failed", problem: problemOf(undefined, error) });
 		} finally {
 			await refresh();
 		}
@@ -176,13 +203,20 @@ export function useTicket({
 	async function getTestDollars() {
 		if (!address) return;
 		setDripping(true);
+		setDripProblem(undefined);
 		try {
 			const executor = executorFor(address);
-			await executor.settle(
+			const settled = await executor.settle(
 				await executor.send([{ to: contracts.dollar, data: drip, value: 0n }]),
 			);
-		} catch {
-			// The ticket keeps saying how many dollars are missing; nothing else changed.
+			if (settled.status !== "confirmed")
+				setDripProblem("The test dollars did not arrive. Try again.");
+		} catch (error) {
+			setDripProblem(
+				problemOf(undefined, error).kind === "cancelled"
+					? "You cancelled the signature."
+					: "The test dollars did not arrive. Try again.",
+			);
 		} finally {
 			setDripping(false);
 			await refresh();
@@ -199,6 +233,13 @@ export function useTicket({
 		buy,
 		getTestDollars,
 		dripping,
+		/** When test dollars can be taken again, in seconds, while the faucet's day has not passed. */
+		dripLockedUntil:
+			dripAt.data !== undefined && dripAt.data * 1000 > Date.now()
+				? dripAt.data
+				: undefined,
+		/** Why the last request for test dollars did not go through, if it did not. */
+		dripProblem,
 		/** Back to a fresh ticket after the amount or the world changes. */
 		reset: () =>
 			setPhase((p) =>

@@ -10,6 +10,7 @@ import {
 	phaseOf,
 	redeemCalls,
 	settlementOf,
+	sidesOf,
 	undoCalls,
 	undoDollars,
 } from "../../src/portfolio/position.ts";
@@ -102,7 +103,7 @@ test("undo approves the share and the kept dollar, then exits with a floor and a
 		router,
 		position: position(),
 		recipient: holder,
-		quotedOut: 60_000_000n,
+		quotes: { yes: 60_000_000n },
 		nowSeconds: 1_900n,
 	});
 	assert.equal(calls.length, 3);
@@ -115,13 +116,13 @@ test("undo approves the share and the kept dollar, then exits with a floor and a
 	assert.equal(order.minOut, 59_400_000n);
 	assert.equal(order.deadline, 2_000n);
 	assert.equal(order.level, 0n);
-	assert.equal(undoDollars(position(), 60_000_000n), 50_000_000n);
+	assert.equal(undoDollars(position(), { yes: 60_000_000n }), 50_000_000n);
 	assert.throws(() =>
 		undoCalls({
 			router,
 			position: position(),
 			recipient: holder,
-			quotedOut: 1n,
+			quotes: { yes: 1n },
 			nowSeconds: 2_000n,
 		}),
 	);
@@ -138,4 +139,82 @@ test("amounts read to four decimals and pool ids are 32 bytes", () => {
 		hooks: router,
 	});
 	assert.equal(id.length, 66);
+});
+
+const mixed = () =>
+	position({
+		holdings: {
+			underlyingYes: 10n ** 17n,
+			underlyingNo: 3n * 10n ** 16n,
+			dollarYes: 20_000_000n,
+			dollarNo: 50_000_000n,
+		},
+	});
+
+test("a position that bought both worlds shows both, and undo exits both", () => {
+	assert.deepEqual(
+		sidesOf(mixed().holdings).map((s) => [s.yes, s.shares, s.kept]),
+		[
+			[true, 10n ** 17n, 50_000_000n],
+			[false, 3n * 10n ** 16n, 20_000_000n],
+		],
+	);
+	const calls = undoCalls({
+		router,
+		position: mixed(),
+		recipient: holder,
+		quotes: { yes: 60_000_000n, no: 15_000_000n },
+		nowSeconds: 1_900n,
+	});
+	const exits = calls
+		.map((c) => decodeFunctionData({ abi, data: c.data }))
+		.filter((d) => d.functionName === "exit")
+		.map((d) => (d.args as unknown as [Record<string, unknown>])[0]);
+	assert.deepEqual(
+		exits.map((o) => [o.yes, o.shares, o.kept]),
+		[
+			[true, 10n ** 17n, 50_000_000n],
+			[false, 3n * 10n ** 16n, 20_000_000n],
+		],
+	);
+	assert.equal(
+		undoDollars(mixed(), { yes: 60_000_000n, no: 15_000_000n }),
+		65_000_000n,
+	);
+});
+
+test("dust left by an undo is not a position: under 0.0001 share and under a cent", () => {
+	const dust = {
+		underlyingYes: 10n ** 13n,
+		underlyingNo: 0n,
+		dollarYes: 0n,
+		dollarNo: 9_999n,
+	};
+	assert.equal(holdsAny(dust), false);
+	assert.deepEqual(sidesOf(dust), []);
+	assert.equal(holdsAny({ ...dust, dollarNo: 110_000n }), true);
+});
+
+test("a world the pool will not quote is left out of the undo, and nothing to undo says so", () => {
+	assert.equal(
+		undoCalls({
+			router,
+			position: mixed(),
+			recipient: holder,
+			quotes: { yes: 60_000_000n },
+			nowSeconds: 1_900n,
+		}).filter((c) => c.to === router).length,
+		1,
+	);
+	assert.throws(
+		() =>
+			undoCalls({
+				router,
+				position: mixed(),
+				recipient: holder,
+				quotes: {},
+				nowSeconds: 1_900n,
+			}),
+		/nothing to undo/,
+	);
 });

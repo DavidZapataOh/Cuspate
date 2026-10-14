@@ -19,6 +19,14 @@ const PIVOT_Y = 44;
 const HALF = 360;
 const HANG = 64;
 
+const feedTime = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	month: "short",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
+
 /**
  * The two worlds of one condition as the two pans of a balance. The beam tilts by a small angle
  * toward the likelier world, slowly, and the fulcrum adds the two prices into the share price the
@@ -33,6 +41,7 @@ export function BalanceScale({
 	labels,
 	company,
 	spotCents,
+	spotAt,
 	compact = false,
 }: {
 	chance: number;
@@ -43,6 +52,8 @@ export function BalanceScale({
 	/** The stock, and the price it trades at on the feed, in cents. */
 	company: string;
 	spotCents: bigint;
+	/** When the feed published that price, ISO 8601. */
+	spotAt?: string;
 	compact?: boolean;
 }) {
 	const angle = beamAngle(chance);
@@ -150,7 +161,19 @@ export function BalanceScale({
 					The pools imply <Figures>{`${formatUsd(total)}.`}</Figures>
 				</span>
 				<span className={styles.note}>
-					{company} trades at <Figures>{`${formatUsd(spotCents)}.`}</Figures>
+					{company} trades at <Figures>{formatUsd(spotCents)}</Figures> on the
+					price feed
+					{spotAt ? (
+						<>
+							{" "}
+							as of{" "}
+							<time dateTime={spotAt}>
+								<Figures>{`${feedTime.format(new Date(spotAt))} ET.`}</Figures>
+							</time>
+						</>
+					) : (
+						<Figures>.</Figures>
+					)}
 				</span>
 			</figcaption>
 		</figure>

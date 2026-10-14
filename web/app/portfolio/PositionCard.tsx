@@ -16,6 +16,7 @@ import {
 	phaseOf,
 	redeemCalls,
 	settlementOf,
+	sidesOf,
 	undoCalls,
 	undoDollars,
 	worldOf,
@@ -63,9 +64,7 @@ export function PositionCard({
 	const phase = phaseOf(position, Math.floor(Date.now() / 1000));
 	const company = companyOf(position.issuer);
 	const yes = worldOf(position.holdings);
-	const h = position.holdings;
-	const shares = yes ? h.underlyingYes : h.underlyingNo;
-	const kept = yes ? h.dollarNo : h.dollarYes;
+	const sides = sidesOf(position.holdings);
 	const freezeIso =
 		position.freezesAt > 0
 			? new Date(position.freezesAt * 1000).toISOString()
@@ -102,11 +101,13 @@ export function PositionCard({
 			setStatus({ kind: "done", text: done });
 			router.refresh();
 		} catch (error) {
+			const closed = Date.now() / 1000 >= position.freezesAt;
 			setStatus({
 				kind: "error",
-				text:
-					error instanceof Error && error.message.startsWith("trading")
-						? "Trading has closed for this event."
+				text: closed
+					? "Trading has closed for this event."
+					: error instanceof Error && error.message === "nothing to undo"
+						? "The pool would not buy these shares back right now. Try again in a moment."
 						: "That didn't go through, and nothing moved. Try again.",
 			});
 		}
@@ -115,18 +116,20 @@ export function PositionCard({
 	const undo = () =>
 		run("undo", async () => {
 			if (!client || !sender) throw new Error("not signed in");
-			const quoted = await quoteUndo(client, position);
-			if (quoted === undefined)
-				throw new Error("trading has closed or the pool refused the sale");
+			const [yesQuote, noQuote] = await Promise.all([
+				quoteUndo(client, position, true),
+				quoteUndo(client, position, false),
+			]);
+			const quotes = { yes: yesQuote, no: noQuote };
 			return {
 				calls: undoCalls({
 					router: contracts.router,
 					position,
 					recipient: sender.account,
-					quotedOut: quoted,
+					quotes,
 					nowSeconds: BigInt(Math.floor(Date.now() / 1000)),
 				}),
-				done: `Undone. About ${usd(undoDollars(position, quoted))} is back in your wallet.`,
+				done: `Undone. About ${usd(undoDollars(position, quotes))} is back in your wallet.`,
 			};
 		});
 
@@ -165,18 +168,25 @@ export function PositionCard({
 				</p>
 			</div>
 
-			<dl className={styles.worlds}>
-				<div>
-					<dt>{yes ? "If it holds" : "If it does not hold"}</dt>
-					<dd className="tabular">
-						{formatUnits4(shares, SHARE_DECIMALS)} {position.issuer} shares
-					</dd>
-				</div>
-				<div>
-					<dt>{yes ? "If it does not hold" : "If it holds"}</dt>
-					<dd className="tabular">{usd(kept)} back</dd>
-				</div>
-			</dl>
+			{sides.map((side) => (
+				<dl
+					key={side.yes ? "yes" : "no"}
+					className={styles.worlds}
+					data-side={side.yes ? "yes" : "no"}
+				>
+					<div>
+						<dt>{side.yes ? "If it holds" : "If it does not hold"}</dt>
+						<dd className="tabular">
+							{formatUnits4(side.shares, SHARE_DECIMALS)} {position.issuer}{" "}
+							shares
+						</dd>
+					</div>
+					<div>
+						<dt>{side.yes ? "If it does not hold" : "If it holds"}</dt>
+						<dd className="tabular">{usd(side.kept)} back</dd>
+					</div>
+				</dl>
+			))}
 
 			{phase === "open" && freezeIso ? (
 				<div className={styles.action}>
@@ -203,7 +213,7 @@ export function PositionCard({
 				<div className={styles.action}>
 					<p className={styles.when}>
 						{position.outcome === "invalid"
-							? "The event could not be settled, so every leg pays half: "
+							? "The event resolved invalid, so you get half of what you hold in each world: "
 							: position.outcome === (yes ? "yes" : "no")
 								? "It went your way: "
 								: "It did not go your way: "}

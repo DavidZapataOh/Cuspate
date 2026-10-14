@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { rpcUrl } from "../src/chain/endpoint.ts";
-import { readLayer } from "../src/data/read.ts";
 import { schibstedGrotesk } from "../src/fonts/sans.ts";
 import { Footer } from "../src/ui/Footer.tsx";
 import { Notice } from "../src/ui/Notice.tsx";
@@ -33,7 +32,6 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 -->`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-	const synthetic = readLayer().synthetic;
 	return (
 		<html lang="en" className={schibstedGrotesk.variable}>
 			<body>
@@ -46,12 +44,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 					<TopBar />
 					<div className={styles.notice}>
 						<Notice>
-							<p>
-								Test network: test dollars and test shares, no real value.
-								{synthetic
-									? " Prices, chances and amounts shown are sample data until the markets open."
-									: null}
-							</p>
+							<p>Test network: test dollars and test shares, no real value.</p>
 						</Notice>
 					</div>
 					{children}

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { bannedWordsOn, sidewaysOverflowOn } from "./words.ts";
 
-// Offline: the server reads a record with no market open, so any address holds nothing.
+// The server reads every recorded market; an address nobody uses holds nothing in any of them.
 
 test("signed out, the portfolio asks to sign in", async ({ page }) => {
 	await page.goto("/portfolio");

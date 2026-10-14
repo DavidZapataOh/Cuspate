@@ -2,12 +2,11 @@ import { readFileSync } from "node:fs";
 import record from "../../../contracts/deployments/10143.json" with {
 	type: "json",
 };
-import { marketsOf, withMarkets } from "./book.ts";
-import { fixtures } from "./fixtures.ts";
+import { sharedChainLayer } from "./chain.ts";
 import type { ReadLayer } from "./model.ts";
 
 /**
- * The deployment record whose markets the pages bind: the committed one, or the one named by
+ * The deployment record whose markets the pages read: the committed one, or the one named by
  * CUSPATE_DEPLOYMENT_RECORD, which a rehearsal on a fork writes for its own markets.
  */
 export function deploymentRecord(): { markets?: Record<string, unknown> } {
@@ -18,10 +17,11 @@ export function deploymentRecord(): { markets?: Record<string, unknown> } {
 }
 
 /**
- * The read layer the pages use. The events and their numbers are the synthetic fixtures until the
- * adapter over the indexer replaces them here; each condition carries its market wherever the
- * deployment record lists one, so its ticket buys on chain.
+ * The read layer the pages use: the markets the deployment record lists, every number read from the
+ * test network.
  */
 export function readLayer(): ReadLayer {
-	return withMarkets(fixtures, marketsOf(deploymentRecord()));
+	return sharedChainLayer(
+		deploymentRecord() as Parameters<typeof sharedChainLayer>[0],
+	);
 }

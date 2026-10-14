@@ -1,7 +1,6 @@
 /**
  * The interface's read model: what the screens show about events, their conditions and how they
- * settle. Two sources fill it: synthetic fixtures today, and the indexer plus the chain once the
- * markets are live. Both give exactly these shapes, so the screens do not change between them.
+ * settle, every number read from the chain (see `chain.ts`).
  */
 
 import type { Period } from "cuspate-shared";
@@ -47,6 +46,35 @@ export type Condition = {
 	sealTx?: string;
 	/** Its market, once one is open on chain; until then the ticket only previews. */
 	market?: MarketBinding;
+	/** How its event is being resolved: every figure proposed so far and the outcome. */
+	resolution: Resolution;
+};
+
+/** One proposed figure in an event's resolution. */
+export type ResolutionRound = {
+	/** 0 for the first proposal, 1 for the one after a ruled challenge. */
+	round: number;
+	proposer: string;
+	/** When it was proposed, in seconds. */
+	proposedAt: number;
+	/** Whether it proposed the event invalid rather than a figure. */
+	invalid: boolean;
+	/** The figure, an integer at `decimals`. */
+	figure: bigint;
+	decimals: number;
+	/** Who challenged it, if anyone did. */
+	disputer?: string;
+	settled: boolean;
+	/** Whether the arbiter ruled on the challenge. */
+	ruled: boolean;
+	reason: string;
+};
+
+/** How an event is being resolved, as the resolver and the conditions record it. */
+export type Resolution = {
+	rounds: ResolutionRound[];
+	pendingArbitration: boolean;
+	outcome: "unresolved" | "yes" | "no" | "invalid";
 };
 
 /**
@@ -72,11 +100,23 @@ export type MarketEvent = {
 	moneyIn: bigint;
 	/** The feed's price of the stock, in cents. */
 	spotCents: bigint;
+	/** When the feed published that price, ISO 8601; empty if it has never published one. */
+	spotPublishedAt: string;
 	conditions: Condition[];
 };
 
-/** One point of a condition's chance over time. */
-export type ChancePoint = { at: number; chance: number };
+/**
+ * One point of a condition's chance over time, in milliseconds: where its probability pool opened,
+ * a trade in it, or where it stands now.
+ */
+export type ChancePoint = {
+	at: number;
+	chance: number;
+	source: "opened" | "trade" | "now";
+};
+
+/** A condition's chance over time, and whether its trades are known or only its opening and now. */
+export type ChanceHistory = { points: ChancePoint[]; tradesKnown: boolean };
 
 /** How every market of a deployment settles. */
 export type Settlement = {
@@ -95,14 +135,14 @@ export type Settlement = {
 
 /** Where the screens read from. */
 export type ReadLayer = {
-	/** True while the data is made up: the screens say so. */
-	synthetic: boolean;
 	events(now: number): Promise<MarketEvent[]>;
 	event(eventKey: string, now: number): Promise<MarketEvent | undefined>;
 	history(
 		eventKey: string,
 		conditionKey: string,
 		now: number,
-	): Promise<ChancePoint[]>;
+	): Promise<ChanceHistory>;
 	settlement(): Promise<Settlement>;
+	/** Reads ahead what the first page would otherwise wait for. */
+	warm?(): Promise<void>;
 };

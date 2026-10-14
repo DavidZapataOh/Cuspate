@@ -113,3 +113,28 @@
 		min-width: 14ch;
 	}
 }
+
+/* Grid items may shrink below their content's widest word, so nothing pushes the page sideways. */
+.page > *,
+.section > * {
+	min-width: 0;
+}
+
+.event > * {
+	min-width: 0;
+}
+
+/* On the narrowest phones the three columns share the width and long values wrap inside them. */
+@media (max-width: 400px) {
+	.table {
+		table-layout: fixed;
+	}
+
+	.table th,
+	.table td,
+	.table th:nth-child(2),
+	.table td:nth-child(2) {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+}

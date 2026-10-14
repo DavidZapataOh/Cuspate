@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useConnect, useConnection, useConnectors, useDisconnect } from "wagmi";
 import { Button } from "../ui/Button.tsx";
 import { useEmailSession } from "./EmailSession.tsx";
@@ -95,6 +95,22 @@ export function SignIn() {
 	const connect = useConnect();
 	const disconnect = useDisconnect();
 	const address = email.session?.address ?? connected;
+	const panel = useRef<HTMLDivElement>(null);
+	// Opening the panel moves focus into it, to its first control, so a keyboard continues there.
+	useEffect(() => {
+		const element = panel.current;
+		if (!element) return;
+		const onToggle = (event: Event) => {
+			if ((event as ToggleEvent).newState !== "open") return;
+			element
+				.querySelector<HTMLElement>(
+					"input, button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+				)
+				?.focus();
+		};
+		element.addEventListener("toggle", onToggle);
+		return () => element.removeEventListener("toggle", onToggle);
+	}, []);
 	return (
 		<>
 			<Button
@@ -105,6 +121,7 @@ export function SignIn() {
 				{address ? shortAddress(address) : "Sign in"}
 			</Button>
 			<div
+				ref={panel}
 				id={SIGN_IN_PANEL}
 				popover="auto"
 				role="dialog"

@@ -2,7 +2,13 @@
  * Why a purchase would not go through, read from the chain's refusal and said in plain words. A
  * refusal from inside a pool reaches the caller wrapped by the pool manager; it is unwrapped first.
  */
-import { decodeErrorResult, type Hex, parseAbi } from "viem";
+import {
+	BaseError,
+	decodeErrorResult,
+	type Hex,
+	parseAbi,
+	UserRejectedRequestError,
+} from "viem";
 import { formatUsd } from "../lib/format.ts";
 import { announcementEt } from "../lib/time.ts";
 
@@ -12,6 +18,9 @@ export type Problem =
 	| { kind: "full"; roomCents: bigint }
 	| { kind: "short"; needCents: bigint }
 	| { kind: "moved" }
+	/** The pool cannot take that much now; at most `maxCents`, when it is known. */
+	| { kind: "depth"; maxCents?: bigint }
+	| { kind: "cancelled" }
 	| { kind: "failed" };
 
 const errors = parseAbi([
@@ -22,6 +31,8 @@ const errors = parseAbi([
 	"error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed)",
 	"error WrappedError(address target, bytes4 selector, bytes reason, bytes details)",
 	"error UnexpectedRevertBytes(bytes revertData)",
+	"error NotEnoughLiquidity(bytes32 poolId)",
+	"error PartialFill(uint256 consumed, uint256 amountIn)",
 ]);
 
 /** Six-decimal dollar units as cents, rounded up so a shortfall is never understated. */
@@ -29,8 +40,25 @@ function unitsToCentsUp(units: bigint): bigint {
 	return (units + 9_999n) / 10_000n;
 }
 
-/** The problem a refusal names; anything unrecognised is a plain failure. */
-export function problemOf(data: Hex | undefined): Problem {
+/** Whether an error is the wallet's holder declining to sign. */
+function declined(error: unknown): boolean {
+	if (error instanceof BaseError)
+		return (
+			error.walk(
+				(e) =>
+					e instanceof UserRejectedRequestError ||
+					(e as { code?: unknown }).code === 4001,
+			) !== null
+		);
+	return (error as { code?: unknown } | undefined)?.code === 4001;
+}
+
+/**
+ * The problem a refusal names; anything unrecognised is a plain failure.
+ * @param error The error the refusal came in, when there is one: a declined signature is named so.
+ */
+export function problemOf(data: Hex | undefined, error?: unknown): Problem {
+	if (error !== undefined && declined(error)) return { kind: "cancelled" };
 	if (!data || data === "0x") return { kind: "failed" };
 	let decoded: ReturnType<typeof decodeErrorResult<typeof errors>>;
 	try {
@@ -57,6 +85,11 @@ export function problemOf(data: Hex | undefined): Problem {
 		case "TooLittleOut":
 		case "Expired":
 			return { kind: "moved" };
+		case "NotEnoughLiquidity":
+			return { kind: "depth" };
+		case "PartialFill":
+			// Rounded down: the size stated is a size the pool really takes.
+			return { kind: "depth", maxCents: decoded.args[0] / 10_000n };
 	}
 }
 
@@ -70,7 +103,13 @@ export function problemText(problem: Problem): string {
 		case "short":
 			return `You need ${formatUsd(problem.needCents)} more. Nothing was charged.`;
 		case "moved":
-			return "The price changed before your order went through. Nothing was charged. Try again.";
+			return "The price moved before your purchase landed; nothing was charged.";
+		case "depth":
+			return problem.maxCents !== undefined
+				? `At most ${formatUsd(problem.maxCents)} can be bought right now.`
+				: "The pool cannot fill that much right now. Try a smaller amount.";
+		case "cancelled":
+			return "You cancelled the signature.";
 		case "failed":
 			return "That didn't go through, and nothing moved. Try again.";
 	}

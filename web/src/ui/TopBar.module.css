@@ -34,9 +34,24 @@
 	color: #f2e9dc;
 }
 
+/* On a phone the places move to a row of their own under the mark and signing in, so nothing
+   runs past the screen's edge and every link stays one tap away. */
 @media (max-width: 640px) {
 	.bar {
-		gap: var(--space-4);
+		flex-wrap: wrap;
+		gap: var(--space-3) var(--space-4);
 		padding: var(--space-3) var(--space-4);
+	}
+
+	.home {
+		margin-right: auto;
+	}
+
+	.nav {
+		order: 3;
+		flex-basis: 100%;
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-4);
+		margin-right: 0;
 	}
 }

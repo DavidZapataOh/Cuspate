@@ -12,7 +12,10 @@ import styles from "./event.module.css";
 
 export const dynamic = "force-dynamic";
 
-type Params = { params: Promise<{ eventKey: string }> };
+type Params = {
+	params: Promise<{ eventKey: string }>;
+	searchParams?: Promise<{ c?: string | string[]; side?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
 	const { eventKey } = await params;
@@ -24,8 +27,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 	};
 }
 
-export default async function EventPage({ params }: Params) {
+export default async function EventPage({ params, searchParams }: Params) {
 	const { eventKey } = await params;
+	const query = (await searchParams) ?? {};
+	const one = (v: string | string[] | undefined) =>
+		typeof v === "string" ? v : undefined;
 	const now = Date.now();
 	const read = readLayer();
 	const event = await read.event(eventKey, now);
@@ -69,7 +75,12 @@ export default async function EventPage({ params }: Params) {
 					</span>
 				</p>
 			</header>
-			<EventView event={event} histories={histories} settlement={settlement} />
+			<EventView
+				event={event}
+				histories={histories}
+				settlement={settlement}
+				initial={{ condition: one(query.c), side: one(query.side) }}
+			/>
 		</main>
 	);
 }

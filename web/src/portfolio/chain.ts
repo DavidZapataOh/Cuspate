@@ -14,7 +14,7 @@ import {
 import { type PoolKey, poolKeyOf, worldPool } from "../chain/pools.ts";
 import { contracts } from "../chain/record.ts";
 import type { MarketBinding } from "../data/model.ts";
-import { OUTCOMES, type Position, worldOf } from "./position.ts";
+import { OUTCOMES, type Position } from "./position.ts";
 
 const abi = {
 	erc20: parseAbi(["function balanceOf(address) view returns (uint256)"]),
@@ -165,14 +165,14 @@ async function patiently<T>(read: () => Promise<T>, tries = 5): Promise<T> {
 }
 
 /**
- * What a position's share sells for now in its world's pool, in that world's dollar.
- * @returns nothing when the pool refuses the sale, as a frozen one does.
+ * What a position's shares in one world sell for now in that world's pool, in that world's dollar.
+ * @returns nothing when the pool refuses the sale, as a frozen one does, or there is nothing to sell.
  */
 export async function quoteUndo(
 	client: PublicClient,
 	position: Position,
+	yes: boolean,
 ): Promise<bigint | undefined> {
-	const yes = worldOf(position.holdings);
 	const shares = yes
 		? position.holdings.underlyingYes
 		: position.holdings.underlyingNo;

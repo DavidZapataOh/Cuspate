@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useConnection } from "wagmi";
 import { Button } from "../../src/ui/Button.tsx";
+import { useEmailSession } from "../../src/wallet/EmailSession.tsx";
 import { SIGN_IN_PANEL, shortAddress } from "../../src/wallet/SignIn.tsx";
 import styles from "./portfolio.module.css";
 
@@ -12,7 +13,10 @@ import styles from "./portfolio.module.css";
  * and reloaded; signing in puts the signed-in address there.
  */
 export function AccountGate({ owner }: { owner?: string }) {
-	const { address } = useConnection();
+	const { address: connected } = useConnection();
+	const { session } = useEmailSession();
+	// An email session's wallet first, as the ticket does; otherwise the connected wallet.
+	const address = session?.address ?? connected;
 	const router = useRouter();
 	useEffect(() => {
 		if (address && !owner) router.replace(`/portfolio?address=${address}`);

@@ -106,6 +106,10 @@
 .note {
 	color: var(--text-muted);
 	font-size: var(--step-0);
+	/* The feed's line carries its time, so it wraps where the sums above it never do. */
+	white-space: normal;
+	text-align: center;
+	max-width: 32ch;
 }
 
 .scale[data-compact] {
@@ -145,7 +149,7 @@
 	.scale[data-compact] {
 		aspect-ratio: auto;
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: var(--space-3);
 	}
 
@@ -173,5 +177,13 @@
 	.right,
 	.pan {
 		transition: none;
+	}
+}
+
+/* The narrowest phones stack the two pans, so neither amount is cut. */
+@media (max-width: 360px) {
+	.scale,
+	.scale[data-compact] {
+		grid-template-columns: minmax(0, 1fr);
 	}
 }

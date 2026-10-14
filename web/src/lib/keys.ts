@@ -5,10 +5,12 @@ import record from "../../../contracts/deployments/10143.json" with {
 /** The block explorer of the test network, for addresses and transactions. */
 export const EXPLORER = "https://testnet.monadexplorer.com";
 
+/** An address's page on the test network's explorer. */
 export function addressUrl(address: string): string {
 	return `${EXPLORER}/address/${address}`;
 }
 
+/** A transaction's page on the test network's explorer. */
 export function txUrl(hash: string): string {
 	return `${EXPLORER}/tx/${hash}`;
 }
@@ -34,11 +36,11 @@ const POWERS: Record<string, string> = {
 	guardian:
 		"Can bring a market's freeze forward to now, stopping new purchases and undos, if something breaks. It cannot move money or change an outcome.",
 	arbiter:
-		"Rules on a challenged figure, or rules the event invalid. If it does not rule within its time limit, the event resolves invalid and every holder gets their share back.",
+		"Rules on a challenged figure, or rules the event invalid. If it does not rule within its time limit, the event resolves invalid and every holder gets half of what they hold in each world: half the shares and half the dollars kept beside them.",
 	treasury:
 		"Receives the bonds that settled proposals leave behind. It holds no one's position.",
 	keeper:
-		"Our own trading account: it trades in the pools to keep each market's price in line with the stock's price feed, and makes the routine calls anyone may make. The contracts give it no special power.",
+		"Our own trading account. While the stock's price feed is fresh (published within the last 25 minutes) and the market is not frozen, it trades in the pools whenever a market's implied share price drifts more than 1% below the feed's bid or above its ask; when the feed is older, as outside market hours, it does nothing. It also makes the routine calls anyone may make. The contracts give it no special power.",
 };
 
 type RoleRecord = {

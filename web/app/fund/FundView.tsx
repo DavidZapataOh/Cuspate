@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { useSignMessage } from "wagmi";
 import { useFundingAddress } from "../../src/funding/account.ts";
 import {
 	isFinal,
@@ -12,10 +13,12 @@ import {
 	sourceById,
 	toBaseUnits,
 } from "../../src/funding/intents.ts";
+import { proofMessage } from "../../src/funding/proof.ts";
 import { AmountInput } from "../../src/ui/AmountInput.tsx";
 import { Button } from "../../src/ui/Button.tsx";
 import { Card } from "../../src/ui/Card.tsx";
 import { Notice } from "../../src/ui/Notice.tsx";
+import { useEmailSession } from "../../src/wallet/EmailSession.tsx";
 import { SIGN_IN_PANEL, shortAddress } from "../../src/wallet/SignIn.tsx";
 import styles from "./fund.module.css";
 
@@ -38,6 +41,8 @@ function money(formatted: string): string {
 
 export function FundView() {
 	const address = useFundingAddress();
+	const { session } = useEmailSession();
+	const { signMessageAsync } = useSignMessage();
 	const selectId = useId();
 	const [sourceId, setSourceId] = useState(SOURCES[0]?.id ?? "");
 	const [amount, setAmount] = useState("");
@@ -89,10 +94,28 @@ export function FundView() {
 		setError(undefined);
 		setLoading(true);
 		try {
+			// The server opens a deposit address only for the address the request proves it holds.
+			const proof: Record<string, unknown> = {};
+			const headers: Record<string, string> = {
+				"content-type": "application/json",
+			};
+			if (session) headers.authorization = `Bearer ${session.token}`;
+			else {
+				const signedAt = Date.now();
+				try {
+					proof.signature = await signMessageAsync({
+						message: proofMessage(address, signedAt),
+					});
+				} catch {
+					setError("You cancelled the signature.");
+					return;
+				}
+				proof.signedAt = signedAt;
+			}
 			const response = await fetch("/api/funding/quote", {
 				method: "POST",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ source: source.id, amount, address }),
+				headers,
+				body: JSON.stringify({ source: source.id, amount, address, ...proof }),
 			});
 			const body = (await response.json().catch(() => ({}))) as Quote & {
 				error?: string;
@@ -180,7 +203,10 @@ export function FundView() {
 							</div>
 							<div>
 								<dt>Arrives in</dt>
-								<dd className="tabular">about {quote.seconds} seconds</dd>
+								<dd className="tabular">
+									about {Math.max(1, Math.ceil(quote.seconds / 60))}{" "}
+									{Math.ceil(quote.seconds / 60) > 1 ? "minutes" : "minute"}
+								</dd>
 							</div>
 							<div>
 								<dt>To</dt>
@@ -192,6 +218,7 @@ export function FundView() {
 									{new Date(quote.deadline).toLocaleString("en-US", {
 										dateStyle: "medium",
 										timeStyle: "short",
+										timeZoneName: "short",
 									})}
 								</dd>
 							</div>

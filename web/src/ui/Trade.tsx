@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import type { Condition, MarketEvent } from "../data/model.ts";
 import { formatShares, formatUsd } from "../lib/format.ts";
 import { panLabels } from "../lib/naming.ts";
-import { POOL_FEE_BPS, parseAmount, preview } from "../lib/ticket.ts";
+import {
+	amountProblem,
+	POOL_FEE_BPS,
+	parseAmount,
+	preview,
+} from "../lib/ticket.ts";
 import { announcementEt, announcementUtc } from "../lib/time.ts";
 import { feeCents } from "../ticket/order.ts";
 import { useTicket } from "../ticket/useTicket.ts";
@@ -16,25 +21,45 @@ import { Button } from "./Button.tsx";
 import styles from "./Trade.module.css";
 
 const DEFAULT_AMOUNT = "500";
+const dripTime = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/New_York",
+	month: "short",
+	day: "numeric",
+	hour: "numeric",
+	minute: "2-digit",
+});
 /** The states whose line under the actions is what the buyer acts on, so it reads at full strength. */
 const DECISIVE = new Set(["short", "full", "closed", "failed", "done"]);
 
 /**
  * One condition's balance and its ticket, sharing the amount: the pans say what that amount ends
- * as in each world, from the network's quote once the market is open on chain and from the sample
- * prices before. Both outcomes are stated before anything is signed; the fee sits beside them.
+ * as in each world, from the network's quote; until the quote answers, the pan says it is getting a
+ * price. Both outcomes are stated before anything is signed; the fee sits beside them.
  */
 export function Trade({
 	event,
 	condition,
 	layout,
+	side,
+	onSideChange,
 }: {
-	event: Pick<MarketEvent, "issuer" | "announcesAt" | "spotCents">;
+	event: Pick<
+		MarketEvent,
+		"issuer" | "announcesAt" | "spotCents" | "spotPublishedAt"
+	>;
 	condition: Condition;
 	layout: "full" | "compact";
+	/** The world bought, when the page holds it (true for the yes world); the ticket's own otherwise. */
+	side?: boolean;
+	onSideChange?: (yes: boolean) => void;
 }) {
 	const [text, setText] = useState(DEFAULT_AMOUNT);
-	const [yes, setYes] = useState(true);
+	const [ownYes, setOwnYes] = useState(true);
+	const yes = side ?? ownYes;
+	const setYes = (next: boolean) => {
+		setOwnYes(next);
+		onSideChange?.(next);
+	};
 	// Set once the ticket answers to input, so nothing typed before then is lost.
 	const [hydrated, setHydrated] = useState(false);
 	useEffect(() => setHydrated(true), []);
@@ -42,14 +67,22 @@ export function Trade({
 	const ticket = useTicket({ event, condition, amountCents: cents, yes });
 	const { view } = ticket;
 	const amount = cents ?? 0n;
-	const sample = preview({
+	const estimate = preview({
 		amountCents: amount,
 		yesPriceCents: condition.yesWorldPriceCents,
 		noPriceCents: condition.noWorldPriceCents,
 		yes,
 	});
 	const quoted = view.state === "preview" ? undefined : ticket.quotedShares;
-	const shares = `${formatShares(quoted ?? sample.shares)} ${event.issuer} shares`;
+	// On a live market only the quoter's answer is shown: until it comes, the pan says so.
+	const shares =
+		quoted !== undefined
+			? `${formatShares(quoted)} ${event.issuer} shares`
+			: !condition.market || amount === 0n
+				? `${formatShares(estimate.shares)} ${event.issuer} shares`
+				: view.state === "quoting"
+					? "Getting a price..."
+					: `${event.issuer} shares at no price now`;
 	const back = `${formatUsd(amount)} back`;
 	const fee = feeCents(amount);
 	const id = `ticket-status-${condition.key}`;
@@ -61,6 +94,7 @@ export function Trade({
 				labels={panLabels(event, condition)}
 				company={issuer(event.issuer).shortName}
 				spotCents={event.spotCents}
+				spotAt={event.spotPublishedAt || undefined}
 				beat={{
 					gives: yes ? shares : back,
 					price: condition.beatPriceCents,
@@ -129,16 +163,28 @@ export function Trade({
 						aria-live="polite"
 						data-decisive={DECISIVE.has(view.state) || undefined}
 					>
-						{view.status}
+						{amountProblem(text) ?? view.status}
 					</p>
 					{view.offerTestDollars ? (
-						<Button
-							variant="secondary"
-							loading={ticket.dripping}
-							onClick={() => ticket.getTestDollars()}
-						>
-							Get test dollars
-						</Button>
+						ticket.dripLockedUntil ? (
+							<p className={styles.fine}>
+								This wallet took its test dollars today. It can take more at{" "}
+								{dripTime.format(new Date(ticket.dripLockedUntil * 1000))} ET.
+							</p>
+						) : (
+							<Button
+								variant="secondary"
+								loading={ticket.dripping}
+								onClick={() => ticket.getTestDollars()}
+							>
+								Get test dollars
+							</Button>
+						)
+					) : null}
+					{ticket.dripProblem ? (
+						<p className={styles.fine} role="alert">
+							{ticket.dripProblem}
+						</p>
 					) : null}
 				</div>
 			</div>

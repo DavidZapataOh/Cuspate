@@ -26,3 +26,5 @@ contracts/deployments/.rehearsal/
 
 # Generated hook wiring
 .husky/_/
+# A markets rehearsal's indexer configuration, pointed at its own fork
+indexer/config.rehearsal.yaml

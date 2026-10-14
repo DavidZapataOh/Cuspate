@@ -395,7 +395,7 @@ async function whaleSells(shares: bigint) {
 }
 
 const edges = async () => {
-	const quote = await readQuote(client(), deployment);
+	const quote = await readQuote(client(), deployment, market);
 	return {
 		...band(quote.bid, quote.ask),
 		bid: quote.bid * 10n ** 10n,

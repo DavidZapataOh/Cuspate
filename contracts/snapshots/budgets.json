@@ -46,6 +46,7 @@
   "TestnetDollar.mint to an address holding none": "63254",
   "TestnetDollar.transfer to an address holding none": "63499",
   "TestnetDollar.transferFrom exact allowance, to an address holding none": "75509",
+  "TestnetReportProbe.onReport a forwarder's delivery": "30214",
   "TestnetStock.approve a fresh allowance": "52221",
   "TestnetStock.drip a first drip": "107668",
   "TestnetStock.drip again, after the cooldown": "56750",

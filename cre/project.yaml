@@ -9,3 +9,13 @@ local-e2e:
   rpcs:
     - chain-name: monad-mainnet
       url: ${LOCAL_E2E_RPC_URL}
+# The public test network, where the rehearsal markets live. Its RPC is read from the environment too.
+monad-testnet:
+  rpcs:
+    - chain-name: monad-testnet
+      url: ${MONAD_TESTNET_RPC_URL}
+# The end-to-end run on a local chain whose id is the test network's. Localhost only.
+local-e2e-testnet:
+  rpcs:
+    - chain-name: monad-testnet
+      url: ${LOCAL_E2E_RPC_URL}

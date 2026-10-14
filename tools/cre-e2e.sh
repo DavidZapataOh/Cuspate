@@ -29,3 +29,5 @@ fi
 (cd contracts && forge build > /dev/null)
 pnpm --filter cuspate-cre run build
 pnpm --filter cuspate-cre run e2e
+# The same run on the test network's id and name, through its forwarder, with its report probe first.
+CRE_E2E_NETWORK=testnet pnpm --filter cuspate-cre run e2e TSLA

@@ -7,6 +7,7 @@ import {
 	type Address,
 	concat,
 	encodeDeployData,
+	encodeFunctionData,
 	type Hex,
 	stringToHex,
 } from "viem";
@@ -65,7 +66,14 @@ export type Step = {
 			threshold: number;
 	  }
 	| { kind: "create2"; contract: string; salt: Hex; constructorArgs: Hex }
+	| { kind: "mint"; recipient: Address; amount: bigint }
 );
+
+/**
+ * How many bonds the receiver holds on the test network, minted in test dollars: one for every
+ * condition a full season of events can have open at once, with room to spare.
+ */
+export const RECEIVER_BONDS = 50n;
 
 /** The workflow name a receiver checks: the ASCII of the first ten hex characters of its hash. */
 export function workflowNameOf(name: string): Hex {
@@ -213,6 +221,16 @@ export function plan(
 		at("FreezeHook"),
 	]);
 
+	// The test network's report probe: what the workflow's forwarder delivers is read from it, so the
+	// receiver below is fixed to an owner and a name seen in a real delivery, never to a guess.
+	if (manifest.testnet) {
+		create2(
+			"TestnetReportProbe",
+			"src/testnet/TestnetReportProbe.sol:TestnetReportProbe",
+			[manifest.deployer],
+		);
+	}
+
 	const { workflowOwner, workflowName } = manifest.creProposer;
 	if (workflowOwner) {
 		create2("CreProposer", "src/CreProposer.sol:CreProposer", [
@@ -222,6 +240,24 @@ export function plan(
 			workflowNameOf(workflowName),
 			at("roles.treasury"),
 		]);
+		// On the test network the bonds cost nothing, so the receiver is funded as part of the plan.
+		if (manifest.testnet) {
+			const recipient = at("CreProposer");
+			const amount = BigInt(r.bond) * RECEIVER_BONDS;
+			steps.push({
+				key: "CreProposer.bonds",
+				kind: "mint",
+				recipient,
+				amount,
+				address: at("TestnetDollar"),
+				to: at("TestnetDollar"),
+				data: encodeFunctionData({
+					abi: artifact("src/testnet/TestnetToken.sol:TestnetToken").abi,
+					functionName: "mint",
+					args: [recipient, amount],
+				}),
+			});
+		}
 	}
 	return steps;
 }

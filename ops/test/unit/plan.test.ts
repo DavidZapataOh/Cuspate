@@ -1,6 +1,7 @@
-import { decodeAbiParameters } from "viem";
+import { decodeAbiParameters, decodeFunctionData } from "viem";
 import { describe, expect, test } from "vitest";
-import { type Manifest, plan } from "../../src/plan.ts";
+import { artifact } from "../../src/artifacts.ts";
+import { type Manifest, plan, RECEIVER_BONDS } from "../../src/plan.ts";
 
 const DEPLOYER = "0xD521E05AEbB8d39087bC7B9101CD590177468fca";
 const PUBLISHER = "0xD605372d7b0C8412217c6f80D3E41712C82C7599";
@@ -62,6 +63,7 @@ describe("the deployment list", () => {
 			"OptimisticResolver",
 			"FreezeHook",
 			"PositionRouter",
+			"TestnetReportProbe",
 		]);
 	});
 
@@ -78,7 +80,35 @@ describe("the deployment list", () => {
 			}),
 			CREATION,
 		).map((s) => s.key);
-		expect(withOwner.at(-1)).toBe("CreProposer");
+		expect(withOwner.at(-1)).toBe("CreProposer.bonds");
+		expect(withOwner.at(-2)).toBe("CreProposer");
+	});
+
+	test("on the test network the receiver is funded with test dollars for its bonds", () => {
+		const steps = plan(
+			10143,
+			manifest({
+				creProposer: {
+					workflowName: "cuspate-resolver-proposer",
+					workflowOwner: "0x00000000000000000000000000000000000c0de0",
+				},
+			}),
+			CREATION,
+		);
+		const receiver = steps.find((s) => s.key === "CreProposer");
+		const dollar = steps.find((s) => s.key === "TestnetDollar");
+		const bonds = steps.at(-1);
+		if (bonds?.kind !== "mint") throw new Error("no bond mint planned");
+		expect(bonds.to).toBe(dollar?.address);
+		expect(bonds.recipient).toBe(receiver?.address);
+		expect(bonds.amount).toBe(
+			BigInt(manifest().resolver.bond) * RECEIVER_BONDS,
+		);
+		const [recipient, amount] = decodeFunctionData({
+			abi: artifact("src/testnet/TestnetToken.sol:TestnetToken").abi,
+			data: bonds.data,
+		}).args as [string, bigint];
+		expect([recipient, amount]).toEqual([receiver?.address, bonds.amount]);
 	});
 
 	test("every address is predicted before anything is sent, and the hook's carries its flags", () => {

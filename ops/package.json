@@ -6,10 +6,12 @@
 	"scripts": {
 		"build": "tsc --noEmit",
 		"test": "vitest run test/unit",
-		"test:rehearsal": "vitest run test/rehearsal"
+		"test:rehearsal": "vitest run test/rehearsal/lifecycle.test.ts",
+		"test:markets": "vitest run test/rehearsal/markets.test.ts"
 	},
 	"dependencies": {
-		"viem": "2.57.4"
+		"viem": "2.57.4",
+		"cuspate-shared": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/node": "24.10.1",

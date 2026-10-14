@@ -17,8 +17,12 @@ import {
 	worldPrice,
 } from "./arithmetic.ts";
 
-/** The feed's id for the underlying. */
-export const MU: Hex = keccak256(new TextEncoder().encode("MU"));
+/** The feed's id for a symbol: the hash of its ticker. */
+export const priceIdOf = (symbol: string): Hex =>
+	keccak256(new TextEncoder().encode(symbol));
+
+/** The feed's id for the market the keeper was first written for. */
+export const MU: Hex = priceIdOf("MU");
 
 /** A pool's key, as the protocol derives it: the pair in address order, its fee and spacing, the hook. */
 export type PoolKey = {
@@ -68,6 +72,7 @@ export async function readMarket(
 	client: PublicClient,
 	deployment: Deployment,
 	marketId: Hex,
+	priceId: Hex = MU,
 ) {
 	const [underlyingVault, dollarVault] = await client.readContract({
 		address: deployment.factory,
@@ -92,6 +97,7 @@ export async function readMarket(
 	);
 	return {
 		marketId,
+		priceId,
 		underlyingVault,
 		dollarVault,
 		underlying: await client.readContract({
@@ -141,10 +147,11 @@ export async function readImplied(
 	return impliedPrice(p, yes, no);
 }
 
-/** The feed's latest round for the underlying, at a block if given. */
+/** The feed's latest round for the market's underlying, at a block if given. */
 export async function readQuote(
 	client: PublicClient,
 	deployment: Deployment,
+	market: Pick<Market, "priceId">,
 	blockNumber?: bigint,
 ): Promise<Quote> {
 	const [price, bid, ask, , publishedAt, , session] = await client.readContract(
@@ -152,7 +159,7 @@ export async function readQuote(
 			address: deployment.oracle,
 			abi: ORACLE,
 			functionName: "latestPrice",
-			args: [MU],
+			args: [market.priceId],
 			blockNumber,
 		},
 	);

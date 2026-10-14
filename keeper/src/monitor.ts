@@ -108,7 +108,7 @@ export async function watch(
 	}
 	alerts.push(
 		...oracleWatcher(
-			await readQuote(client, deployment, block.number),
+			await readQuote(client, deployment, market, block.number),
 			block.timestamp,
 		),
 	);

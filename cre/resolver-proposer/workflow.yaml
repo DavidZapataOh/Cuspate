@@ -14,3 +14,19 @@ local-e2e:
     workflow-path: "./main.ts"
     config-path: "./config.json"
     secrets-path: ""
+# The test network: its configuration generated from the network's record and its sealed events.
+monad-testnet:
+  user-workflow:
+    workflow-name: "cuspate-resolver-proposer"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.monad-testnet.json"
+    secrets-path: ""
+# The end-to-end run on the test network's id, its configuration written by the harness.
+local-e2e-testnet:
+  user-workflow:
+    workflow-name: "cuspate-resolver-proposer"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.json"
+    secrets-path: ""

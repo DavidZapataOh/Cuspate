@@ -1,0 +1,70 @@
+# Generated from chain 10143's record by ops/src/services.ts: regenerate it, never edit it.
+name: cuspate-indexer
+schema: ./schema.graphql
+contracts:
+  - name: MarketFactory
+    abi_file_path: ../contracts/out/MarketFactory.sol/MarketFactory.json
+    events:
+      - event: MarketCreated
+      - event: OutcomeReported
+  - name: PositionVault
+    abi_file_path: ../contracts/out/PositionVault.sol/PositionVault.json
+    events:
+      - event: PositionSplit
+      - event: PositionsMerge
+      - event: PayoutRedemption
+  - name: PositionToken
+    abi_file_path: ../contracts/out/PositionToken.sol/PositionToken.json
+    events:
+      - event: Transfer
+  - name: FreezeHook
+    abi_file_path: ../contracts/out/FreezeHook.sol/FreezeHook.json
+    events:
+      - event: MarketRegistered
+      - event: FrozenEarly
+  - name: PositionRouter
+    abi_file_path: ../contracts/out/PositionRouter.sol/PositionRouter.json
+    events:
+      - event: Entered
+      - event: Exited
+  - name: ThresholdRegistry
+    abi_file_path: ../contracts/out/ThresholdRegistry.sol/ThresholdRegistry.json
+    events:
+      - event: ThresholdSealed
+  - name: OptimisticResolver
+    abi_file_path: ../contracts/out/OptimisticResolver.sol/OptimisticResolver.json
+    events:
+      - event: FigureProposed
+      - event: InvalidProposed
+      - event: Disputed
+      - event: ProposalSettled
+      - event: OutcomeRuled
+      - event: ContestRuled
+      - event: Expired
+      - event: ContestReleased
+      - event: Withdrawn
+  - name: PoolManager
+    abi_file_path: ../contracts/out/IPoolManager.sol/IPoolManager.json
+    events:
+      - event: Initialize
+      - event: ModifyLiquidity
+      - event: Swap
+chains:
+  - id: 10143
+    start_block: 70791368
+    # HyperSync, authenticated by ENVIO_API_TOKEN; no endpoint is read for history.
+    contracts:
+      - name: MarketFactory
+        address: "0x9FE30879AC1744197D8bf1338b707e840D25f43C"
+      - name: PositionVault
+      - name: PositionToken
+      - name: FreezeHook
+        address: "0x1E6e38d5af4B5aD1f3C668411bD17C3F8D06a080"
+      - name: PositionRouter
+        address: "0x80b38767D951170723291faC506348EFF7935a35"
+      - name: ThresholdRegistry
+        address: "0x3c90A044CdA45f1d337C7f3C6ca9D2DE7A2025cE"
+      - name: OptimisticResolver
+        address: "0xcB4c8151F2183D8b98cCb36825C629ab420140ad"
+      - name: PoolManager
+        address: "0x451D64ab3b650040d2aE1886602b97ed6eDc643d"

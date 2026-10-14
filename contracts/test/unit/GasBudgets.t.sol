@@ -27,6 +27,7 @@ import {TestCollateral} from "./PositionVault.t.sol";
 import {TestStock} from "./MarketFactory.t.sol";
 import {TestnetDollar} from "../../src/testnet/TestnetDollar.sol";
 import {TestnetStock} from "../../src/testnet/TestnetStock.sol";
+import {TestnetReportProbe} from "../../src/testnet/TestnetReportProbe.sol";
 import {TestnetStockOracle} from "../../src/testnet/TestnetStockOracle.sol";
 import {TestnetToken} from "../../src/testnet/TestnetToken.sol";
 
@@ -737,8 +738,8 @@ abstract contract GasCases is Test {
         _record("PositionToken.transferFrom unlimited allowance, to a holder", "");
     }
 
-    /// @notice The test network's tokens and price feed: what a visitor, the owner and the publisher
-    ///         pay there. Recorded on the test network's chain id, the only one they deploy on.
+    /// @notice The test network's tokens, price feed and report probe: what a visitor, the owner, the
+    ///         publisher and a forwarder pay there. Recorded on the test network's chain id, the only one they deploy on.
     function test_testnet() public {
         vm.chainId(10_143);
         address owner = makeAddr("test network owner");
@@ -768,6 +769,13 @@ abstract contract GasCases is Test {
         vm.prank(owner);
         oracle.post(posts);
         _record("TestnetStockOracle.post ten symbols, a later round", "");
+
+        TestnetReportProbe probe = new TestnetReportProbe(owner);
+        bytes memory metadata = abi.encodePacked(
+            keccak256("workflow"), bytes10("1a2b3c4d5e"), makeAddr("workflow owner"), bytes2(0x0001)
+        );
+        probe.onReport(metadata, abi.encode(keccak256("event"), int256(43), uint8(2)));
+        _record("TestnetReportProbe.onReport a forwarder's delivery", "");
     }
 
     /// @notice One test token's cases: a drip, a mint, and its standard transfers.

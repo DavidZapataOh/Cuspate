@@ -1,9 +1,11 @@
 /**
  * Mirrors the production feed's prices onto the test network's feed, so the test network's markets
- * trade around real prices: every symbol the test network lists is read on the production chain and
- * posted on the test network in one transaction, at most every quarter of an hour.
+ * trade around real prices: every symbol with a market still trading on the test network is read on
+ * the production chain and posted on the test network in one transaction, at most every quarter of an
+ * hour.
  *
  *   MONAD_RPC_URL=... MONAD_TESTNET_RPC_URL=... PUBLISHER_KEY=... node ops/src/publisher.ts [--once]
+ *   ... node ops/src/publisher.ts --symbols TSLA,META   (once, to open a window outside the session)
  *   (or PUBLISHER_KEYSTORE and PUBLISHER_PASSWORD_FILE in place of PUBLISHER_KEY, on the server)
  */
 import {
@@ -17,6 +19,7 @@ import {
 import { artifact } from "./artifacts.ts";
 import { committedPath, manifestOf, readBook } from "./book.ts";
 import { reader, type Signer, send } from "./chain.ts";
+import { type EventManifest, loadEvents } from "./events.ts";
 
 /** How often prices are posted: inside the keeper's bound, which ignores a round older than 25 minutes. */
 export const INTERVAL_SECONDS = 15 * 60;
@@ -30,12 +33,18 @@ const FEED = parseAbi([
 
 type Round = readonly [bigint, bigint, bigint, bigint, bigint, bigint, number];
 
-/** What to post, from what the production feed reads: only symbols it prices in their regular session. */
-export function postsFrom(rounds: Record<string, Round | null>) {
+/**
+ * What to post, from what the production feed reads: only symbols it prices in their regular session,
+ * unless a window is being opened outside it, when its symbols are posted at their latest round.
+ */
+export function postsFrom(
+	rounds: Record<string, Round | null>,
+	anySession = false,
+) {
 	return Object.entries(rounds)
 		.filter(
 			(entry): entry is [string, Round] =>
-				entry[1] !== null && entry[1][6] === REGULAR,
+				entry[1] !== null && (anySession || entry[1][6] === REGULAR),
 		)
 		.map(([symbol, [price, bestBid, bestAsk, feedUpdateTimestamp]]) => ({
 			priceId: keccak256(toBytes(symbol)),
@@ -44,6 +53,33 @@ export function postsFrom(rounds: Record<string, Round | null>) {
 			bestAsk,
 			feedUpdateTimestamp,
 		}));
+}
+
+/**
+ * The symbols worth posting: those of events with a market open whose announcement has not come, so
+ * whose pools still trade. A frozen market needs no price, and every post costs gas.
+ */
+export function symbolsToPost(
+	book: { [key: string]: unknown },
+	manifest: EventManifest,
+	now: bigint,
+): string[] {
+	const open = new Set(
+		Object.values(
+			(book.markets ?? {}) as Record<string, { eventKey: string }>,
+		).map((m) => m.eventKey),
+	);
+	return [
+		...new Set(
+			manifest.events
+				.filter(
+					(e) =>
+						open.has(e.eventKey) &&
+						BigInt(Date.parse(e.announcesAt) / 1000) > now,
+				)
+				.map((e) => e.issuer),
+		),
+	].sort();
 }
 
 /**
@@ -71,11 +107,17 @@ function required(name: string): string {
 	return value;
 }
 
-async function once(): Promise<number> {
+async function once(named?: string[]): Promise<number> {
 	const production = reader(required("MONAD_RPC_URL"));
 	const feed = manifestOf(143).thirdParty.stockOracle?.[0] as Address;
 	const testnet = manifestOf(10143);
-	const symbols = (testnet.testnet?.stocks ?? []).map((s) => s.symbol);
+	const symbols =
+		named ??
+		symbolsToPost(
+			readBook(committedPath(10143)),
+			loadEvents(10143),
+			BigInt(Math.floor(Date.now() / 1000)),
+		);
 	const rounds: Record<string, Round | null> = {};
 	for (const symbol of symbols) {
 		try {
@@ -89,7 +131,7 @@ async function once(): Promise<number> {
 			rounds[symbol] = null;
 		}
 	}
-	const posts = postsFrom(rounds);
+	const posts = postsFrom(rounds, named !== undefined);
 	if (posts.length === 0) return 0;
 	const oracle = readBook(committedPath(10143)).TestnetStockOracle as
 		| { address: Address }
@@ -113,6 +155,19 @@ async function once(): Promise<number> {
 }
 
 if (process.argv[1]?.endsWith("publisher.ts")) {
+	// Opening a window: `--symbols TSLA,META` posts those symbols once, at production's latest round.
+	const at = process.argv.indexOf("--symbols");
+	const named = at >= 0 ? process.argv[at + 1]?.split(",") : undefined;
+	if (named) {
+		once(named).then(
+			(count) =>
+				console.error(`${new Date().toISOString()} posted ${count} prices`),
+			(error: Error) => {
+				console.error(error.message);
+				process.exit(1);
+			},
+		);
+	}
 	const loop = async () => {
 		for (;;) {
 			try {
@@ -130,5 +185,5 @@ if (process.argv[1]?.endsWith("publisher.ts")) {
 			);
 		}
 	};
-	void loop();
+	if (!named) void loop();
 }

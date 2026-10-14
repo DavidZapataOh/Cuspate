@@ -1,0 +1,547 @@
+{
+	"network": 10143,
+	"rules": {
+		"thresholds": "The primary threshold is the consensus, rounded to the cent; the others are the consensus minus m, plus m and plus 2m, where m is the median size of the issuer's surprise over its last eight quarters at most, rounded up to the cent. The consensus is read again, from the sources named, right before each event is sealed.",
+		"strictAbove": "A condition is met only if the figure is strictly above its threshold: a figure equal to it resolves no.",
+		"openingChance": "With k = (threshold - consensus) / m, the opening chance is 1 / (1 + exp(1.1 k)), rounded to the cent and kept within [0.05, 0.95].",
+		"announcement": "After-close issuers: the market close in New York, 16:00 America/New_York. Before-open issuers: 08:00 America/New_York. An event is sealed only once the issuer has confirmed its date."
+	},
+	"seeding": {
+		"dollarsPerMarket": "20000",
+		"dollarCap": "250000",
+		"shareCapValue": "250000",
+		"halfWidthTicks": 1823
+	},
+	"events": [
+		{
+			"eventKey": "tsla-q3-2026",
+			"issuer": "TSLA",
+			"displayName": "Tesla Q3 2026 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-10-21T20:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-10-25T20:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-10-22T20:00:00Z",
+			"dateSource": {
+				"url": "https://ir.tesla.com/press-release/tesla-third-quarter-2026-production-deliveries-and-deployments",
+				"confirmed": true
+			},
+			"sector": "consumer",
+			"stock": "TestnetStock.TSLA",
+			"consensus": {
+				"value": "0.43",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/TSLA/earnings-calendar",
+				"retrievedAt": "2026-10-14"
+			},
+			"conditions": [
+				{
+					"key": "above-0-38",
+					"threshold": "0.38",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-0-43",
+					"threshold": "0.43",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-0-48",
+					"threshold": "0.48",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-0-53",
+					"threshold": "0.53",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "meta-q3-2026",
+			"issuer": "META",
+			"displayName": "Meta Q3 2026 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-10-21T20:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-10-25T20:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-10-22T20:00:00Z",
+			"dateSource": {
+				"url": "https://investor.atmeta.com",
+				"confirmed": true
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.META",
+			"consensus": {
+				"value": "6.39",
+				"basis": "adjusted; no GAAP consensus is published",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/META/earnings-calendar",
+				"retrievedAt": "2026-10-14"
+			},
+			"conditions": [
+				{
+					"key": "above-5-51",
+					"threshold": "5.51",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-6-39",
+					"threshold": "6.39",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-7-27",
+					"threshold": "7.27",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-8-15",
+					"threshold": "8.15",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "hood-q3-2026",
+			"issuer": "HOOD",
+			"displayName": "Robinhood Q3 2026 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-10-27T20:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-10-31T20:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-10-28T20:00:00Z",
+			"dateSource": {
+				"url": "https://investors.robinhood.com",
+				"confirmed": true
+			},
+			"sector": "finance",
+			"stock": "TestnetStock.HOOD",
+			"consensus": {
+				"value": "0.55",
+				"basis": "aggregator consensus; no GAAP consensus is published",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/HOOD/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-0-47",
+					"threshold": "0.47",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-0-55",
+					"threshold": "0.55",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-0-63",
+					"threshold": "0.63",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-0-71",
+					"threshold": "0.71",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "msft-q1-fy2027",
+			"issuer": "MSFT",
+			"displayName": "Microsoft Q1 FY2027 earnings",
+			"period": {
+				"quarter": 1,
+				"fiscalYear": 2027
+			},
+			"announcesAt": "2026-10-28T20:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-11-01T20:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-10-29T20:00:00Z",
+			"dateSource": {
+				"url": "https://www.microsoft.com/en-us/investor/events/fy-2027/earnings-fy-2027-q1",
+				"confirmed": true
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.MSFT",
+			"consensus": {
+				"value": "4.71",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/MSFT/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-4-45",
+					"threshold": "4.45",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-4-71",
+					"threshold": "4.71",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-4-97",
+					"threshold": "4.97",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-5-23",
+					"threshold": "5.23",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "googl-q3-2026",
+			"issuer": "GOOGL",
+			"displayName": "Alphabet Q3 2026 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-10-28T20:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-11-01T20:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-10-29T20:00:00Z",
+			"dateSource": {
+				"url": "https://abc.xyz/investor/",
+				"confirmed": true
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.GOOGL",
+			"consensus": {
+				"value": "2.94",
+				"basis": "operating; no GAAP consensus is published",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/GOOGL/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-2-49",
+					"threshold": "2.49",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-2-94",
+					"threshold": "2.94",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-3-39",
+					"threshold": "3.39",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-3-84",
+					"threshold": "3.84",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "aapl-q4-fy2026",
+			"issuer": "AAPL",
+			"displayName": "Apple Q4 FY2026 earnings",
+			"period": {
+				"quarter": 4,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-11-02T21:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-11-06T21:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-11-03T21:00:00Z",
+			"dateSource": {
+				"url": "https://www.apple.com/investor/earnings-call/",
+				"confirmed": true
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.AAPL",
+			"consensus": {
+				"value": "1.99",
+				"basis": "adjusted; no GAAP consensus is published",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/AAPL/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-1-88",
+					"threshold": "1.88",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-1-99",
+					"threshold": "1.99",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-2-10",
+					"threshold": "2.10",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-2-21",
+					"threshold": "2.21",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "amd-q3-2026",
+			"issuer": "AMD",
+			"displayName": "AMD Q3 2026 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"announcesAt": "2026-11-03T21:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-11-07T21:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-11-04T21:00:00Z",
+			"dateSource": {
+				"url": "https://ir.amd.com",
+				"confirmed": true
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.AMD",
+			"consensus": {
+				"value": "1.92",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/AMD/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-1-80",
+					"threshold": "1.80",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-1-92",
+					"threshold": "1.92",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-2-04",
+					"threshold": "2.04",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-2-16",
+					"threshold": "2.16",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "nvda-q3-fy2027",
+			"issuer": "NVDA",
+			"displayName": "NVIDIA Q3 FY2027 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2027
+			},
+			"announcesAt": "2026-11-18T21:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-11-22T21:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-11-19T21:00:00Z",
+			"dateSource": {
+				"url": "https://investor.nvidia.com",
+				"confirmed": false
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.NVDA",
+			"consensus": {
+				"value": "2.47",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/NVDA/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-2-41",
+					"threshold": "2.41",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-2-47",
+					"threshold": "2.47",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-2-53",
+					"threshold": "2.53",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-2-59",
+					"threshold": "2.59",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "wmt-q3-fy2027",
+			"issuer": "WMT",
+			"displayName": "Walmart Q3 FY2027 earnings",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2027
+			},
+			"announcesAt": "2026-11-19T13:00:00Z",
+			"releaseTiming": "before-open",
+			"deadline": "2026-11-23T13:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-11-20T13:00:00Z",
+			"dateSource": {
+				"url": "https://corporate.walmart.com/news/events/fy2027-q3-earnings-release",
+				"confirmed": true
+			},
+			"sector": "retail",
+			"stock": "TestnetStock.WMT",
+			"consensus": {
+				"value": "0.63",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/WMT/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-0-60",
+					"threshold": "0.60",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-0-63",
+					"threshold": "0.63",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-0-66",
+					"threshold": "0.66",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-0-69",
+					"threshold": "0.69",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		},
+		{
+			"eventKey": "mu-q1-fy2027",
+			"issuer": "MU",
+			"displayName": "Micron Q1 FY2027 earnings",
+			"period": {
+				"quarter": 1,
+				"fiscalYear": 2027
+			},
+			"announcesAt": "2026-12-16T21:00:00Z",
+			"releaseTiming": "after-close",
+			"deadline": "2026-12-20T21:00:00Z",
+			"fallback": "the issuer's earnings release on its investor relations website",
+			"fallbackFrom": "2026-12-17T21:00:00Z",
+			"dateSource": {
+				"url": "https://investors.micron.com",
+				"confirmed": false
+			},
+			"sector": "tech",
+			"stock": "TestnetStock.MU",
+			"consensus": {
+				"value": "38.20",
+				"basis": "non-GAAP",
+				"source": "Zacks earnings calendar",
+				"url": "https://www.zacks.com/stock/research/MU/earnings-calendar",
+				"retrievedAt": "2026-10-13"
+			},
+			"conditions": [
+				{
+					"key": "above-37-60",
+					"threshold": "37.60",
+					"primary": false,
+					"openingChance": "0.75"
+				},
+				{
+					"key": "above-38-20",
+					"threshold": "38.20",
+					"primary": true,
+					"openingChance": "0.50"
+				},
+				{
+					"key": "above-38-80",
+					"threshold": "38.80",
+					"primary": false,
+					"openingChance": "0.25"
+				},
+				{
+					"key": "above-39-40",
+					"threshold": "39.40",
+					"primary": false,
+					"openingChance": "0.10"
+				}
+			]
+		}
+	]
+}

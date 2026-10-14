@@ -159,6 +159,27 @@ export async function deploy(options: {
 	const sent: (Sent & { key: string })[] = [];
 	const skipped: string[] = [];
 	for (const step of steps) {
+		if (step.kind === "mint") {
+			if (book[step.key]) {
+				skipped.push(step.key);
+				continue;
+			}
+			const receipt = send(url, deployer, signer, step.to, step.data);
+			book[step.key] = {
+				token: step.to,
+				recipient: step.recipient,
+				amount: String(step.amount),
+				block: receipt.block,
+				txHash: receipt.txHash,
+				commit,
+			};
+			writeBook(bookFile, book);
+			sent.push({ ...receipt, key: step.key });
+			console.error(
+				`recorded ${step.key}: ${step.amount} to ${step.recipient}`,
+			);
+			continue;
+		}
 		const recorded =
 			step.kind === "safe"
 				? book.roles?.[step.role]

@@ -136,12 +136,40 @@ The receiver checks the workflow's owner and name, never its id, which changes w
   by the operator and used only for the workflow registry.
 - **A new owner or name** needs a new receiver.
 
+## The test network
+
+The workflow runs on the test network under the `monad-testnet` target, against the test network's
+resolver, with the configuration `ops/src/services.ts` generates from the network's record:
+`resolver-proposer/config.monad-testnet.json`. The receiver is fixed to the workflow's owner and name
+at construction, so it is created only after a real delivery has shown them:
+
+1. **The probe.** The test network's deployment includes `TestnetReportProbe`, a receiver that only
+   records what a forwarder delivers: who delivered it, and the workflow's id, owner, name and report
+   id as the forwarder packs them. Until the receiver exists, the generated configuration delivers to
+   the probe.
+2. **Deploy the workflow** from the CRE organization's linked owner, which registers it on the
+   Workflow Registry and is a transaction on Ethereum mainnet:
+   `cre workflow deploy resolver-proposer --target monad-testnet`.
+3. **Read the first delivery.** The workflow reports only for an event that is due and whose figure it
+   found, so the first delivery follows the first announcement. The probe's `ReportReceived` log
+   carries the owner and the name; the forwarder must be the test network's KeystoneForwarder,
+   `0xF8344CFd5c43616a4366C34E3EEE75af79a74482`.
+4. **Create the receiver.** Set `creProposer.workflowOwner` in the test network's manifest to the owner
+   the probe recorded, and run the deployment runbook: it creates `CreProposer` and mints it fifty bonds
+   in test dollars. Regenerate the configuration, which now delivers to the receiver, and redeploy the
+   workflow. Events still unproposed are proposed on its next run.
+
+The end-to-end run checks the same path on a local chain with the test network's id, through its
+simulation forwarder: the probe records the simulator's owner and name, and the receiver fixed to them
+proposes.
+
 ## Building and testing
 
 ```
 pnpm --filter cuspate-cre run build   # type-checks and compiles the workflow to WebAssembly
 pnpm --filter cuspate-cre run test    # against EDGAR's documents, recorded under resolver-proposer/fixtures
 pnpm --filter cuspate-cre run e2e     # the whole path, against a local chain and EDGAR itself
+CRE_E2E_NETWORK=testnet pnpm --filter cuspate-cre run e2e TSLA   # the same, on the test network's id
 ```
 
 The end-to-end run starts a local chain whose id is the production chain's, copies the production

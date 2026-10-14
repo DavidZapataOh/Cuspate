@@ -83,7 +83,7 @@ export class Keeper {
 	async prepare(): Promise<Pending | Extract<Outcome, { kind: "idle" }>> {
 		const { client, deployment, market } = this.o;
 		const head = await client.getBlock();
-		const quote = await readQuote(client, deployment);
+		const quote = await readQuote(client, deployment, market);
 		const idle = idleReason(
 			quote,
 			head.timestamp,

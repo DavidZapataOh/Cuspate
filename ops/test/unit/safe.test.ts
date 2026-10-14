@@ -11,6 +11,7 @@ import {
 } from "viem";
 import { describe, expect, test } from "vitest";
 import {
+	batchExecData,
 	createProxyData,
 	execData,
 	predictSafe,
@@ -86,6 +87,24 @@ describe("a role's Safe", () => {
 		expect(args?.[0]).toBe(FACTORY);
 		expect(args?.[2]).toBe("0x1234");
 		expect(args?.[3]).toBe(0);
+		expect(String(args?.[9]).toLowerCase()).toBe(
+			prevalidated(OWNER).toLowerCase(),
+		);
+	});
+});
+
+describe("a Safe's batch", () => {
+	test("is one delegate call to MultiSendCallOnly, signed by its sender", () => {
+		const MULTI = "0x9641d764fc13c8B624c04430C7356C1C7C8102e2";
+		const { args } = decodeFunctionData({
+			abi: SAFE,
+			data: batchExecData(MULTI, "0x8d80ff0a", OWNER),
+		});
+		expect(args?.[0]).toBe(MULTI);
+		expect(args?.[1]).toBe(0n);
+		expect(args?.[2]).toBe("0x8d80ff0a");
+		// One: a delegate call, the only way a Safe runs MultiSendCallOnly's calls as itself.
+		expect(args?.[3]).toBe(1);
 		expect(String(args?.[9]).toLowerCase()).toBe(
 			prevalidated(OWNER).toLowerCase(),
 		);

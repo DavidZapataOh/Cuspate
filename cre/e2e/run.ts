@@ -7,6 +7,11 @@
  * Usage: bun e2e/run.ts [TICKER ...]   (default: every pinned issuer)
  * Needs CRE_API_KEY, Foundry (anvil) and the contracts built. Without the key it skips locally and
  * fails as "not evaluated" in CI.
+ *
+ * With CRE_E2E_NETWORK=testnet the local chain takes the test network's id and the workflow resolves it
+ * by the test network's name, through that network's simulation forwarder. There the report is first
+ * delivered to the test network's report probe, which records the metadata the forwarder packs, and
+ * the run checks the owner and name a receiver is fixed to against what the probe recorded.
  */
 import { issuer, renderTerms } from "cuspate-shared";
 import {
@@ -27,10 +32,31 @@ import { PINNED, type Pinned } from "./pinned";
 // The SDK's types make Node's modules unusable here, so paths and files go through Bun.
 const CRE_DIR = `${import.meta.dir}/..`;
 const OUT = `${import.meta.dir}/../../contracts/out`;
-// The simulator delivers through this chain's simulation forwarder; mainnet's is copied onto the local
-// chain, whose id is the production chain's so the workflow resolves it by its production name.
-const FORWARDER: Address = "0x9eF6468C5f37b976E57d52054c693269479A784d";
-const PRODUCTION_RPC = "https://rpc-mainnet.monadinfra.com";
+// The simulator delivers through the chain's simulation forwarder, copied onto the local chain, whose
+// id is the real chain's so the workflow resolves it by its real name.
+const NETWORKS = {
+	mainnet: {
+		chainId: 143,
+		chainSelectorName: "monad-mainnet",
+		isTestnet: false,
+		target: "local-e2e",
+		forwarder: "0x9eF6468C5f37b976E57d52054c693269479A784d" as Address,
+		upstream: "https://rpc-mainnet.monadinfra.com",
+	},
+	testnet: {
+		chainId: 10143,
+		chainSelectorName: "monad-testnet",
+		isTestnet: true,
+		target: "local-e2e-testnet",
+		forwarder: "0xB9F79d863261869B234c481D1f9A7af84AeAd192" as Address,
+		upstream:
+			process.env.MONAD_TESTNET_RPC_URL ?? "https://testnet-rpc.monad.xyz",
+	},
+} as const;
+const NETWORK =
+	NETWORKS[(process.env.CRE_E2E_NETWORK ?? "mainnet") as keyof typeof NETWORKS];
+if (!NETWORK) throw new Error("CRE_E2E_NETWORK is mainnet or testnet");
+const FORWARDER = NETWORK.forwarder;
 // What the simulator writes into a report's metadata: a fixed owner, and the workflow's name as the
 // first ten hex characters of its SHA-256.
 const SIMULATED_OWNER: Address = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -43,8 +69,8 @@ const RESOLVER_ARGS = [BOND, 2_000_000n, 600n, 86_400n, 7_200n] as const;
 
 const local = (port: number) =>
 	defineChain({
-		id: 143,
-		name: "local production fork",
+		id: NETWORK.chainId,
+		name: "local chain",
 		nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
 		rpcUrls: { default: { http: [`http://127.0.0.1:${port}`] } },
 	});
@@ -103,7 +129,7 @@ async function runOne(pinned: Pinned, wasm: string) {
 		[
 			"anvil",
 			"--chain-id",
-			"143",
+			String(NETWORK.chainId),
 			"--port",
 			String(port),
 			"--timestamp",
@@ -118,7 +144,11 @@ async function runOne(pinned: Pinned, wasm: string) {
 	try {
 		for (let attempt = 0; ; attempt++) {
 			try {
-				if ((await rpc(url, "eth_chainId", [])) === "0x8f") break;
+				if (
+					(await rpc(url, "eth_chainId", [])) ===
+					`0x${NETWORK.chainId.toString(16)}`
+				)
+					break;
 			} catch {}
 			if (attempt > 100) throw new Error("the local chain did not start");
 			await Bun.sleep(100);
@@ -134,7 +164,7 @@ async function runOne(pinned: Pinned, wasm: string) {
 			.extend(publicActions)
 			.extend(walletActions);
 		await client.setBalance({ address: account.address, value: 10n ** 22n });
-		const code = (await rpc(PRODUCTION_RPC, "eth_getCode", [
+		const code = (await rpc(NETWORK.upstream, "eth_getCode", [
 			FORWARDER,
 			"latest",
 		])) as Hex;
@@ -243,8 +273,8 @@ async function runOne(pinned: Pinned, wasm: string) {
 
 		const config = {
 			schedule: "0 */10 * * * *",
-			chainSelectorName: "monad-mainnet",
-			isTestnet: false,
+			chainSelectorName: NETWORK.chainSelectorName,
+			isTestnet: NETWORK.isTestnet,
 			resolver: resolver.address,
 			receiver: receiver.address,
 			userAgent: USER_AGENT,
@@ -266,41 +296,89 @@ async function runOne(pinned: Pinned, wasm: string) {
 			],
 		};
 		const configFile = `${work}/config.json`;
+		const simulate = (file: string) => {
+			const run = Bun.spawnSync(
+				[
+					"cre",
+					"workflow",
+					"simulate",
+					"resolver-proposer",
+					"--target",
+					NETWORK.target,
+					"--broadcast",
+					"--non-interactive",
+					"--trigger-index",
+					"0",
+					"--config",
+					file,
+					"--wasm",
+					wasm,
+				],
+				{
+					cwd: CRE_DIR,
+					env: {
+						...process.env,
+						LOCAL_E2E_RPC_URL: url,
+						CRE_ETH_PRIVATE_KEY: key.slice(2),
+					},
+				},
+			);
+			return {
+				exitCode: run.exitCode,
+				log: run.stdout.toString() + run.stderr.toString(),
+			};
+		};
+
+		if (NETWORK.isTestnet) {
+			// The probe first: the same run, delivered to a receiver that only records what arrives.
+			const probe = await deploy(
+				"TestnetReportProbe.sol",
+				"TestnetReportProbe",
+				[account.address],
+			);
+			const probeConfig = `${work}/probe.json`;
+			await Bun.write(
+				probeConfig,
+				JSON.stringify({ ...config, receiver: probe.address }),
+			);
+			const probed = simulate(probeConfig);
+			if (probed.exitCode !== 0)
+				throw new Error(`the probe's simulation failed:\n${probed.log}`);
+			const seen = (await client.getContractEvents({
+				address: probe.address,
+				abi: probe.abi,
+				eventName: "ReportReceived",
+				fromBlock: 0n,
+			})) as unknown as {
+				args: { forwarder: Address; workflowOwner: Address; workflowName: Hex };
+			}[];
+			if (seen.length !== 2)
+				throw new Error(
+					`the probe recorded ${seen.length} reports, expected two`,
+				);
+			for (const { args } of seen) {
+				if (
+					args.forwarder.toLowerCase() !== FORWARDER.toLowerCase() ||
+					args.workflowOwner.toLowerCase() !== SIMULATED_OWNER ||
+					args.workflowName !== toHex(name)
+				)
+					throw new Error(
+						`the probe recorded ${JSON.stringify(args)}, not the simulator's owner and name`,
+					);
+			}
+			step(
+				`the probe recorded two reports from ${seen[0]?.args.workflowOwner} named ${seen[0]?.args.workflowName}`,
+			);
+		}
+
 		await Bun.write(configFile, JSON.stringify(config));
 
 		const before = (await read(dollar, "balanceOf", [
 			receiver.address,
 		])) as bigint;
-		const simulate = Bun.spawnSync(
-			[
-				"cre",
-				"workflow",
-				"simulate",
-				"resolver-proposer",
-				"--target",
-				"local-e2e",
-				"--broadcast",
-				"--non-interactive",
-				"--trigger-index",
-				"0",
-				"--config",
-				configFile,
-				"--wasm",
-				wasm,
-			],
-			{
-				cwd: CRE_DIR,
-				env: {
-					...process.env,
-					LOCAL_E2E_RPC_URL: url,
-					CRE_ETH_PRIVATE_KEY: key.slice(2),
-				},
-			},
-		);
-		const log = simulate.stdout.toString() + simulate.stderr.toString();
-		step(`the simulation exited ${simulate.exitCode}`);
-		if (simulate.exitCode !== 0)
-			throw new Error(`the simulation failed:\n${log}`);
+		const { exitCode, log } = simulate(configFile);
+		step(`the simulation exited ${exitCode}`);
+		if (exitCode !== 0) throw new Error(`the simulation failed:\n${log}`);
 
 		// The chain is the only witness.
 		const round = async (id: Hex) => {

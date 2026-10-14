@@ -113,3 +113,30 @@ export function execData(to: Address, data: Hex, owner: Address): Hex {
 		],
 	});
 }
+
+/**
+ * A batch the Safe runs as itself: one delegate call to MultiSendCallOnly, which makes each of its
+ * calls from the Safe, sent by the owner with a pre-validated signature.
+ */
+export function batchExecData(
+	multiSend: Address,
+	data: Hex,
+	owner: Address,
+): Hex {
+	return encodeFunctionData({
+		abi: SAFE,
+		functionName: "execTransaction",
+		args: [
+			multiSend,
+			0n,
+			data,
+			1,
+			0n,
+			0n,
+			0n,
+			zeroAddress,
+			zeroAddress,
+			prevalidated(owner),
+		],
+	});
+}

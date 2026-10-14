@@ -190,7 +190,8 @@
   },
   "manifest": {
     "creProposer": {
-      "workflowName": "cuspate-resolver-proposer"
+      "workflowName": "cuspate-resolver-proposer",
+      "workflowOwner": "0x040e0FCf01BC56Abe785C56D5b1cBe40f3AdFeE4"
     },
     "deployer": "0xD521E05AEbB8d39087bC7B9101CD590177468fca",
     "logical": {

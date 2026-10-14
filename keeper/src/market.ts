@@ -63,6 +63,12 @@ export type Deployment = {
 	oracle: Address;
 	permit2: Address;
 	universalRouter: Address;
+	/**
+	 * Whether that router's single-pool swap parameters carry `minHopPriceX36`, the per-hop price floor
+	 * later v4-periphery releases put between `amountOutMinimum` and `hookData`. A router decodes only
+	 * its own layout: handed the other, it reverts with no reason.
+	 */
+	universalRouterMinHopPrice: boolean;
 };
 
 /** A market's fixed shape, read once. */

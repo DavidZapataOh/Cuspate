@@ -267,7 +267,7 @@ export function richBatch(
 }
 
 /** The Universal Router's single-pool exact-input swap of a dollar leg, settled and taken in full. */
-function levelCall(
+export function levelCall(
 	deployment: Deployment,
 	market: Market,
 	sold: Address,
@@ -278,6 +278,11 @@ function levelCall(
 	const key = market.probabilityKey;
 	const zeroForOne = key.currency0 === sold;
 	const bought = zeroForOne ? key.currency1 : key.currency0;
+	// IV4Router.ExactInputSingleParams. A zero `minHopPriceX36` disables the per-hop floor, which on a
+	// single pool would only repeat `amountOutMinimum`.
+	const hopFloor = deployment.universalRouterMinHopPrice
+		? [{ name: "minHopPriceX36", type: "uint256" }]
+		: [];
 	const swap = encodeAbiParameters(
 		[
 			{
@@ -297,6 +302,7 @@ function levelCall(
 					{ name: "zeroForOne", type: "bool" },
 					{ name: "amountIn", type: "uint128" },
 					{ name: "amountOutMinimum", type: "uint128" },
+					...hopFloor,
 					{ name: "hookData", type: "bytes" },
 				],
 			},
@@ -307,6 +313,7 @@ function levelCall(
 				zeroForOne,
 				amountIn: amount,
 				amountOutMinimum: minOut,
+				minHopPriceX36: 0n,
 				hookData: "0x",
 			},
 		],

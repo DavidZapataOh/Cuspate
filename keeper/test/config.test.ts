@@ -29,6 +29,7 @@ describe("the keeper's configuration", () => {
 		expect(config.multiSend).toMatch(/^0x[0-9a-fA-F]{40}$/);
 		expect(config.intervalSeconds).toBe(30);
 		expect(config.clip).toBe((1n << 256n) - 1n);
+		expect(config.deployment.universalRouterMinHopPrice).toBe(false);
 	});
 
 	test("refuses to start without a setting it needs, naming it", () => {
@@ -111,6 +112,7 @@ describe("the keeper's configuration", () => {
 			"0x4CB07861A30785257eD9BB7aAbA8Cc90DCa90F24",
 		);
 		expect(config.multiSend).toBe("0x9641d764fc13c8B624c04430C7356C1C7C8102e2");
+		expect(config.deployment.universalRouterMinHopPrice).toBe(true);
 		expect(() => configFromEnv({ ...env, KEEPER_CHAIN: "1" })).toThrow(
 			"KEEPER_CHAIN",
 		);

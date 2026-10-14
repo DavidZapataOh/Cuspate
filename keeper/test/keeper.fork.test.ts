@@ -32,6 +32,7 @@ import {
 } from "vitest";
 import {
 	artifact,
+	CHAIN_ID,
 	deploy,
 	FORK_REQUEST_TIMEOUT_MS,
 	type Fork,
@@ -57,6 +58,7 @@ import {
 	sqrtPriceAtYesDollarPrice,
 	sqrtPriceX96,
 } from "../src/arithmetic.ts";
+import { ROUTER_MIN_HOP_PRICE } from "../src/config.ts";
 import { takeFollowUps } from "../src/followups.ts";
 import { Keeper } from "../src/keeper.ts";
 import {
@@ -163,6 +165,7 @@ beforeAll(async () => {
 		oracle: thirdParty("stockOracle"),
 		permit2: thirdParty("permit2"),
 		universalRouter: thirdParty("universalRouter"),
+		universalRouterMinHopPrice: ROUTER_MIN_HOP_PRICE[String(CHAIN_ID)],
 	};
 	const underlying = thirdParty("collateral");
 	const dollar = thirdParty("dollar");

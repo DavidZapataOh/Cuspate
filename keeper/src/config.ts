@@ -14,6 +14,15 @@ const BYTES32 = /^0x[0-9a-fA-F]{64}$/;
 const SYMBOL = /^[A-Z][A-Z.]{0,9}$/;
 /** The chains the keeper runs on: the production chain and the public test network. */
 const CHAINS = ["143", "10143"];
+/**
+ * Whether each chain's Universal Router takes `minHopPriceX36` in a single-pool swap: the test
+ * network's runs a later v4-periphery release than the production chain's. A fork test on each chain
+ * holds the entry to what its router decodes.
+ */
+export const ROUTER_MIN_HOP_PRICE: Record<string, boolean> = {
+	"143": false,
+	"10143": true,
+};
 
 const deployments = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -62,6 +71,7 @@ export function configFromEnv(env: Record<string, string | undefined>) {
 		oracle,
 		permit2: thirdParty.permit2[0],
 		universalRouter: thirdParty.universalRouter[0],
+		universalRouterMinHopPrice: ROUTER_MIN_HOP_PRICE[chain],
 	};
 	const priceIdOf = (symbol: string, name: string) => {
 		if (!SYMBOL.test(symbol)) throw new Error(`${name} is malformed`);

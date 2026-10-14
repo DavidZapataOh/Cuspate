@@ -16,10 +16,11 @@ const rpcUrl = process.env.MONAD_TESTNET_RPC_URL ?? "";
 // The condition bought is the homepage's featured one, read from the fork as the server reads it:
 // which event leads depends on the money in, which trading moves.
 const now = Date.now();
-const featured = pickFeatured(await read.events(now), now);
-const condition = featured?.conditions.find((c) => c.primary);
-if (!featured || !condition?.market)
+const found = pickFeatured(await read.events(now), now);
+const condition = found?.conditions.find((c) => c.primary);
+if (!found || !condition?.market)
 	throw new Error("no featured condition with a market on the fork");
+const featured = found;
 const market = condition.market;
 const [holds, fails] = panLabels(featured, condition);
 const buyLabel = buttonWords(featured, condition, true).buy;
@@ -66,7 +67,7 @@ async function buy(page: Page, ticket: Locator, amount: string) {
 	const status = ticket.locator("[aria-live]");
 	await expect(status).toContainText(`${holds}: `);
 	await expect(status).toContainText(
-		` ${featured.issuer} shares. ${fails}: $${amount}.00 back.`,
+		` ${featured?.issuer} shares. ${fails}: $${amount}.00 back.`,
 	);
 	expect(await bannedWordsOn(page)).toEqual([]);
 	await ticket.getByRole("button", { name: buyLabel }).click();

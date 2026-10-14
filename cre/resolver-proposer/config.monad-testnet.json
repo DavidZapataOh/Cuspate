@@ -3,7 +3,7 @@
 	"chainSelectorName": "monad-testnet",
 	"isTestnet": true,
 	"resolver": "0xcB4c8151F2183D8b98cCb36825C629ab420140ad",
-	"receiver": "0x0a682e74Bc8F526b460175e2EE7Fb1347D2e0518",
+	"receiver": "0x18fC5360598FeED231B2A4936ab72bfc4daA34B7",
 	"userAgent": "Cuspate ops@cuspate.xyz",
 	"issuers": [
 		{

@@ -114,7 +114,7 @@ describe("the workflow's configuration for a network", () => {
 
 	test("lists every event by issuer, its terms and announcement read from the chain", () => {
 		const config = creConfig(
-			{ ...withMarkets, TestnetReportProbe: { address: receiver } },
+			{ ...withMarkets, CreProposer: { address: receiver } },
 			manifest,
 			10143,
 			sealed,

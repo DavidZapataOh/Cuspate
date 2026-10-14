@@ -1,0 +1,154 @@
+.page {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-7) var(--space-5) var(--space-8);
+	display: grid;
+	gap: var(--space-6);
+}
+
+.lead {
+	display: grid;
+	gap: var(--space-3);
+	max-width: 760px;
+}
+
+.headline {
+	font-size: clamp(var(--step-3), 5.2vw, var(--step-4));
+	letter-spacing: -0.025em;
+	color: #f2e9dc;
+}
+
+.explain {
+	font-size: var(--step-2);
+	color: var(--text);
+}
+
+.layout {
+	display: grid;
+	grid-template-columns: minmax(0, 560px) minmax(0, 360px);
+	gap: var(--space-6);
+	align-items: start;
+}
+
+.panel {
+	display: grid;
+	gap: var(--space-5);
+}
+
+.title {
+	font-size: var(--step-2);
+}
+
+.form,
+.quote,
+.signin {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.signin button {
+	justify-self: start;
+}
+
+.field {
+	display: grid;
+	gap: var(--space-2);
+}
+
+.label {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.select {
+	font: inherit;
+	color: var(--text);
+	background: var(--surface-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+	padding: var(--space-3) var(--space-4);
+	min-height: 48px;
+}
+
+.select:focus-visible {
+	outline: 2px solid var(--amber);
+	outline-offset: 2px;
+}
+
+.instruction strong {
+	color: #f2e9dc;
+	font-weight: 600;
+}
+
+.deposit {
+	display: flex;
+	gap: var(--space-3);
+	align-items: center;
+	padding: var(--space-3) var(--space-4);
+	background: var(--surface-2);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+}
+
+.code {
+	font-family: var(--font-mono);
+	font-size: var(--step-0);
+	color: #f2e9dc;
+	overflow-wrap: anywhere;
+	flex: 1;
+}
+
+.rows {
+	display: grid;
+	gap: 0;
+	margin: 0;
+}
+
+.rows div {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-4);
+	padding: var(--space-3) 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.rows dt {
+	color: var(--text-muted);
+}
+
+.rows dd {
+	margin: 0;
+	text-align: right;
+}
+
+.status {
+	color: #f2e9dc;
+	font-weight: 500;
+}
+
+.aside {
+	display: grid;
+	gap: var(--space-4);
+}
+
+.small {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+@media (max-width: 860px) {
+	.layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@media (max-width: 640px) {
+	.page {
+		padding: var(--space-5) var(--space-4) var(--space-7);
+	}
+
+	.deposit {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}

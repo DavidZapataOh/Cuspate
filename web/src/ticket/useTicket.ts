@@ -12,7 +12,12 @@ import {
 } from "../chain/market.ts";
 import { contracts, TESTNET } from "../chain/record.ts";
 import type { Condition, MarketEvent } from "../data/model.ts";
-import { walletExecutor } from "./executor.ts";
+import { useEmailSession } from "../wallet/EmailSession.tsx";
+import {
+	type Executor,
+	sponsoredExecutor,
+	walletExecutor,
+} from "./executor.ts";
 import {
 	centsToDollarUnits,
 	deadlineFor,
@@ -50,7 +55,14 @@ export function useTicket({
 	const market = condition.market;
 	const client = usePublicClient({ chainId: TESTNET.id });
 	const config = useConfig();
-	const { address } = useConnection();
+	const { address: connected } = useConnection();
+	const { session } = useEmailSession();
+	// An email session buys through the server, gas paid; a connected wallet signs and pays itself.
+	const address = session?.address ?? connected;
+	const executorFor = (account: NonNullable<typeof address>): Executor =>
+		session
+			? sponsoredExecutor({ token: async () => session.token })
+			: walletExecutor(config, account);
 	const queries = useQueryClient();
 	const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 	const dollars = amountCents ? centsToDollarUnits(amountCents) : 0n;
@@ -144,7 +156,7 @@ export function useTicket({
 				return;
 			}
 			setPhase({ kind: "signing" });
-			const executor = walletExecutor(config, address);
+			const executor = executorFor(address);
 			const submitted = await executor.send(calls);
 			setPhase({ kind: "pending" });
 			const settled = await executor.settle(submitted);
@@ -165,7 +177,7 @@ export function useTicket({
 		if (!address) return;
 		setDripping(true);
 		try {
-			const executor = walletExecutor(config, address);
+			const executor = executorFor(address);
 			await executor.settle(
 				await executor.send([{ to: contracts.dollar, data: drip, value: 0n }]),
 			);

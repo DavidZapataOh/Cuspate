@@ -10,7 +10,7 @@ import type { ReadLayer } from "./model.ts";
  * The deployment record whose markets the pages bind: the committed one, or the one named by
  * CUSPATE_DEPLOYMENT_RECORD, which a rehearsal on a fork writes for its own markets.
  */
-function deploymentRecord(): { markets?: Record<string, unknown> } {
+export function deploymentRecord(): { markets?: Record<string, unknown> } {
 	const file = process.env.CUSPATE_DEPLOYMENT_RECORD;
 	return file
 		? JSON.parse(readFileSync(file, "utf8"))

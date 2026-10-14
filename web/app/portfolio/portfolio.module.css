@@ -1,0 +1,120 @@
+.page {
+	max-width: 880px;
+	margin: 0 auto;
+	padding: var(--space-7) var(--space-5) var(--space-9);
+	display: grid;
+	gap: var(--space-6);
+}
+
+.lead {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.headline {
+	font-size: var(--step-4);
+	letter-spacing: -0.02em;
+}
+
+.explain {
+	color: var(--text-muted);
+	max-width: 62ch;
+}
+
+.who {
+	color: var(--text-muted);
+}
+
+.empty {
+	display: grid;
+	justify-items: start;
+	gap: var(--space-3);
+	padding: var(--space-6) 0;
+	border-top: 1px solid var(--line);
+}
+
+.empty a {
+	color: var(--text);
+}
+
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: var(--space-5);
+}
+
+.card {
+	display: grid;
+	gap: var(--space-5);
+}
+
+.top {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: start;
+	gap: var(--space-3);
+}
+
+.company {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.title {
+	font-size: var(--step-2);
+}
+
+.phase {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+	padding: var(--space-1) var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+}
+
+.card[data-phase="open"] .phase {
+	color: var(--text);
+}
+
+.worlds {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: var(--space-4);
+	margin: 0;
+}
+
+.worlds div {
+	display: grid;
+	gap: var(--space-1);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--line);
+}
+
+.worlds dt {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.worlds dd {
+	margin: 0;
+	font-size: var(--step-2);
+}
+
+.worlds div + div dd {
+	color: var(--stone);
+}
+
+.action {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-4);
+}
+
+.when {
+	color: var(--text-muted);
+}

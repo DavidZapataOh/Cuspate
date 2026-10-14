@@ -56,3 +56,35 @@
 		inset: 64px var(--space-4) auto auto;
 	}
 }
+
+.form {
+	display: grid;
+	gap: var(--space-3);
+}
+
+.field {
+	display: grid;
+	gap: var(--space-1);
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+.input {
+	min-height: 44px;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+	background: var(--bg);
+	color: var(--text);
+	font: inherit;
+	font-variant-numeric: tabular-nums;
+}
+
+.input:focus-visible {
+	outline: none;
+	border-color: var(--stone);
+}
+
+.input:read-only {
+	color: var(--text-muted);
+}

@@ -39,7 +39,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 			<body>
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: a constant comment written here, no input reaches it */}
 				<div hidden dangerouslySetInnerHTML={{ __html: DIRECTION }} />
-				<WalletProviders rpcUrl={rpcUrl()}>
+				<WalletProviders
+					rpcUrl={rpcUrl()}
+					signInApp={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+				>
 					<TopBar />
 					<div className={styles.notice}>
 						<Notice>

@@ -164,6 +164,7 @@ test("until sign-in with an email is connected, the server says so plainly and p
 	);
 	assert.equal(response.status, 503);
 	assert.deepEqual(await response.json(), {
-		message: "Email sign-in opens soon. Connect a wallet to buy now.",
+		message:
+			"Email sign-in is not available right now. Connect a wallet to buy.",
 	});
 });

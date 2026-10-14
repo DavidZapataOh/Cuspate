@@ -3,7 +3,7 @@
  * verified session, never from the request; it sends only batches that buy on Cuspate or take the
  * test dollars; it runs the batch against the chain first, so a refusal is never paid for; and only
  * then asks the wallet provider to send it from the user's own wallet. The provider's part is behind
- * `SponsorGateway`; until it is connected, `unavailable` refuses every request plainly.
+ * `SponsorGateway`; where it is not configured, `unavailable` refuses every request plainly.
  */
 import "server-only";
 import {
@@ -107,7 +107,8 @@ export function batchRefusal(calls: Wire[]): string | undefined {
 	return undefined;
 }
 
-const UNAVAILABLE = "Email sign-in opens soon. Connect a wallet to buy now.";
+const UNAVAILABLE =
+	"Email sign-in is not available right now. Connect a wallet to buy.";
 const REFUSED =
 	"Only purchases on Cuspate can be sent this way. Nothing was sent.";
 const SIGN_IN = "Sign in to buy.";
@@ -185,6 +186,20 @@ export async function sponsorStatus(
 				{ status: 400 },
 			);
 		return Response.json({ status: await gateway.status(id) });
+	} catch (error) {
+		return unavailableResponse(error);
+	}
+}
+
+/** The wallet a signed-in session holds, for the browser to show and to read balances with. */
+export async function sessionAccount(
+	request: Request,
+	gateway: SponsorGateway,
+): Promise<Response> {
+	try {
+		const found = await userFor(request, gateway);
+		if ("error" in found) return found.error;
+		return Response.json({ address: found.user.address });
 	} catch (error) {
 		return unavailableResponse(error);
 	}

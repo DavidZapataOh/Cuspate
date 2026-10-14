@@ -10,6 +10,7 @@
 		"test:fork": "node --test \"test/fork/*.test.ts\" && node e2e/fork/run.ts"
 	},
 	"dependencies": {
+		"@privy-io/node": "0.35.0",
 		"@tanstack/react-query": "5.104.2",
 		"cuspate-shared": "workspace:*",
 		"next": "16.4.0",

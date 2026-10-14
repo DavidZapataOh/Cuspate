@@ -9,6 +9,8 @@ export function Footer() {
 		<footer data-primitive="footer" className={styles.footer}>
 			<Wordmark height={12} title="Cuspate" />
 			<nav aria-label="Project" className={styles.links}>
+				<a href="/disclosures">Disclosures</a>
+				<a href="/compare">Compare</a>
 				<a href={REPOSITORY}>GitHub</a>
 				<a href={`${REPOSITORY}/blob/main/contracts/deployments/10143.json`}>
 					Contracts

@@ -18,6 +18,12 @@ export function TopBar() {
 				<Link href="/" className={styles.link}>
 					Markets
 				</Link>
+				<Link href="/portfolio" className={styles.link}>
+					Portfolio
+				</Link>
+				<Link href="/fund" className={styles.link}>
+					Add dollars
+				</Link>
 			</nav>
 			<SignIn />
 		</header>

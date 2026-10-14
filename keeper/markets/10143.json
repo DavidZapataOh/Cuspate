@@ -1,0 +1,45 @@
+{
+	"chainId": 10143,
+	"markets": [
+		{
+			"marketId": "0x2db0f23d283837779a35e10db4e9c5887233536065f7d81b535dbd9c10c295de",
+			"eventId": "0x26da56d56da4637807967668bdd4a99a0e1539657e8276d0720512e637af03d4",
+			"symbol": "META"
+		},
+		{
+			"marketId": "0xdd3e8f0fe96d7c063be12c84610ba41fe890f67bd88372f00884108309799117",
+			"eventId": "0x5d32f049b292d905000897dbd7143c9be1696ee8b970ce29bde39fd31056322f",
+			"symbol": "META"
+		},
+		{
+			"marketId": "0xefa8af9976db5f6686a686aa6b3550251ee42f78950ffe8b67d11b5392a48d82",
+			"eventId": "0x44534c71c04b58babe3eba07f1248c4900f0de08ee386e40077e9e407126f535",
+			"symbol": "META"
+		},
+		{
+			"marketId": "0xfdaec498363617a89cefe2db1fdc356e1800e368316544ba20c1ad48491dea30",
+			"eventId": "0xe225a5c56b58abdecc07f7398d3c1c9b96e5bb8291f1aba06650030b222e0e84",
+			"symbol": "META"
+		},
+		{
+			"marketId": "0x23ab8532b27fa51ee092fbee889421133a8c41e68e30ed6a15959b4138e3202f",
+			"eventId": "0x99126cd0a68376eb71821c0b2ace2eceb30eb82907aef1ea2aaef91bb60845fe",
+			"symbol": "TSLA"
+		},
+		{
+			"marketId": "0x38514acbb12d2ba5ac25a5bd716629fca1ba889d4b4debfd46714ca41ef9484c",
+			"eventId": "0x50d5c8570e97b146b9fe034776e15a573a31ff4be499b000cbf7cc25379ad4b9",
+			"symbol": "TSLA"
+		},
+		{
+			"marketId": "0xb3450c8f347159d6cb675d825633162ff9d6161aea1a77e15cb82db9f4e0efe9",
+			"eventId": "0x0e3355e3bfbaf3c1d7c6444d6d08917dbfca2f6700dc8f8c8bb3ca559c958645",
+			"symbol": "TSLA"
+		},
+		{
+			"marketId": "0xc103eafb1784fa8d97e493eb39faf4ee97562e5317bbf127213ffa23086352d6",
+			"eventId": "0x756f601a66eef6f20bdf1c7f93eccf46776418d4b03c8d9d03ec560555a7db8d",
+			"symbol": "TSLA"
+		}
+	]
+}

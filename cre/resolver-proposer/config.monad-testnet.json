@@ -1,0 +1,68 @@
+{
+	"schedule": "0 */10 * * * *",
+	"chainSelectorName": "monad-testnet",
+	"isTestnet": true,
+	"resolver": "0xcB4c8151F2183D8b98cCb36825C629ab420140ad",
+	"receiver": "0x0a682e74Bc8F526b460175e2EE7Fb1347D2e0518",
+	"userAgent": "Cuspate ops@cuspate.xyz",
+	"issuers": [
+		{
+			"issuer": "META",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"events": [
+				{
+					"eventId": "0x26da56d56da4637807967668bdd4a99a0e1539657e8276d0720512e637af03d4",
+					"terms": "Cuspate terms v1\nIssuer: Meta Platforms, Inc. (META), SEC CIK 1326801\nFigure: GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0x5d32f049b292d905000897dbd7143c9be1696ee8b970ce29bde39fd31056322f",
+					"terms": "Cuspate terms v1\nIssuer: Meta Platforms, Inc. (META), SEC CIK 1326801\nFigure: GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0x44534c71c04b58babe3eba07f1248c4900f0de08ee386e40077e9e407126f535",
+					"terms": "Cuspate terms v1\nIssuer: Meta Platforms, Inc. (META), SEC CIK 1326801\nFigure: GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0xe225a5c56b58abdecc07f7398d3c1c9b96e5bb8291f1aba06650030b222e0e84",
+					"terms": "Cuspate terms v1\nIssuer: Meta Platforms, Inc. (META), SEC CIK 1326801\nFigure: GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				}
+			]
+		},
+		{
+			"issuer": "TSLA",
+			"period": {
+				"quarter": 3,
+				"fiscalYear": 2026
+			},
+			"events": [
+				{
+					"eventId": "0x99126cd0a68376eb71821c0b2ace2eceb30eb82907aef1ea2aaef91bb60845fe",
+					"terms": "Cuspate terms v1\nIssuer: Tesla, Inc. (TSLA), SEC CIK 1318605\nFigure: non-GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0x50d5c8570e97b146b9fe034776e15a573a31ff4be499b000cbf7cc25379ad4b9",
+					"terms": "Cuspate terms v1\nIssuer: Tesla, Inc. (TSLA), SEC CIK 1318605\nFigure: non-GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0x0e3355e3bfbaf3c1d7c6444d6d08917dbfca2f6700dc8f8c8bb3ca559c958645",
+					"terms": "Cuspate terms v1\nIssuer: Tesla, Inc. (TSLA), SEC CIK 1318605\nFigure: non-GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				},
+				{
+					"eventId": "0x756f601a66eef6f20bdf1c7f93eccf46776418d4b03c8d9d03ec560555a7db8d",
+					"terms": "Cuspate terms v1\nIssuer: Tesla, Inc. (TSLA), SEC CIK 1318605\nFigure: non-GAAP diluted earnings per share, in US dollars, as printed\nPeriod: Q3 2026, ended 2026-09-30\nPrimary source: the issuer's earnings release, exhibit 99.1 to its Form 8-K on SEC EDGAR\nFallback source: the issuer's earnings release on its investor relations website, from 2026-10-22T20:00:00Z\nThe figure counts as first published; restatements are ignored.",
+					"announcesAt": 1792612800
+				}
+			]
+		}
+	]
+}

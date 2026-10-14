@@ -287,6 +287,432 @@
       ]
     }
   },
+  "markets": {
+    "meta-q3-2026/above-5-51": {
+      "block": 70830049,
+      "chance": "0.75",
+      "condition": "above-5-51",
+      "createTx": "0x185aca78ebff9537f31807e793828241a0b7b07acf7e59ff7f5b547a2b1e7ecc",
+      "dollarCap": "250000000000",
+      "dollarVault": "0xaA7c247C904f6982A493845C252B86f71302d558",
+      "eventId": "0xe225a5c56b58abdecc07f7398d3c1c9b96e5bb8291f1aba06650030b222e0e84",
+      "eventKey": "meta-q3-2026",
+      "issuer": "META",
+      "legs": {
+        "dollarNo": "0x9964Bfb58AbC693eEAe315f191D6F917b186af47",
+        "dollarYes": "0x9c97240Fa3BDA0f6aC23470A1357b402a6961786",
+        "underlyingNo": "0x3d83E65a5D74f9915242ef5Ba8423DfBc2800499",
+        "underlyingYes": "0x0109e00949495A6792f662620B6195796FA90cDB"
+      },
+      "marketId": "0xfdaec498363617a89cefe2db1fdc356e1800e368316544ba20c1ad48491dea30",
+      "pools": [
+        {
+          "currency0": "0x0109e00949495A6792f662620B6195796FA90cDB",
+          "currency1": "0x9c97240Fa3BDA0f6aC23470A1357b402a6961786",
+          "lower": -211800,
+          "sqrtPriceX96": "2190081956923911673104664",
+          "upper": -208080
+        },
+        {
+          "currency0": "0x3d83E65a5D74f9915242ef5Ba8423DfBc2800499",
+          "currency1": "0x9964Bfb58AbC693eEAe315f191D6F917b186af47",
+          "lower": -211800,
+          "sqrtPriceX96": "2190081956923911673104664",
+          "upper": -208080
+        },
+        {
+          "currency0": "0x9964Bfb58AbC693eEAe315f191D6F917b186af47",
+          "currency1": "0x9c97240Fa3BDA0f6aC23470A1357b402a6961786",
+          "lower": -12840,
+          "sqrtPriceX96": "45742400955009932534161870629",
+          "upper": -9120
+        }
+      ],
+      "sealTx": "0xb9f61189bef842bb83cca30f661f3077594c067eec92aa7f850e26a2ce4b7416",
+      "seedTx": "0xf1d6164fe7fc2ca3480561ac3f6db15c5eef6ef4c406e88c2c656168ad8da6b1",
+      "shareCap": "327173742344134429148",
+      "spot": "76412000000",
+      "stock": "0x0C0A46C76176548E0398339Bab28055F4DD32e50",
+      "threshold": "5.51",
+      "tokenIds": [
+        "111",
+        "112",
+        "113"
+      ],
+      "underlyingVault": "0x99c0b4Dd4aCE074e7eb01966f70988c7f547fe40"
+    },
+    "meta-q3-2026/above-6-39": {
+      "block": 70830085,
+      "chance": "0.50",
+      "condition": "above-6-39",
+      "createTx": "0x3b55b36a8c5c1769cf9452be43560a5d5d75699ac8d737bb91fa2450748ac5ad",
+      "dollarCap": "250000000000",
+      "dollarVault": "0xbD08b9ABbb0996e6EE643A74D16C3C39789394a7",
+      "eventId": "0x44534c71c04b58babe3eba07f1248c4900f0de08ee386e40077e9e407126f535",
+      "eventKey": "meta-q3-2026",
+      "issuer": "META",
+      "legs": {
+        "dollarNo": "0x7CD161Ad24da7e1C49fB54c01C075708ED5342Cd",
+        "dollarYes": "0x57bac8AaDD8cb68D895C21D9275399fe39c0e608",
+        "underlyingNo": "0xCe929c0868eA13DF41Da0739E6e2Ba75ccc7f4cc",
+        "underlyingYes": "0x101D0AFc87eAB77a5C66AA2D0d5DAFf795f40edc"
+      },
+      "marketId": "0xefa8af9976db5f6686a686aa6b3550251ee42f78950ffe8b67d11b5392a48d82",
+      "pools": [
+        {
+          "currency0": "0x101D0AFc87eAB77a5C66AA2D0d5DAFf795f40edc",
+          "currency1": "0x57bac8AaDD8cb68D895C21D9275399fe39c0e608",
+          "lower": -211800,
+          "sqrtPriceX96": "2190081956923911673104664",
+          "upper": -208080
+        },
+        {
+          "currency0": "0x7CD161Ad24da7e1C49fB54c01C075708ED5342Cd",
+          "currency1": "0xCe929c0868eA13DF41Da0739E6e2Ba75ccc7f4cc",
+          "lower": 208080,
+          "sqrtPriceX96": "2866149239548646381595383038483309",
+          "upper": 211800
+        },
+        {
+          "currency0": "0x57bac8AaDD8cb68D895C21D9275399fe39c0e608",
+          "currency1": "0x7CD161Ad24da7e1C49fB54c01C075708ED5342Cd",
+          "lower": -1860,
+          "sqrtPriceX96": "79228162514264337593543950336",
+          "upper": 1860
+        }
+      ],
+      "sealTx": "0xfa45d76d59fd3add4283c90079bafa9076e57426030f4759cb165961ca50a772",
+      "seedTx": "0x04c43c721398d484894ab586ca870c60097a255049b1bde105e0fa0c2542852c",
+      "shareCap": "327173742344134429148",
+      "spot": "76412000000",
+      "stock": "0x0C0A46C76176548E0398339Bab28055F4DD32e50",
+      "threshold": "6.39",
+      "tokenIds": [
+        "114",
+        "115",
+        "116"
+      ],
+      "underlyingVault": "0x902F02ECF7b6adf05F1e40E2181d6965d79b2A71"
+    },
+    "meta-q3-2026/above-7-27": {
+      "block": 70830121,
+      "chance": "0.25",
+      "condition": "above-7-27",
+      "createTx": "0xcfefff00912ee27d300a1c2c8a1972875ab0a8dd40019037c97c98c7985cf953",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x4488387a30a298E678A8e710BF96F10ba4C8Ede9",
+      "eventId": "0x5d32f049b292d905000897dbd7143c9be1696ee8b970ce29bde39fd31056322f",
+      "eventKey": "meta-q3-2026",
+      "issuer": "META",
+      "legs": {
+        "dollarNo": "0xf34E326A07f4B93396b1EA331e57ea1F8c301eC4",
+        "dollarYes": "0xCC54cf47A4F3C1f95F5DE8612F1a811770935be3",
+        "underlyingNo": "0x1629b90cBBF024F44FC309DB27febD9FaF3F4d3d",
+        "underlyingYes": "0x9D8C76D9178d8adC046df0cc58aA78469Ce3Ecc3"
+      },
+      "marketId": "0xdd3e8f0fe96d7c063be12c84610ba41fe890f67bd88372f00884108309799117",
+      "pools": [
+        {
+          "currency0": "0x9D8C76D9178d8adC046df0cc58aA78469Ce3Ecc3",
+          "currency1": "0xCC54cf47A4F3C1f95F5DE8612F1a811770935be3",
+          "lower": -211800,
+          "sqrtPriceX96": "2190081956923911673104664",
+          "upper": -208080
+        },
+        {
+          "currency0": "0x1629b90cBBF024F44FC309DB27febD9FaF3F4d3d",
+          "currency1": "0xf34E326A07f4B93396b1EA331e57ea1F8c301eC4",
+          "lower": -211800,
+          "sqrtPriceX96": "2190081956923911673104664",
+          "upper": -208080
+        },
+        {
+          "currency0": "0xCC54cf47A4F3C1f95F5DE8612F1a811770935be3",
+          "currency1": "0xf34E326A07f4B93396b1EA331e57ea1F8c301eC4",
+          "lower": -12840,
+          "sqrtPriceX96": "45742400955009932534161870629",
+          "upper": -9120
+        }
+      ],
+      "sealTx": "0x116cbd62be2d480f5263e19bf6f281d0c324a923b473527f8f12689dd58b34c4",
+      "seedTx": "0xf8c64adc82035cc2c77d5f7bfbac2c9a885d7e9e669b3ef174291973579ec5f0",
+      "shareCap": "327173742344134429148",
+      "spot": "76412000000",
+      "stock": "0x0C0A46C76176548E0398339Bab28055F4DD32e50",
+      "threshold": "7.27",
+      "tokenIds": [
+        "117",
+        "118",
+        "119"
+      ],
+      "underlyingVault": "0x86Ccfe5A92C1b749abfA817718537a21786049C4"
+    },
+    "meta-q3-2026/above-8-15": {
+      "block": 70830157,
+      "chance": "0.10",
+      "condition": "above-8-15",
+      "createTx": "0xb43d48c4f3f0178948f9917987268f5b72f8feb52e7cd53831513e4ef6b34101",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x3416baefaBfE872D5a3087803117110AAAbD6655",
+      "eventId": "0x26da56d56da4637807967668bdd4a99a0e1539657e8276d0720512e637af03d4",
+      "eventKey": "meta-q3-2026",
+      "issuer": "META",
+      "legs": {
+        "dollarNo": "0x0bF5B8942f14F12C31239eE3879F9C0a568AB355",
+        "dollarYes": "0x82D2C0794B901ad843d5a736170259f1c04A9702",
+        "underlyingNo": "0xe7De27B229e7D876d74265D21D366D66A12d724F",
+        "underlyingYes": "0x9d48d283858477e3E6587cca235EB55AdD97e1AC"
+      },
+      "marketId": "0x2db0f23d283837779a35e10db4e9c5887233536065f7d81b535dbd9c10c295de",
+      "pools": [
+        {
+          "currency0": "0x82D2C0794B901ad843d5a736170259f1c04A9702",
+          "currency1": "0x9d48d283858477e3E6587cca235EB55AdD97e1AC",
+          "lower": 208080,
+          "sqrtPriceX96": "2866149239548646381595383038483309",
+          "upper": 211800
+        },
+        {
+          "currency0": "0x0bF5B8942f14F12C31239eE3879F9C0a568AB355",
+          "currency1": "0xe7De27B229e7D876d74265D21D366D66A12d724F",
+          "lower": 208080,
+          "sqrtPriceX96": "2866149239548646381595383038483309",
+          "upper": 211800
+        },
+        {
+          "currency0": "0x0bF5B8942f14F12C31239eE3879F9C0a568AB355",
+          "currency1": "0x82D2C0794B901ad843d5a736170259f1c04A9702",
+          "lower": 20100,
+          "sqrtPriceX96": "237684487542793012780631851008",
+          "upper": 23820
+        }
+      ],
+      "sealTx": "0x47ac172506c1a8e05916567c8cb493b251deebf6ecf6d44bac2e2278c8f5e49b",
+      "seedTx": "0x8b9b387c27f72975f43f44613de89f5a7441a351c7c8bca2ec62e144eb67f665",
+      "shareCap": "327173742344134429148",
+      "spot": "76412000000",
+      "stock": "0x0C0A46C76176548E0398339Bab28055F4DD32e50",
+      "threshold": "8.15",
+      "tokenIds": [
+        "120",
+        "121",
+        "122"
+      ],
+      "underlyingVault": "0x3Cb37Af0D47ec1fa73055B970E4d9de345497979"
+    },
+    "tsla-q3-2026/above-0-38": {
+      "block": 70830194,
+      "chance": "0.75",
+      "condition": "above-0-38",
+      "createTx": "0x3f54ee3ec780b60589ddb5a7e9793809649d6f1701fce113d548eae463a389a5",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x3709Cbf369cBe212C8df4c8456153E4Ccb07E8E4",
+      "eventId": "0x0e3355e3bfbaf3c1d7c6444d6d08917dbfca2f6700dc8f8c8bb3ca559c958645",
+      "eventKey": "tsla-q3-2026",
+      "issuer": "TSLA",
+      "legs": {
+        "dollarNo": "0x84Bcf215822CB85A593Aa9Cc917f01eD8276d0bf",
+        "dollarYes": "0x15059305b9EF7FE6b51a0Db5aeBE2687000FcD43",
+        "underlyingNo": "0xBd905c16574e97666376697ff3113751C8539D3B",
+        "underlyingYes": "0x8CC85843686CEF8AcC43d79A57d0FF0751D4474a"
+      },
+      "marketId": "0xb3450c8f347159d6cb675d825633162ff9d6161aea1a77e15cb82db9f4e0efe9",
+      "pools": [
+        {
+          "currency0": "0x15059305b9EF7FE6b51a0Db5aeBE2687000FcD43",
+          "currency1": "0x8CC85843686CEF8AcC43d79A57d0FF0751D4474a",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0x84Bcf215822CB85A593Aa9Cc917f01eD8276d0bf",
+          "currency1": "0xBd905c16574e97666376697ff3113751C8539D3B",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0x15059305b9EF7FE6b51a0Db5aeBE2687000FcD43",
+          "currency1": "0x84Bcf215822CB85A593Aa9Cc917f01eD8276d0bf",
+          "lower": 9120,
+          "sqrtPriceX96": "137227202865029797602485611888",
+          "upper": 12840
+        }
+      ],
+      "sealTx": "0xe93660a985e67124b9b20bb7d9a790a2f104fa2e39bc6220f7e21efc3bf2126a",
+      "seedTx": "0x2a6775937e5d9151835a804e4fd1dc60d0af10f80e5d3e72a907c89c37eca4e9",
+      "shareCap": "665105884856869213579",
+      "spot": "37588000000",
+      "stock": "0xaA466633cF7934DBa9B46d50DEE8ED9d66E610E7",
+      "threshold": "0.38",
+      "tokenIds": [
+        "123",
+        "124",
+        "125"
+      ],
+      "underlyingVault": "0x3Ad0577d71618F7C9Cd217ae29F2ed599009Fab0"
+    },
+    "tsla-q3-2026/above-0-43": {
+      "block": 70830231,
+      "chance": "0.50",
+      "condition": "above-0-43",
+      "createTx": "0x1946c1a63b4905924c7daaf0ba4d22a8c6d9c8a0071ca7d3360491366324d9cd",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x65a4fFca66E382d522aC33c90B7dA76F0c3A42A2",
+      "eventId": "0x50d5c8570e97b146b9fe034776e15a573a31ff4be499b000cbf7cc25379ad4b9",
+      "eventKey": "tsla-q3-2026",
+      "issuer": "TSLA",
+      "legs": {
+        "dollarNo": "0x32fEed0c274710e0e86c434D4d9410C6d0E5Ed5b",
+        "dollarYes": "0x06fBB72bF66BD7C356EAbBc41510816b7a9961fB",
+        "underlyingNo": "0x266367b6A53158Aa8D8176c560bbcD1092CAD891",
+        "underlyingYes": "0x4Bf63b2c234190A54B77DFde97a0352574BD1CBe"
+      },
+      "marketId": "0x38514acbb12d2ba5ac25a5bd716629fca1ba889d4b4debfd46714ca41ef9484c",
+      "pools": [
+        {
+          "currency0": "0x06fBB72bF66BD7C356EAbBc41510816b7a9961fB",
+          "currency1": "0x4Bf63b2c234190A54B77DFde97a0352574BD1CBe",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0x266367b6A53158Aa8D8176c560bbcD1092CAD891",
+          "currency1": "0x32fEed0c274710e0e86c434D4d9410C6d0E5Ed5b",
+          "lower": -218880,
+          "sqrtPriceX96": "1536045897848480817168797",
+          "upper": -215160
+        },
+        {
+          "currency0": "0x06fBB72bF66BD7C356EAbBc41510816b7a9961fB",
+          "currency1": "0x32fEed0c274710e0e86c434D4d9410C6d0E5Ed5b",
+          "lower": -1860,
+          "sqrtPriceX96": "79228162514264337593543950336",
+          "upper": 1860
+        }
+      ],
+      "sealTx": "0xe49f2361b46ae76b4aa78134700016a5ca06cf971d36c6de8838dd6ba4824148",
+      "seedTx": "0xdebf123f7ce7e150acb59857746828649c3eccf79fde2647bd658f1902da3bf5",
+      "shareCap": "665105884856869213579",
+      "spot": "37588000000",
+      "stock": "0xaA466633cF7934DBa9B46d50DEE8ED9d66E610E7",
+      "threshold": "0.43",
+      "tokenIds": [
+        "126",
+        "127",
+        "128"
+      ],
+      "underlyingVault": "0xb5f3123950EF04B8836924BB69418A08A086aeE3"
+    },
+    "tsla-q3-2026/above-0-48": {
+      "block": 70830269,
+      "chance": "0.25",
+      "condition": "above-0-48",
+      "createTx": "0x015d055f45b0fcfe599659f44fe7ab5e4cd5aeea4aed6bae6f3296a91ae4fd72",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x8b0CE51000397Eb10Ba535541c4Cf3169D2F4137",
+      "eventId": "0x99126cd0a68376eb71821c0b2ace2eceb30eb82907aef1ea2aaef91bb60845fe",
+      "eventKey": "tsla-q3-2026",
+      "issuer": "TSLA",
+      "legs": {
+        "dollarNo": "0x693D611e45cA446D1faFBB28F2Eb869625C045c4",
+        "dollarYes": "0xF09678371F967CBbf0176b1e10d38BF96ef0eC2E",
+        "underlyingNo": "0x8E25783468A1a12FC041606bC0760673352Aa686",
+        "underlyingYes": "0xAa4296d53F867588C2BAC73CeE55eA8FD372C0D0"
+      },
+      "marketId": "0x23ab8532b27fa51ee092fbee889421133a8c41e68e30ed6a15959b4138e3202f",
+      "pools": [
+        {
+          "currency0": "0xAa4296d53F867588C2BAC73CeE55eA8FD372C0D0",
+          "currency1": "0xF09678371F967CBbf0176b1e10d38BF96ef0eC2E",
+          "lower": -218880,
+          "sqrtPriceX96": "1536045897848480817168797",
+          "upper": -215160
+        },
+        {
+          "currency0": "0x693D611e45cA446D1faFBB28F2Eb869625C045c4",
+          "currency1": "0x8E25783468A1a12FC041606bC0760673352Aa686",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0x693D611e45cA446D1faFBB28F2Eb869625C045c4",
+          "currency1": "0xF09678371F967CBbf0176b1e10d38BF96ef0eC2E",
+          "lower": 9120,
+          "sqrtPriceX96": "137227202865029797602485611888",
+          "upper": 12840
+        }
+      ],
+      "sealTx": "0xf87f07d6b1eecea651f0be15da3251311c1d76331c74f33f7500b9aa46cd3d43",
+      "seedTx": "0x11ed83de31df0c3e7fe720359536d07eadb606ee5a97a4e4a3bf66279789b73e",
+      "shareCap": "665105884856869213579",
+      "spot": "37588000000",
+      "stock": "0xaA466633cF7934DBa9B46d50DEE8ED9d66E610E7",
+      "threshold": "0.48",
+      "tokenIds": [
+        "129",
+        "130",
+        "131"
+      ],
+      "underlyingVault": "0xc776694F8092ccadd31927706Ff31aF0cF0e6F0c"
+    },
+    "tsla-q3-2026/above-0-53": {
+      "block": 70830305,
+      "chance": "0.10",
+      "condition": "above-0-53",
+      "createTx": "0x42c7f7ec11122ed44ebaaabfa5b92c302f267a72f875c41de6331e5120e3418a",
+      "dollarCap": "250000000000",
+      "dollarVault": "0x9B4055b1BB5060FFbBeAC127eC1B47e122B42a50",
+      "eventId": "0x756f601a66eef6f20bdf1c7f93eccf46776418d4b03c8d9d03ec560555a7db8d",
+      "eventKey": "tsla-q3-2026",
+      "issuer": "TSLA",
+      "legs": {
+        "dollarNo": "0xB12ab20B27A2EA4ee8B6B7C0321b13C397114D21",
+        "dollarYes": "0xc0d1B0449a7a453F2051091c880703768a7107D2",
+        "underlyingNo": "0xc8ea30Def00092Fc8DA3a2D7869c5D0aB53D7597",
+        "underlyingYes": "0xcCe496b2109C475FF21E8B15fAAae6FB399144e5"
+      },
+      "marketId": "0xc103eafb1784fa8d97e493eb39faf4ee97562e5317bbf127213ffa23086352d6",
+      "pools": [
+        {
+          "currency0": "0xc0d1B0449a7a453F2051091c880703768a7107D2",
+          "currency1": "0xcCe496b2109C475FF21E8B15fAAae6FB399144e5",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0xB12ab20B27A2EA4ee8B6B7C0321b13C397114D21",
+          "currency1": "0xc8ea30Def00092Fc8DA3a2D7869c5D0aB53D7597",
+          "lower": 215160,
+          "sqrtPriceX96": "4086532664277111889881870300180435",
+          "upper": 218880
+        },
+        {
+          "currency0": "0xB12ab20B27A2EA4ee8B6B7C0321b13C397114D21",
+          "currency1": "0xc0d1B0449a7a453F2051091c880703768a7107D2",
+          "lower": 20100,
+          "sqrtPriceX96": "237684487542793012780631851008",
+          "upper": 23820
+        }
+      ],
+      "sealTx": "0x1ddda8732757a6d6b818cfd26832211d622de9a97903a19a956142fc40c8602a",
+      "seedTx": "0xe7bd83530df10bf86dd265e2bee37d6bee9e6d628e1abdad898eee3ea9569cff",
+      "shareCap": "665105884856869213579",
+      "spot": "37588000000",
+      "stock": "0xaA466633cF7934DBa9B46d50DEE8ED9d66E610E7",
+      "threshold": "0.53",
+      "tokenIds": [
+        "132",
+        "133",
+        "134"
+      ],
+      "underlyingVault": "0xd76771dC87be2417FB7a180E096bE5A9Bbd35073"
+    }
+  },
   "roles": {
     "arbiter": {
       "address": "0xCf855Ea701f50f8889e095d454737C6ED25fb873",

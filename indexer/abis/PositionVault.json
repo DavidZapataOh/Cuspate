@@ -1,0 +1,316 @@
+[
+	{
+		"type": "constructor",
+		"inputs": [
+			{
+				"name": "collateral",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "outcomes",
+				"type": "address",
+				"internalType": "contract IOutcomes"
+			},
+			{
+				"name": "condition",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "cap",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "CAP",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "COLLATERAL",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract IERC20"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "CONDITION",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "MARKET_ID",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "NO",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract PositionToken"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "OUTCOMES",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract IOutcomes"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "YES",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract PositionToken"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "mergePositions",
+		"inputs": [
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "redeemPositions",
+		"inputs": [
+			{
+				"name": "yesAmount",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "noAmount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "splitPosition",
+		"inputs": [
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "event",
+		"name": "PayoutRedemption",
+		"inputs": [
+			{
+				"name": "redeemer",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "yesAmount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "noAmount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "PositionSplit",
+		"inputs": [
+			{
+				"name": "stakeholder",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "PositionsMerge",
+		"inputs": [
+			{
+				"name": "stakeholder",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "error",
+		"name": "CapExceeded",
+		"inputs": [
+			{
+				"name": "cap",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "outstanding",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "CollateralMismatch",
+		"inputs": [
+			{
+				"name": "expected",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "moved",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "MarketNotResolved",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "MarketResolved",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "SafeERC20FailedOperation",
+		"inputs": [
+			{
+				"name": "token",
+				"type": "address",
+				"internalType": "address"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "StringsInsufficientHexLength",
+		"inputs": [
+			{
+				"name": "value",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "length",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "UnreadableMetadata",
+		"inputs": [
+			{
+				"name": "collateral",
+				"type": "address",
+				"internalType": "contract IERC20"
+			}
+		]
+	}
+]

@@ -7,10 +7,12 @@
 		"build": "envio codegen && tsc --noEmit",
 		"test": "vitest run"
 	},
-	"devDependencies": {
+	"dependencies": {
 		"envio": "3.12.1",
+		"viem": "2.57.4"
+	},
+	"devDependencies": {
 		"typescript": "5.9.3",
-		"viem": "2.57.4",
 		"vitest": "3.2.4",
 		"@types/node": "24.10.1"
 	}

@@ -1,0 +1,313 @@
+[
+	{
+		"type": "function",
+		"name": "MAX_DECIMALS",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "eventIdOf",
+		"inputs": [
+			{
+				"name": "sealer",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "threshold",
+				"type": "tuple",
+				"internalType": "struct ThresholdRegistry.Threshold",
+				"components": [
+					{
+						"name": "value",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "decimals",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "announcesAt",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "deadline",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "terms",
+						"type": "bytes",
+						"internalType": "bytes"
+					}
+				]
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "pure"
+	},
+	{
+		"type": "function",
+		"name": "seal",
+		"inputs": [
+			{
+				"name": "threshold",
+				"type": "tuple",
+				"internalType": "struct ThresholdRegistry.Threshold",
+				"components": [
+					{
+						"name": "value",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "decimals",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "announcesAt",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "deadline",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "terms",
+						"type": "bytes",
+						"internalType": "bytes"
+					}
+				]
+			}
+		],
+		"outputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "sealOf",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "sealer",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "sealBlock",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "threshold",
+				"type": "tuple",
+				"internalType": "struct ThresholdRegistry.Threshold",
+				"components": [
+					{
+						"name": "value",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "decimals",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "announcesAt",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "deadline",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "terms",
+						"type": "bytes",
+						"internalType": "bytes"
+					}
+				]
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "thresholdOf",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "sealer",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "sealBlock",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "value",
+				"type": "int256",
+				"internalType": "int256"
+			},
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			},
+			{
+				"name": "announcesAt",
+				"type": "uint64",
+				"internalType": "uint64"
+			},
+			{
+				"name": "deadline",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "event",
+		"name": "ThresholdSealed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "sealer",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "sealBlock",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "threshold",
+				"type": "tuple",
+				"indexed": false,
+				"internalType": "struct ThresholdRegistry.Threshold",
+				"components": [
+					{
+						"name": "value",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "decimals",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "announcesAt",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "deadline",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "terms",
+						"type": "bytes",
+						"internalType": "bytes"
+					}
+				]
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "error",
+		"name": "AlreadySealed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "DeadlineBeforeAnnouncement",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "DecimalsTooLarge",
+		"inputs": [
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "EmptyTerms",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "TooLate",
+		"inputs": [
+			{
+				"name": "announcesAt",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		]
+	}
+]

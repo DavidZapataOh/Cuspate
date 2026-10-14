@@ -11,5 +11,10 @@
 		"resolveJsonModule": true,
 		"types": ["node"]
 	},
-	"include": ["src/**/*.ts", "test/**/*.ts", "envio-env.d.ts"]
+	"include": [
+		"src/**/*.ts",
+		"scripts/**/*.ts",
+		"test/**/*.ts",
+		"envio-env.d.ts"
+	]
 }

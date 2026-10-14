@@ -1,0 +1,509 @@
+[
+	{
+		"type": "constructor",
+		"inputs": [
+			{
+				"name": "manager",
+				"type": "address",
+				"internalType": "contract IPoolManager"
+			},
+			{
+				"name": "resolver",
+				"type": "address",
+				"internalType": "contract OptimisticResolver"
+			},
+			{
+				"name": "guardian",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "FACTORY",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract MarketFactory"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "GUARDIAN",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "POOL_MANAGER",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract IPoolManager"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "REGISTRY",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract ThresholdRegistry"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "RESOLVER",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract OptimisticResolver"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "SEALER",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "beforeInitialize",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "key",
+				"type": "tuple",
+				"internalType": "struct PoolKey",
+				"components": [
+					{
+						"name": "currency0",
+						"type": "address",
+						"internalType": "Currency"
+					},
+					{
+						"name": "currency1",
+						"type": "address",
+						"internalType": "Currency"
+					},
+					{
+						"name": "fee",
+						"type": "uint24",
+						"internalType": "uint24"
+					},
+					{
+						"name": "tickSpacing",
+						"type": "int24",
+						"internalType": "int24"
+					},
+					{
+						"name": "hooks",
+						"type": "address",
+						"internalType": "contract IHooks"
+					}
+				]
+			},
+			{
+				"name": "",
+				"type": "uint160",
+				"internalType": "uint160"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes4",
+				"internalType": "bytes4"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "beforeSwap",
+		"inputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "key",
+				"type": "tuple",
+				"internalType": "struct PoolKey",
+				"components": [
+					{
+						"name": "currency0",
+						"type": "address",
+						"internalType": "Currency"
+					},
+					{
+						"name": "currency1",
+						"type": "address",
+						"internalType": "Currency"
+					},
+					{
+						"name": "fee",
+						"type": "uint24",
+						"internalType": "uint24"
+					},
+					{
+						"name": "tickSpacing",
+						"type": "int24",
+						"internalType": "int24"
+					},
+					{
+						"name": "hooks",
+						"type": "address",
+						"internalType": "contract IHooks"
+					}
+				]
+			},
+			{
+				"name": "",
+				"type": "tuple",
+				"internalType": "struct IPoolManager.SwapParams",
+				"components": [
+					{
+						"name": "zeroForOne",
+						"type": "bool",
+						"internalType": "bool"
+					},
+					{
+						"name": "amountSpecified",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "sqrtPriceLimitX96",
+						"type": "uint160",
+						"internalType": "uint160"
+					}
+				]
+			},
+			{
+				"name": "",
+				"type": "bytes",
+				"internalType": "bytes"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes4",
+				"internalType": "bytes4"
+			},
+			{
+				"name": "",
+				"type": "int256",
+				"internalType": "BeforeSwapDelta"
+			},
+			{
+				"name": "",
+				"type": "uint24",
+				"internalType": "uint24"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "freezeNow",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "freezesAt",
+		"inputs": [
+			{
+				"name": "id",
+				"type": "bytes32",
+				"internalType": "PoolId"
+			}
+		],
+		"outputs": [
+			{
+				"name": "instant",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "register",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "event",
+		"name": "FrozenEarly",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "instant",
+				"type": "uint64",
+				"indexed": false,
+				"internalType": "uint64"
+			},
+			{
+				"name": "wasAt",
+				"type": "uint64",
+				"indexed": false,
+				"internalType": "uint64"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "MarketRegistered",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "instant",
+				"type": "uint64",
+				"indexed": false,
+				"internalType": "uint64"
+			},
+			{
+				"name": "yesPool",
+				"type": "bytes32",
+				"indexed": false,
+				"internalType": "PoolId"
+			},
+			{
+				"name": "noPool",
+				"type": "bytes32",
+				"indexed": false,
+				"internalType": "PoolId"
+			},
+			{
+				"name": "probabilityPool",
+				"type": "bytes32",
+				"indexed": false,
+				"internalType": "PoolId"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "error",
+		"name": "AnnouncementPassed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "announcesAt",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "Frozen",
+		"inputs": [
+			{
+				"name": "id",
+				"type": "bytes32",
+				"internalType": "PoolId"
+			},
+			{
+				"name": "instant",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotAMarket",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotARegisteredPool",
+		"inputs": [
+			{
+				"name": "id",
+				"type": "bytes32",
+				"internalType": "PoolId"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotPoolManager",
+		"inputs": [
+			{
+				"name": "caller",
+				"type": "address",
+				"internalType": "address"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotRegistered",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotSealedByTheSealer",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "sealer",
+				"type": "address",
+				"internalType": "address"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotTheGuardian",
+		"inputs": [
+			{
+				"name": "caller",
+				"type": "address",
+				"internalType": "address"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotThisMarketsEvent",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "SafeCastOverflowedUintDowncast",
+		"inputs": [
+			{
+				"name": "bits",
+				"type": "uint8",
+				"internalType": "uint8"
+			},
+			{
+				"name": "value",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "ZeroAddress",
+		"inputs": []
+	}
+]

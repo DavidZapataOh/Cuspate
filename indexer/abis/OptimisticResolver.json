@@ -1,0 +1,1213 @@
+[
+	{
+		"type": "constructor",
+		"inputs": [
+			{
+				"name": "factory",
+				"type": "address",
+				"internalType": "contract MarketFactory"
+			},
+			{
+				"name": "registry",
+				"type": "address",
+				"internalType": "contract ThresholdRegistry"
+			},
+			{
+				"name": "sealer",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "arbiter",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "bondToken",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "bond",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "burn",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "liveness",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "expiry",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "arbiterTimeout",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "ARBITER",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "ARBITER_TIMEOUT",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "BOND",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "BOND_TOKEN",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract IERC20"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "BURN",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "EXPIRY",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "FACTORY",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract MarketFactory"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "LIVENESS",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "MAX_DECIMALS",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "MAX_REASON",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "REGISTRY",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "contract ThresholdRegistry"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "SEALER",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "burned",
+		"inputs": [],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "contestTimeout",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "dispute",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "round",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "eventOf",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "tuple",
+				"internalType": "struct OptimisticResolver.EventState",
+				"components": [
+					{
+						"name": "round",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "pendingArbitration",
+						"type": "bool",
+						"internalType": "bool"
+					},
+					{
+						"name": "rounds",
+						"type": "tuple[2]",
+						"internalType": "struct OptimisticResolver.Proposal[2]",
+						"components": [
+							{
+								"name": "proposer",
+								"type": "address",
+								"internalType": "address"
+							},
+							{
+								"name": "proposedAt",
+								"type": "uint256",
+								"internalType": "uint256"
+							},
+							{
+								"name": "invalid",
+								"type": "bool",
+								"internalType": "bool"
+							},
+							{
+								"name": "settled",
+								"type": "bool",
+								"internalType": "bool"
+							},
+							{
+								"name": "figure",
+								"type": "int256",
+								"internalType": "int256"
+							},
+							{
+								"name": "decimals",
+								"type": "uint8",
+								"internalType": "uint8"
+							},
+							{
+								"name": "disputer",
+								"type": "address",
+								"internalType": "address"
+							},
+							{
+								"name": "ruled",
+								"type": "bool",
+								"internalType": "bool"
+							},
+							{
+								"name": "ruledAt",
+								"type": "uint64",
+								"internalType": "uint64"
+							},
+							{
+								"name": "reason",
+								"type": "string",
+								"internalType": "string"
+							}
+						]
+					},
+					{
+						"name": "outcomeReason",
+						"type": "string",
+						"internalType": "string"
+					}
+				]
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "expire",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "expiresAt",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "isGreater",
+		"inputs": [
+			{
+				"name": "figure",
+				"type": "int256",
+				"internalType": "int256"
+			},
+			{
+				"name": "figureDecimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			},
+			{
+				"name": "value",
+				"type": "int256",
+				"internalType": "int256"
+			},
+			{
+				"name": "valueDecimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool",
+				"internalType": "bool"
+			}
+		],
+		"stateMutability": "pure"
+	},
+	{
+		"type": "function",
+		"name": "outcomeTimeout",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "owed",
+		"inputs": [
+			{
+				"name": "account",
+				"type": "address",
+				"internalType": "address"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "proposalOf",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "tuple",
+				"internalType": "struct OptimisticResolver.Proposal",
+				"components": [
+					{
+						"name": "proposer",
+						"type": "address",
+						"internalType": "address"
+					},
+					{
+						"name": "proposedAt",
+						"type": "uint256",
+						"internalType": "uint256"
+					},
+					{
+						"name": "invalid",
+						"type": "bool",
+						"internalType": "bool"
+					},
+					{
+						"name": "settled",
+						"type": "bool",
+						"internalType": "bool"
+					},
+					{
+						"name": "figure",
+						"type": "int256",
+						"internalType": "int256"
+					},
+					{
+						"name": "decimals",
+						"type": "uint8",
+						"internalType": "uint8"
+					},
+					{
+						"name": "disputer",
+						"type": "address",
+						"internalType": "address"
+					},
+					{
+						"name": "ruled",
+						"type": "bool",
+						"internalType": "bool"
+					},
+					{
+						"name": "ruledAt",
+						"type": "uint64",
+						"internalType": "uint64"
+					},
+					{
+						"name": "reason",
+						"type": "string",
+						"internalType": "string"
+					}
+				]
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "proposeFigure",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "figure",
+				"type": "int256",
+				"internalType": "int256"
+			},
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "proposeInvalid",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "release",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "ruleContest",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "proposerWasRight",
+				"type": "bool",
+				"internalType": "bool"
+			},
+			{
+				"name": "reason",
+				"type": "string",
+				"internalType": "string"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "ruleFigure",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "figure",
+				"type": "int256",
+				"internalType": "int256"
+			},
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			},
+			{
+				"name": "proposerWasRight",
+				"type": "bool",
+				"internalType": "bool"
+			},
+			{
+				"name": "reason",
+				"type": "string",
+				"internalType": "string"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "ruleInvalid",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "proposerWasRight",
+				"type": "bool",
+				"internalType": "bool"
+			},
+			{
+				"name": "reason",
+				"type": "string",
+				"internalType": "string"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "settle",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "withdraw",
+		"inputs": [],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "event",
+		"name": "ContestReleased",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "ContestRuled",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "round",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "uint8"
+			},
+			{
+				"name": "winner",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "credited",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "burn",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "reason",
+				"type": "string",
+				"indexed": false,
+				"internalType": "string"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "Disputed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "round",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "uint8"
+			},
+			{
+				"name": "disputer",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "Expired",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "arbiterSilent",
+				"type": "bool",
+				"indexed": false,
+				"internalType": "bool"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "FigureProposed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "proposer",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "figure",
+				"type": "int256",
+				"indexed": false,
+				"internalType": "int256"
+			},
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "uint8"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "InvalidProposed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "proposer",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "OutcomeRuled",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "outcome",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "enum Outcome"
+			},
+			{
+				"name": "reason",
+				"type": "string",
+				"indexed": false,
+				"internalType": "string"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "ProposalSettled",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "outcome",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "enum Outcome"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "Withdrawn",
+		"inputs": [
+			{
+				"name": "account",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "error",
+		"name": "AlreadyProposed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "AlreadyRuled",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "AlreadySettled",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "BeforeDeadline",
+		"inputs": [
+			{
+				"name": "deadline",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "BondShortfall",
+		"inputs": [
+			{
+				"name": "expected",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "received",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "BurnAboveBond",
+		"inputs": [
+			{
+				"name": "burn",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "bond",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "DecimalsTooLarge",
+		"inputs": [
+			{
+				"name": "decimals",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "DurationTooLong",
+		"inputs": [
+			{
+				"name": "duration",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "EmptyReason",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "EventExpired",
+		"inputs": [
+			{
+				"name": "expiresAt",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NoProposal",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotArbiter",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "NotDisputed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotExpired",
+		"inputs": [
+			{
+				"name": "at",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotPending",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotSealed",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NotTheRuledAnswer",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "NotTimedOut",
+		"inputs": [
+			{
+				"name": "timeout",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "NothingOwed",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "PendingArbitration",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "ProposalOpen",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "ReasonTooLong",
+		"inputs": [
+			{
+				"name": "length",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "SafeCastOverflowedUintDowncast",
+		"inputs": [
+			{
+				"name": "bits",
+				"type": "uint8",
+				"internalType": "uint8"
+			},
+			{
+				"name": "value",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "SafeERC20FailedOperation",
+		"inputs": [
+			{
+				"name": "token",
+				"type": "address",
+				"internalType": "address"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "TimedOut",
+		"inputs": [
+			{
+				"name": "timeout",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "TooEarly",
+		"inputs": [
+			{
+				"name": "announcesAt",
+				"type": "uint64",
+				"internalType": "uint64"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "WindowClosed",
+		"inputs": [
+			{
+				"name": "closesAt",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "WindowOpen",
+		"inputs": [
+			{
+				"name": "closesAt",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "WrongRound",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "open",
+				"type": "uint8",
+				"internalType": "uint8"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "ZeroParameter",
+		"inputs": []
+	}
+]

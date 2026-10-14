@@ -7,36 +7,36 @@ name: cuspate-indexer
 schema: ./schema.graphql
 contracts:
   - name: MarketFactory
-    abi_file_path: ../contracts/out/MarketFactory.sol/MarketFactory.json
+    abi_file_path: ./abis/MarketFactory.json
     events:
       - event: MarketCreated
       - event: OutcomeReported
   - name: PositionVault
-    abi_file_path: ../contracts/out/PositionVault.sol/PositionVault.json
+    abi_file_path: ./abis/PositionVault.json
     events:
       - event: PositionSplit
       - event: PositionsMerge
       - event: PayoutRedemption
   - name: PositionToken
-    abi_file_path: ../contracts/out/PositionToken.sol/PositionToken.json
+    abi_file_path: ./abis/PositionToken.json
     events:
       - event: Transfer
   - name: FreezeHook
-    abi_file_path: ../contracts/out/FreezeHook.sol/FreezeHook.json
+    abi_file_path: ./abis/FreezeHook.json
     events:
       - event: MarketRegistered
       - event: FrozenEarly
   - name: PositionRouter
-    abi_file_path: ../contracts/out/PositionRouter.sol/PositionRouter.json
+    abi_file_path: ./abis/PositionRouter.json
     events:
       - event: Entered
       - event: Exited
   - name: ThresholdRegistry
-    abi_file_path: ../contracts/out/ThresholdRegistry.sol/ThresholdRegistry.json
+    abi_file_path: ./abis/ThresholdRegistry.json
     events:
       - event: ThresholdSealed
   - name: OptimisticResolver
-    abi_file_path: ../contracts/out/OptimisticResolver.sol/OptimisticResolver.json
+    abi_file_path: ./abis/OptimisticResolver.json
     events:
       - event: FigureProposed
       - event: InvalidProposed
@@ -48,7 +48,7 @@ contracts:
       - event: ContestReleased
       - event: Withdrawn
   - name: PoolManager
-    abi_file_path: ../contracts/out/IPoolManager.sol/IPoolManager.json
+    abi_file_path: ./abis/IPoolManager.json
     events:
       - event: Initialize
       - event: ModifyLiquidity

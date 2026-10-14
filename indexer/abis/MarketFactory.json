@@ -1,0 +1,336 @@
+[
+	{
+		"type": "function",
+		"name": "condition",
+		"inputs": [
+			{
+				"name": "resolver",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "pure"
+	},
+	{
+		"type": "function",
+		"name": "createMarket",
+		"inputs": [
+			{
+				"name": "underlying",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "dollar",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "resolver",
+				"type": "address",
+				"internalType": "address"
+			},
+			{
+				"name": "underlyingCap",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "dollarCap",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+			{
+				"name": "id",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "function",
+		"name": "marketId",
+		"inputs": [
+			{
+				"name": "underlying",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "dollar",
+				"type": "address",
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "condition_",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "underlyingCap",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "dollarCap",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"stateMutability": "pure"
+	},
+	{
+		"type": "function",
+		"name": "markets",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "underlyingVault",
+				"type": "address",
+				"internalType": "contract PositionVault"
+			},
+			{
+				"name": "dollarVault",
+				"type": "address",
+				"internalType": "contract PositionVault"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "outcomeOf",
+		"inputs": [
+			{
+				"name": "condition_",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		],
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8",
+				"internalType": "enum Outcome"
+			}
+		],
+		"stateMutability": "view"
+	},
+	{
+		"type": "function",
+		"name": "reportOutcome",
+		"inputs": [
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			},
+			{
+				"name": "outcome",
+				"type": "uint8",
+				"internalType": "enum Outcome"
+			}
+		],
+		"outputs": [],
+		"stateMutability": "nonpayable"
+	},
+	{
+		"type": "event",
+		"name": "MarketCreated",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "underlying",
+				"type": "address",
+				"indexed": true,
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "dollar",
+				"type": "address",
+				"indexed": true,
+				"internalType": "contract IERC20"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": false,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "resolver",
+				"type": "address",
+				"indexed": false,
+				"internalType": "address"
+			},
+			{
+				"name": "underlyingVault",
+				"type": "address",
+				"indexed": false,
+				"internalType": "contract PositionVault"
+			},
+			{
+				"name": "dollarVault",
+				"type": "address",
+				"indexed": false,
+				"internalType": "contract PositionVault"
+			},
+			{
+				"name": "underlyingCap",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			},
+			{
+				"name": "dollarCap",
+				"type": "uint256",
+				"indexed": false,
+				"internalType": "uint256"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "event",
+		"name": "OutcomeReported",
+		"inputs": [
+			{
+				"name": "condition",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "resolver",
+				"type": "address",
+				"indexed": true,
+				"internalType": "address"
+			},
+			{
+				"name": "eventId",
+				"type": "bytes32",
+				"indexed": true,
+				"internalType": "bytes32"
+			},
+			{
+				"name": "outcome",
+				"type": "uint8",
+				"indexed": false,
+				"internalType": "enum Outcome"
+			}
+		],
+		"anonymous": false
+	},
+	{
+		"type": "error",
+		"name": "Create2EmptyBytecode",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "FailedDeployment",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "InsufficientBalance",
+		"inputs": [
+			{
+				"name": "balance",
+				"type": "uint256",
+				"internalType": "uint256"
+			},
+			{
+				"name": "needed",
+				"type": "uint256",
+				"internalType": "uint256"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "MarketExists",
+		"inputs": [
+			{
+				"name": "marketId",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "OutcomeAlreadyReported",
+		"inputs": [
+			{
+				"name": "condition",
+				"type": "bytes32",
+				"internalType": "bytes32"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "OutcomeNotFinal",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "SameCollateral",
+		"inputs": [
+			{
+				"name": "collateral",
+				"type": "address",
+				"internalType": "contract IERC20"
+			}
+		]
+	},
+	{
+		"type": "error",
+		"name": "ZeroCap",
+		"inputs": []
+	},
+	{
+		"type": "error",
+		"name": "ZeroResolver",
+		"inputs": []
+	}
+]

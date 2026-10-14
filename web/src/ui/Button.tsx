@@ -14,6 +14,7 @@ export function Button({
 	disabled,
 	children,
 	type = "button",
+	className,
 	...rest
 }: {
 	variant?: ButtonVariant;
@@ -26,7 +27,7 @@ export function Button({
 			data-primitive="button"
 			data-variant={variant}
 			data-state={state}
-			className={styles.button}
+			className={className ? `${styles.button} ${className}` : styles.button}
 			disabled={disabled || loading}
 			aria-busy={loading || undefined}
 			{...rest}

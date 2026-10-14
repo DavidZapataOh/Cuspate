@@ -49,6 +49,8 @@ export type IssuerProfile = {
 	ticker: string;
 	/** Its legal name, as its filings state it. */
 	name: string;
+	/** The name people call it by, which the interface writes: "Meta", not "Meta Platforms, Inc.". */
+	shortName: string;
 	/** Its SEC Central Index Key, as EDGAR's archive paths write it: no leading zeros. */
 	cik: string;
 	/** The figure its markets settle on. */
@@ -73,6 +75,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 	{
 		ticker: "TSLA",
 		name: "Tesla, Inc.",
+		shortName: "Tesla",
 		cik: "1318605",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: false,
@@ -81,6 +84,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 	{
 		ticker: "META",
 		name: "Meta Platforms, Inc.",
+		shortName: "Meta",
 		cik: "1326801",
 		figureKind: "gaap-diluted-eps",
 		fiscalNaming: false,
@@ -89,6 +93,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 	{
 		ticker: "HOOD",
 		name: "Robinhood Markets, Inc.",
+		shortName: "Robinhood",
 		cik: "1783879",
 		figureKind: "gaap-diluted-eps",
 		fiscalNaming: false,
@@ -98,6 +103,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// The fiscal year ends on June 30.
 		ticker: "MSFT",
 		name: "Microsoft Corporation",
+		shortName: "Microsoft",
 		cik: "789019",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: true,
@@ -111,6 +117,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// One diluted net income per share for every class of its stock.
 		ticker: "GOOGL",
 		name: "Alphabet Inc.",
+		shortName: "Alphabet",
 		cik: "1652044",
 		figureKind: "gaap-diluted-eps",
 		fiscalNaming: false,
@@ -120,6 +127,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// A 52/53-week year ending on the last Saturday of September.
 		ticker: "AAPL",
 		name: "Apple Inc.",
+		shortName: "Apple",
 		cik: "320193",
 		figureKind: "gaap-diluted-eps",
 		fiscalNaming: true,
@@ -134,6 +142,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// A 52/53-week year ending on the last Saturday of December.
 		ticker: "AMD",
 		name: "Advanced Micro Devices, Inc.",
+		shortName: "AMD",
 		cik: "2488",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: false,
@@ -148,6 +157,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// A 52/53-week year ending on the last Sunday of January.
 		ticker: "NVDA",
 		name: "NVIDIA Corporation",
+		shortName: "NVIDIA",
 		cik: "1045810",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: true,
@@ -162,6 +172,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// The fiscal year ends on January 31; the release calls the figure adjusted EPS.
 		ticker: "WMT",
 		name: "Walmart Inc.",
+		shortName: "Walmart",
 		cik: "104169",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: true,
@@ -175,6 +186,7 @@ export const ISSUERS: readonly IssuerProfile[] = [
 		// A 52/53-week year ending on the Thursday closest to August 31.
 		ticker: "MU",
 		name: "Micron Technology, Inc.",
+		shortName: "Micron",
 		cik: "723125",
 		figureKind: "non-gaap-diluted-eps",
 		fiscalNaming: true,
@@ -213,7 +225,8 @@ export function periodEnd(
 	period: Period,
 ): { date: string; toleranceDays: number } {
 	const { calendar } = profile;
-	const index = period.quarter - 1;
+	// A quarter is 1 to 4, so its index is a position the four-entry tuples have.
+	const index = (period.quarter - 1) as 0 | 1 | 2 | 3;
 	const month = calendar.endMonths[index];
 	const year = period.fiscalYear + calendar.yearOffsets[index];
 	const last = lastOfMonth(year, month);

@@ -19,6 +19,12 @@ const PRIMITIVES = [
 	"filter-chips",
 	"notice",
 	"ruled-row",
+	"search-field",
+	"line-chart",
+	"top-bar",
+	"footer",
+	"trade",
+	"ticket",
 ];
 
 /** The CSS colour string browsers compute for an opaque hex. */
@@ -195,10 +201,25 @@ test("the beam tilts toward the likelier side, by a small angle", async ({
 	expect(angles.some((a) => a < 0)).toBe(true);
 });
 
-test("the balance states the sum against the real price", async ({ page }) => {
+test("the balance adds the two worlds into the price the pools imply, beside the stock's own price", async ({
+	page,
+}) => {
+	const scale = page.locator('[data-primitive="balance-scale"]').first();
+	await expect(scale).toContainText("The pools imply $100.00.");
+	await expect(scale).toContainText("Tesla trades at $99.80.");
+	await expect(scale).not.toContainText("real price");
+});
+
+test("the pans are named by the condition, not fixed words", async ({
+	page,
+}) => {
+	const labels = page.locator(
+		'[data-primitive="balance-scale"] [data-primitive="outcome-label"]',
+	);
 	await expect(
-		page.locator('[data-primitive="balance-scale"]').first(),
-	).toContainText("the real price");
+		labels.filter({ hasText: "If it's above $0.48" }),
+	).not.toHaveCount(0);
+	await expect(labels.filter({ hasText: "If not" })).not.toHaveCount(0);
 });
 
 test("a disabled button cannot be pressed, and every control shows a visible focus ring", async ({

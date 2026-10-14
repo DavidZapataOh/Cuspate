@@ -97,3 +97,21 @@ test("a period is labelled the way its issuer names it", () => {
 		"fiscal Q3 2027",
 	);
 });
+
+test("every issuer has the short name people call it by, which the interface writes", () => {
+	const names = Object.fromEntries(
+		ISSUERS.map((profile) => [profile.ticker, profile.shortName]),
+	);
+	assert.deepEqual(names, {
+		TSLA: "Tesla",
+		META: "Meta",
+		HOOD: "Robinhood",
+		MSFT: "Microsoft",
+		GOOGL: "Alphabet",
+		AAPL: "Apple",
+		AMD: "AMD",
+		NVDA: "NVIDIA",
+		WMT: "Walmart",
+		MU: "Micron",
+	});
+});

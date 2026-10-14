@@ -1,0 +1,59 @@
+.chart {
+	position: relative;
+	margin: 0;
+}
+
+.svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.grid {
+	stroke: var(--line);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.axis {
+	fill: var(--text-muted);
+	font-size: 13px;
+	font-family: var(--font-sans);
+	font-variant-numeric: tabular-nums;
+}
+
+.line {
+	fill: none;
+	stroke: var(--text);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.end {
+	fill: var(--bg);
+	stroke: var(--text);
+	stroke-width: 2;
+}
+
+/* The drawing shrinks with its box; on a phone the labels are drawn larger so they land near 12px. */
+@media (max-width: 640px) {
+	.axis {
+		font-size: 24px;
+	}
+}
+
+/* The same data as a table, for screen readers; the picture carries it on screen.
+   The box around the table is what hides it: a table grows to fit its cells. */
+.table {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

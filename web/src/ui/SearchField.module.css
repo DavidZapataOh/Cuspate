@@ -1,0 +1,58 @@
+.field {
+	display: grid;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+/* The field's name is read by assistive technology; on screen the placeholder and icon say it. */
+.label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.box {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-height: 44px;
+	padding: 0 var(--space-3);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-1);
+	background: var(--bg);
+	transition: border-color 160ms var(--ease-out);
+}
+
+.box:focus-within {
+	border-color: var(--stone);
+}
+
+.icon {
+	flex: none;
+	color: var(--text-muted);
+}
+
+.input {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	background: none;
+	color: var(--text);
+	font: inherit;
+	font-size: var(--step-1);
+}
+
+.input::placeholder {
+	color: var(--text-muted);
+}
+
+.input:focus {
+	outline: none;
+}
+
+.input::-webkit-search-cancel-button {
+	filter: grayscale(1);
+}

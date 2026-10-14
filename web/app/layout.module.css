@@ -1,0 +1,11 @@
+.notice {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 var(--space-5);
+}
+
+@media (max-width: 640px) {
+	.notice {
+		padding: 0 var(--space-4);
+	}
+}

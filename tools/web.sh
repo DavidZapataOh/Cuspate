@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 # Proves the interface in the three browser engines Playwright ships: every primitive renders, the
 # computed colours are the tokens, the accessibility engine finds nothing, reduced motion moves
-# nothing, and each engine's render matches its committed reference. Browsers are toolchain no clean
-# clone provides, so this runs in its own job and never in the gates or the clean clone.
+# nothing, and each engine's render matches its committed reference; then a purchase goes through on
+# a fork of the test network. Browsers and the forking node are toolchain no clean clone provides, so
+# this runs in its own job and never in the gates or the clean clone.
 set -eu
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,3 +18,5 @@ else
 fi
 pnpm --filter cuspate-web run build
 pnpm --filter cuspate-web run test:browser
+# The purchases, on a fork of the test network: the ticket's chain reads, then the browsers buying.
+pnpm --filter cuspate-web run test:fork

@@ -1,0 +1,42 @@
+.bar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-4) var(--space-5);
+}
+
+.home {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-3);
+	text-decoration: none;
+}
+
+.nav {
+	display: flex;
+	gap: var(--space-5);
+	margin-right: auto;
+}
+
+.link {
+	color: var(--text);
+	text-decoration: none;
+	font-weight: 500;
+}
+
+.bar button {
+	white-space: nowrap;
+}
+
+.link:hover {
+	color: #f2e9dc;
+}
+
+@media (max-width: 640px) {
+	.bar {
+		gap: var(--space-4);
+		padding: var(--space-3) var(--space-4);
+	}
+}

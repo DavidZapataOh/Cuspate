@@ -8,11 +8,14 @@ import { ChanceBar } from "../../../src/ui/ChanceBar.tsx";
 import { Countdown } from "../../../src/ui/Countdown.tsx";
 import { DividedDisc } from "../../../src/ui/DividedDisc.tsx";
 import { FilterChips } from "../../../src/ui/FilterChips.tsx";
+import { LineChart } from "../../../src/ui/LineChart.tsx";
 import { Mark } from "../../../src/ui/Mark.tsx";
 import { Notice } from "../../../src/ui/Notice.tsx";
 import { OutcomeLabel } from "../../../src/ui/OutcomeLabel.tsx";
 import { RuledRow } from "../../../src/ui/RuledRow.tsx";
+import { SearchField } from "../../../src/ui/SearchField.tsx";
 import { Tabs } from "../../../src/ui/Tabs.tsx";
+import { Trade } from "../../../src/ui/Trade.tsx";
 import { Wordmark } from "../../../src/ui/Wordmark.tsx";
 import styles from "./catalogue.module.css";
 import { DiscDemo } from "./DiscDemo.tsx";
@@ -26,6 +29,31 @@ export const metadata: Metadata = {
 // minutes away, and one moment already passed.
 export const dynamic = "force-dynamic";
 const PAST = "2001-01-01T00:00:00Z";
+
+// Samples for the market parts: a condition, its event, and a gently drifting two-week history.
+const SAMPLE_CONDITION = {
+	key: "above-48",
+	threshold: 48n,
+	decimals: 2,
+	primary: false,
+	chance: 0.41,
+	yesWorldPriceCents: 10_220n,
+	noWorldPriceCents: 9_810n,
+	beatPriceCents: 4_190n,
+	dontPriceCents: 5_788n,
+	impliedCents: 9_978n,
+	feeBps: 30n,
+	sealedAt: "2026-10-14T09:00:00Z",
+};
+const SAMPLE_EVENT = {
+	issuer: "TSLA",
+	announcesAt: "2026-10-21T20:00:00Z",
+	spotCents: 9_980n,
+};
+const SAMPLE_HISTORY = Array.from({ length: 14 * 24 }, (_, i) => ({
+	at: Date.UTC(2026, 9, 1) + i * 3_600_000,
+	chance: 0.41 + 0.08 * Math.sin(i / 30) * Math.cos(i / 11),
+}));
 
 // The design system, every primitive in every state. Reached by its address only; no page links
 // here. All figures are samples.
@@ -103,6 +131,9 @@ export default function Catalogue() {
 				<h2 id="balance">The balance</h2>
 				<BalanceScale
 					chance={0.64}
+					labels={["If they beat", "If they don't"]}
+					company="Tesla"
+					spotCents={9980n}
 					beat={{ gives: "0.41 TSLA shares", price: 6410n }}
 					dont={{ gives: "$500.00 back", price: 3590n }}
 				/>
@@ -111,6 +142,9 @@ export default function Catalogue() {
 						<BalanceScale
 							compact
 							chance={0.18}
+							labels={["If it's above $0.48", "If not"]}
+							company="Tesla"
+							spotCents={9980n}
 							beat={{ gives: "0.41 TSLA shares", price: 1800n }}
 							dont={{ gives: "$500.00 back", price: 8200n }}
 						/>
@@ -119,7 +153,10 @@ export default function Catalogue() {
 						<BalanceScale
 							compact
 							chance={0.5}
-							beat={{ gives: "0.41 TSLA shares", price: 5000n }}
+							labels={["If it's above $6.39", "If not"]}
+							company="Meta"
+							spotCents={10000n}
+							beat={{ gives: "0.41 META shares", price: 5000n }}
 							dont={{ gives: "$500.00 back", price: 5000n }}
 						/>
 					</Card>
@@ -180,12 +217,24 @@ export default function Catalogue() {
 					tabs={[
 						{
 							id: "beat",
-							label: "Beats expectations ($0.54)",
+							label: "Beats expectations ($0.43 adjusted EPS)",
 							detail: "64% likely",
 						},
-						{ id: "50", label: "Above $0.50", detail: "78% likely" },
-						{ id: "60", label: "Above $0.60", detail: "41% likely" },
-						{ id: "70", label: "Above $0.70", detail: "18% likely" },
+						{
+							id: "38",
+							label: "Adjusted EPS above $0.38",
+							detail: "78% likely",
+						},
+						{
+							id: "48",
+							label: "Adjusted EPS above $0.48",
+							detail: "41% likely",
+						},
+						{
+							id: "53",
+							label: "Adjusted EPS above $0.53",
+							detail: "18% likely",
+						},
 					]}
 				/>
 				<FilterChips
@@ -214,26 +263,48 @@ export default function Catalogue() {
 				<Card>
 					<RuledRow
 						selected
-						title="Beats expectations ($0.54)"
-						figure="64%"
+						title="Beats expectations ($0.43 adjusted EPS)"
+						figure="64% likely"
 						actions={
 							<>
-								<Button variant="secondary">Beat</Button>
-								<Button variant="secondary">Don't</Button>
+								<Button variant="secondary">If they beat</Button>
+								<Button variant="secondary">If they don't</Button>
 							</>
 						}
 					/>
 					<RuledRow
-						title="Above $0.60"
-						figure="41%"
+						title="Adjusted EPS above $0.48"
+						figure="41% likely"
 						actions={
 							<>
-								<Button variant="secondary">Beat</Button>
-								<Button variant="secondary">Don't</Button>
+								<Button variant="secondary">If above</Button>
+								<Button variant="secondary">If not</Button>
 							</>
 						}
 					/>
 				</Card>
+			</section>
+
+			<section className={styles.section} aria-labelledby="markets-parts">
+				<h2 id="markets-parts">Markets</h2>
+				<div className={styles.stack}>
+					<SearchField label="Search markets" placeholder="Search markets" />
+				</div>
+				<Card>
+					<LineChart
+						points={SAMPLE_HISTORY}
+						label="Sample chance over two weeks"
+					/>
+				</Card>
+				<div className={styles.split}>
+					<Card>
+						<Trade
+							event={SAMPLE_EVENT}
+							condition={SAMPLE_CONDITION}
+							layout="compact"
+						/>
+					</Card>
+				</div>
 			</section>
 		</main>
 	);

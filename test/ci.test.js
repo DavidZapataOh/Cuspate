@@ -1120,6 +1120,24 @@ test("the interface is proven in the three browser engines in its own job, by a 
 	}
 });
 
+test("the interface's purchases are proven on a fork of the test network, in the web job", () => {
+	// A purchase only means something against the network's own contracts, so the web job forks the
+	// test network with the pinned node and buys there; the clean clone stays offline.
+	const block = jobs().web ?? "";
+	assert.match(
+		block,
+		/foundry-rs\/foundry-toolchain@v1/,
+		"the web job does not install the node that forks the network",
+	);
+	const script = read(path.join(root, "tools", "web.sh"));
+	assert.match(script, /test:fork/, "tools/web.sh does not run the purchases");
+	const manifest = JSON.parse(read(path.join(root, "web", "package.json")));
+	assert.match(manifest.scripts["test:fork"] ?? "", /e2e\/fork\/run\.ts/);
+	assert.match(manifest.scripts["test:fork"] ?? "", /test\/fork/);
+	const clone = read(path.join(root, "tools", "clean-clone.sh"));
+	assert.doesNotMatch(clone, /test:fork/);
+});
+
 test("the clean clone stays browser-free", () => {
 	// It runs with an emptied environment and a cold home directory: a browser download there would
 	// make a met condition depend on the network and on a cache the clone does not provide.

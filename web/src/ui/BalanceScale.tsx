@@ -21,19 +21,28 @@ const HANG = 64;
 
 /**
  * The two worlds of one condition as the two pans of a balance. The beam tilts by a small angle
- * toward the likelier world, slowly, and the fulcrum states that the two prices add up to the real
- * price: the proof there is no trick. `compact` is the version that tops a ticket: the beam alone
- * above two pans that stand side by side.
+ * toward the likelier world, slowly, and the fulcrum adds the two prices into the share price the
+ * pools imply, set beside the price the stock trades at: the proof there is no trick. The pans'
+ * names come from the condition's naming, so each world is called what it is. `compact` is the
+ * version that tops a ticket: the beam alone above two pans that stand side by side.
  */
 export function BalanceScale({
 	chance,
 	beat,
 	dont,
+	labels,
+	company,
+	spotCents,
 	compact = false,
 }: {
 	chance: number;
 	beat: Pan;
 	dont: Pan;
+	/** The two worlds' names: the condition holding, then not. */
+	labels: [string, string];
+	/** The stock, and the price it trades at on the feed, in cents. */
+	company: string;
+	spotCents: bigint;
 	compact?: boolean;
 }) {
 	const angle = beamAngle(chance);
@@ -124,12 +133,12 @@ export function BalanceScale({
 				</g>
 			</svg>
 			<div className={`${styles.pan} ${styles.panLeft}`}>
-				<OutcomeLabel outcome="beat" />
+				<OutcomeLabel outcome="beat">{labels[0]}</OutcomeLabel>
 				<span className={styles.gives}>{beat.gives}</span>
 				<Amount cents={beat.price} size={compact ? 3 : 4} tone="beat" />
 			</div>
 			<div className={`${styles.pan} ${styles.panRight}`}>
-				<OutcomeLabel outcome="dont" />
+				<OutcomeLabel outcome="dont">{labels[1]}</OutcomeLabel>
 				<span className={styles.gives}>{dont.gives}</span>
 				<Amount cents={dont.price} size={compact ? 3 : 4} tone="dont" />
 			</div>
@@ -138,9 +147,11 @@ export function BalanceScale({
 					<Figures>{`${formatUsd(beat.price)} + ${formatUsd(dont.price)}`}</Figures>
 				</span>
 				<span className={styles.total}>
-					<Figures>{`= ${formatUsd(total)}`}</Figures>
+					The pools imply <Figures>{`${formatUsd(total)}.`}</Figures>
 				</span>
-				<span className={styles.note}>the real price</span>
+				<span className={styles.note}>
+					{company} trades at <Figures>{`${formatUsd(spotCents)}.`}</Figures>
+				</span>
 			</figcaption>
 		</figure>
 	);

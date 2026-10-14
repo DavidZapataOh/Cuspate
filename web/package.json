@@ -5,13 +5,19 @@
 	"scripts": {
 		"build": "NEXT_TELEMETRY_DISABLED=1 next build",
 		"start": "NEXT_TELEMETRY_DISABLED=1 next start",
-		"test": "node --test \"test/unit/*.test.ts\"",
-		"test:browser": "playwright test"
+		"test": "node --conditions=react-server --test \"test/unit/*.test.ts\"",
+		"test:browser": "playwright test",
+		"test:fork": "node --test \"test/fork/*.test.ts\" && node e2e/fork/run.ts"
 	},
 	"dependencies": {
+		"@tanstack/react-query": "5.104.2",
+		"cuspate-shared": "workspace:*",
 		"next": "16.4.0",
 		"react": "19.3.0",
-		"react-dom": "19.3.0"
+		"react-dom": "19.3.0",
+		"server-only": "0.0.1",
+		"viem": "2.57.4",
+		"wagmi": "3.7.7"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.13.0",

@@ -64,6 +64,7 @@
 
 .button[data-state="disabled"][data-variant="link"] {
 	background: none;
+	border-color: transparent;
 }
 
 .button[data-state="loading"] {

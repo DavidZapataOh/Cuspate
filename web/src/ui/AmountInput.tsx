@@ -13,12 +13,15 @@ export function AmountInput({
 	error,
 	disabled = false,
 	unit = "USD",
+	onChange,
 }: {
 	label?: string;
 	defaultValue?: string;
 	error?: string;
 	disabled?: boolean;
 	unit?: string;
+	/** The text as typed, on every change. */
+	onChange?: (value: string) => void;
 }) {
 	const id = useId();
 	const hint = `${id}-error`;
@@ -44,6 +47,9 @@ export function AmountInput({
 					defaultValue={defaultValue}
 					placeholder="0.00"
 					disabled={disabled}
+					onChange={
+						onChange ? (event) => onChange(event.target.value) : undefined
+					}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={error ? hint : undefined}
 				/>

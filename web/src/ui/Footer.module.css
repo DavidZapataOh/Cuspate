@@ -1,0 +1,33 @@
+.footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-5);
+	/* The rule spans the content column, not the gutters around it. */
+	margin: var(--space-9)
+		max(var(--space-5), (100% - 1200px) / 2 + var(--space-5)) 0;
+	padding: var(--space-6) 0 var(--space-7);
+	border-top: 1px solid var(--line);
+}
+
+.links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+}
+
+.links a {
+	color: var(--text-muted);
+	text-decoration: none;
+}
+
+.links a:hover {
+	color: var(--text);
+}
+
+@media (max-width: 640px) {
+	.footer {
+		margin-inline: var(--space-4);
+	}
+}

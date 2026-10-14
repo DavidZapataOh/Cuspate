@@ -1,0 +1,58 @@
+.trigger {
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+/* A panel under the bar's right edge, on the page's content column. */
+.panel {
+	position: fixed;
+	inset: 72px max(var(--space-5), (100vw - 1200px) / 2 + var(--space-5)) auto
+		auto;
+	width: min(320px, 100vw - 2 * var(--space-4));
+	margin: 0;
+	padding: var(--space-5);
+	display: none;
+	gap: var(--space-4);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-2);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
+}
+
+.panel:popover-open {
+	display: grid;
+}
+
+.title {
+	font-size: var(--step-1);
+	font-weight: 600;
+}
+
+.wallets {
+	display: grid;
+	gap: var(--space-2);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.wallets button {
+	width: 100%;
+	justify-content: flex-start;
+}
+
+.who {
+	font-variant-numeric: tabular-nums;
+}
+
+.note {
+	color: var(--text-muted);
+	font-size: var(--step-0);
+}
+
+@media (max-width: 640px) {
+	.panel {
+		inset: 64px var(--space-4) auto auto;
+	}
+}

@@ -83,6 +83,26 @@ function creationCodeAt(commit, key, entry) {
 	return artefact.bytecode.object;
 }
 
+/**
+ * What an entry of ours records: a creation through the CREATE2 factory, or a mint the deploy plan
+ * sent to fund a contract it created. Any other shape is refused by name, so an entry the deploy
+ * pipeline learns to write fails here as unread instead of passing as checked.
+ */
+export function kindOf(key, entry) {
+	if ("salt" in entry && "constructorArgs" in entry) return "create2";
+	if ("token" in entry && "recipient" in entry && "amount" in entry)
+		return "mint";
+	throw new Error(`${key}: an entry this test does not know how to check`);
+}
+
+/** The input a recorded mint must have sent: mint(recipient, amount) with the recorded values. */
+export function mintInput(entry) {
+	const selector = "40c10f19"; // mint(address,uint256)
+	const recipient = entry.recipient.replace(/^0x/, "").toLowerCase();
+	const amount = BigInt(entry.amount).toString(16);
+	return `0x${selector}${recipient.padStart(64, "0")}${amount.padStart(64, "0")}`;
+}
+
 test("every committed record matches the chain, read with no key and no funds", () => {
 	const books = committedBooks();
 	// An empty set that reports success is a gate that cannot fail.
@@ -122,14 +142,48 @@ test("every committed record matches the chain, read with no key and no funds", 
 		);
 		checked += generated.length;
 		for (const [key, entry] of generated) {
+			const field = (name) =>
+				execFileSync("cast", ["tx", entry.txHash, name, "--rpc-url", url], {
+					encoding: "utf8",
+					maxBuffer: 64 * 1024 * 1024,
+				}).trim();
+			const sent = field("input");
+
+			if (kindOf(key, entry) === "mint") {
+				// A mint is checked by what it sent and where, and that it took effect: the
+				// token it names, the recipient and amount it records, in the block it records.
+				assert.equal(
+					field("to").toLowerCase(),
+					entry.token.toLowerCase(),
+					`${book} ${key}: the mint was not sent to the token the record names`,
+				);
+				assert.equal(
+					sent.toLowerCase(),
+					mintInput(entry),
+					`${book} ${key}: the chain and the recorded recipient or amount disagree`,
+				);
+				assert.equal(
+					Number(field("blockNumber")),
+					entry.block,
+					`${book} ${key}: the mint is not in the block the record names`,
+				);
+				const receipt = JSON.parse(
+					execFileSync(
+						"cast",
+						["receipt", entry.txHash, "--json", "--rpc-url", url],
+						{ encoding: "utf8" },
+					),
+				);
+				assert.equal(
+					Number(receipt.status),
+					1,
+					`${book} ${key}: the mint reverted`,
+				);
+				continue;
+			}
+
 			// The creation input, not the runtime code: a contract with an immutable differs
 			// from its artefact by exactly the bytes the constructor wrote.
-			const sent = execFileSync(
-				"cast",
-				["tx", entry.txHash, "input", "--rpc-url", url],
-				{ encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-			).trim();
-
 			const salt = entry.salt.replace(/^0x/, "");
 			const code = creationCodeAt(entry.commit, key, entry).replace(/^0x/, "");
 			const args = entry.constructorArgs.replace(/^0x/, "");
@@ -159,6 +213,37 @@ test("an entry is built from the source it records, and an older entry from the 
 	assert.equal(
 		artefactOf("Probe", {}),
 		path.join("contracts", "out", "DeployProbe.s.sol", "Probe.json"),
+	);
+});
+
+test("a record's entry is read as a creation or as a mint, and any other shape is refused by name", () => {
+	assert.equal(
+		kindOf("MarketFactory", {
+			salt: "0x00",
+			constructorArgs: "0x",
+			txHash: "0x01",
+		}),
+		"create2",
+	);
+	assert.equal(
+		kindOf("CreProposer.bonds", {
+			token: "0x1125aB2e77C8d4E4082f690176cE8604088813E7",
+			recipient: "0x18fC5360598FeED231B2A4936ab72bfc4daA34B7",
+			amount: "500000000",
+			txHash: "0x01",
+		}),
+		"mint",
+	);
+	assert.throws(() => kindOf("Odd", { txHash: "0x01" }), /Odd/);
+});
+
+test("a mint entry's expected input is mint(recipient, amount) with the recorded values", () => {
+	assert.equal(
+		mintInput({
+			recipient: "0x18fC5360598FeED231B2A4936ab72bfc4daA34B7",
+			amount: "500000000",
+		}),
+		"0x40c10f1900000000000000000000000018fc5360598feed231b2a4936ab72bfc4daa34b7000000000000000000000000000000000000000000000000000000001dcd6500",
 	);
 });
 

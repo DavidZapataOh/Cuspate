@@ -154,7 +154,12 @@ describe("the workflow's configuration for a network", () => {
 		expect(creConfig(both, manifest, 10143, sealed).receiver).toBe(
 			"0x00000000000000000000000000000000000000aa",
 		);
-		expect(() => creConfig(withMarkets, manifest, 10143, sealed)).toThrow(
+		const {
+			TestnetReportProbe: _probe,
+			CreProposer: _proposer,
+			...neither
+		} = withMarkets;
+		expect(() => creConfig(neither, manifest, 10143, sealed)).toThrow(
 			/receiver/,
 		);
 	});

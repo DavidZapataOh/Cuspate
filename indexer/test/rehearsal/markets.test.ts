@@ -13,6 +13,7 @@ import {
 	parseAbi,
 } from "viem";
 import { beforeAll, describe, expect, test } from "vitest";
+import { FORK_REQUEST_TIMEOUT_MS } from "../harness/fork";
 
 const url = process.env.REHEARSAL_RPC_URL;
 const bookFile = process.env.REHEARSAL_BOOK;
@@ -53,7 +54,10 @@ beforeAll(async () => {
 }, 600_000);
 
 describe("the indexer, against a markets rehearsal", () => {
-	const client = () => createPublicClient({ transport: http(url) });
+	const client = () =>
+		createPublicClient({
+			transport: http(url, { timeout: FORK_REQUEST_TIMEOUT_MS }),
+		});
 
 	test("finds every market the run recorded, and no other", async () => {
 		const markets = await indexed.Market.getAll();

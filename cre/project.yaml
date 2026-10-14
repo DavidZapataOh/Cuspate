@@ -14,6 +14,9 @@ monad-testnet:
   rpcs:
     - chain-name: monad-testnet
       url: ${MONAD_TESTNET_RPC_URL}
+    # Deploying registers the workflow on the CRE Workflow Registry, which lives on Ethereum mainnet.
+    - chain-name: ethereum-mainnet
+      url: ${ETHEREUM_RPC_URL}
 # The end-to-end run on a local chain whose id is the test network's. Localhost only.
 local-e2e-testnet:
   rpcs:

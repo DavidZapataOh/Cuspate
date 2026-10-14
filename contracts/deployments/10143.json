@@ -58,6 +58,16 @@
     "salt": "0xca572830222adb4cc71f73794d31f162f68b6afe394fa9ed1285038691d1cacb",
     "txHash": "0x51563bbba1c6487f3a3ee74ba44fae24894174fa1f37687bc92cd20229ad11b4"
   },
+  "TestnetReportProbe": {
+    "address": "0x0a682e74Bc8F526b460175e2EE7Fb1347D2e0518",
+    "block": 70829424,
+    "commit": "82f986bf252086cfa0c7f0efe96069c7c927a7f6",
+    "constructorArgs": "0x000000000000000000000000d521e05aebb8d39087bc7b9101cd590177468fca",
+    "contract": "src/testnet/TestnetReportProbe.sol:TestnetReportProbe",
+    "factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "salt": "0x4dd16126dffe443045389b2856de06d41161940b24ef7b9acaf2b2a8a663c44c",
+    "txHash": "0xdd09f721701440aa84f190e46db18e80120aba869d56699f388535b54e5134b0"
+  },
   "TestnetStock.AAPL": {
     "address": "0x7d4c1369B9B939deb6Bf290Dd6B4A546C28C169f",
     "block": 70791327,
